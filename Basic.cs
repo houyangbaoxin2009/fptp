@@ -1,48 +1,35 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Reflection;
 
 namespace fptp
 {
+	/// <summary>
+	/// 应用配置常量与通用工具方法。
+	/// 所有证件照尺寸基于 300 DPI 换算。
+	/// </summary>
 	public static class Basic
 	{
-		// ================= 配置区域 =================
-
-		// 项目名称
+		// ── 应用信息 ──
 		public const string AppName = "FPTP";
-
-		// 项目版本号 (硬编码显示用，实际EXE版本请参考之前的 .csproj 设置)
 		public const string AppVersion = "1.1.1.0";
-
-		// 项目版权
 		public const string AppCopyright = "Copyright © 2026 Jiro";
-
-		// 所属公司
 		public const string AppCompany = "FranJ2";
 
-		// ================= 尺寸常量 =================
-		// 300DPI
-		// 一寸照 (25mm x 35mm)
-		public const int ONE_INCH_W = 295;
+		// ── 证件照标准尺寸（像素 @300DPI） ──
+		public const int ONE_INCH_W = 295;   // 一寸 25mm x 35mm
 		public const int ONE_INCH_H = 413;
-
-		// 二寸照 (35mm x 53mm)
-		public const int TWO_INCH_W = 413;
+		public const int TWO_INCH_W = 413;   // 二寸 35mm x 53mm
 		public const int TWO_INCH_H = 626;
-
-		// 小二寸 (护照/签证) (33mm x 48mm)
-		public const int PASSPORT_W = 390;
+		public const int PASSPORT_W = 390;   // 小二寸（护照/签证）33mm x 48mm
 		public const int PASSPORT_H = 567;
 
-		// ================= 封装区域 =================
-
 		/// <summary>
-		/// 检查图片是否已加载。如果未加载，弹出提示并返回 false。
+		/// 检查图片是否已加载，未加载时弹出警告。
 		/// </summary>
-		/// <param name="img">要检查的图片对象</param>
-		/// <param name="parent">父窗体，用于弹窗居中</param>
-		/// <returns>如果图片存在返回 true，否则返回 false</returns>
+		/// <param name="img">待检查的图片</param>
+		/// <param name="parent">父窗体（用于弹窗居中）</param>
+		/// <returns>已加载返回 true，否则 false</returns>
 		public static bool CheckImage(Bitmap img, Form parent)
 		{
 			if (img == null)
@@ -54,21 +41,18 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 获取应用程序的完整标题（包含版本号）
+		/// 获取带版本号的应用标题，用于窗口标题栏。
 		/// </summary>
 		public static string GetAppTitle()
 		{
-			// 优先使用程序集的真实版本（如果配置了自动版本）
-			// string realVer = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-			// return $"{AppName} v{realVer}";
-
-			// 使用上面硬编码的版本
 			return $"{AppName} v{AppVersion}";
 		}
 
 		/// <summary>
-		/// 通用的打开文件对话框
+		/// 弹出文件选择对话框，返回用户选取的图片路径。
 		/// </summary>
+		/// <param name="parent">父窗体</param>
+		/// <returns>文件路径，取消则返回 null</returns>
 		public static string OpenImageFile(Form parent)
 		{
 			using (OpenFileDialog ofd = new OpenFileDialog())

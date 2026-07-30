@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -7,43 +6,45 @@ using System.IO;
 namespace fptp
 {
 	/// <summary>
-	/// 辅助算法类
-	/// 包含：高质量保存、颜色计算、分辨率检查
+	/// 辅助算法工具类。
+	/// 包含高质量图片保存、颜色差异计算、分辨率检查。
 	/// </summary>
 	public static class Assalg
 	{
-		#region 1. 高质量保存图片
-
 		/// <summary>
-		/// 以高质量保存图片到指定路径
-		/// 自动根据扩展名选择格式，JPEG 设置为最高质量
+		/// 以最高质量保存图片到指定路径。
+		/// JPEG 格式自动设为 Quality=100，PNG/BMP 直接保存。
 		/// </summary>
+		/// <param name="bmp">要保存的图片</param>
+		/// <param name="filePath">保存路径（根据扩展名判断格式）</param>
 		public static void SaveImage(Bitmap bmp, string filePath)
 		{
 			if (bmp == null) return;
 
 			string ext = Path.GetExtension(filePath).ToLower();
 
-			// 创建编码信息
 			ImageCodecInfo codecInfo = GetEncoderInfo(ext);
 			if (codecInfo == null)
 			{
-				// 如果没有特定编码器（比如bmp），直接保存
 				bmp.Save(filePath);
 				return;
 			}
 
-			// 设置高质量编码参数
-			EncoderParameters encoderParams = new EncoderParameters(1);
-			encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 100L);
-
-			bmp.Save(filePath, codecInfo, encoderParams);
+			using (EncoderParameters encoderParams = new EncoderParameters(1))
+			{
+				encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 100L);
+				bmp.Save(filePath, codecInfo, encoderParams);
+			}
 		}
 
-		// 获取图像编码信息的私有辅助方法
+		/// <summary>
+		/// 根据文件扩展名查找对应的图像编码器。
+		/// </summary>
+		/// <param name="extension">文件扩展名（如 .jpg, .png）</param>
+		/// <returns>编码器信息，未找到返回 null</returns>
 		private static ImageCodecInfo GetEncoderInfo(string extension)
 		{
-			ImageCodecInfo[] codecs = ImageCodecInfo.GetImageDecoders();
+			ImageCodecInfo[] codecs = ImageCodecInfo.GetImageEncoders();
 			foreach (ImageCodecInfo codec in codecs)
 			{
 				if (codec.FilenameExtension.ToLower().Contains(extension))
@@ -52,14 +53,11 @@ namespace fptp
 			return null;
 		}
 
-		#endregion
-
-		#region 2. 颜色差异计算 (辅助换底色)
-
 		/// <summary>
-		/// 计算两个颜色的差异值 (曼哈顿距离)
+		/// 计算两个颜色的曼哈顿距离。
+		/// 用于换底色算法中判断像素与采样色是否接近。
 		/// </summary>
-		/// <returns>差异值，越小越接近</returns>
+		/// <returns>差异值，越小颜色越接近</returns>
 		public static int GetColorDifference(Color c1, Color c2)
 		{
 			return Math.Abs(c1.R - c2.R) +
@@ -67,20 +65,14 @@ namespace fptp
 				   Math.Abs(c1.B - c2.B);
 		}
 
-		#endregion
-
-		#region 3. 分辨率检查
-
 		/// <summary>
-		/// 检查图片分辨率是否满足最低要求
+		/// 检查图片分辨率是否达到最低要求。
 		/// </summary>
-		/// <returns>满足返回 true，否则返回 false</returns>
+		/// <returns>满足要求返回 true</returns>
 		public static bool CheckResolution(Bitmap source, int minWidth, int minHeight)
 		{
 			if (source == null) return false;
 			return (source.Width >= minWidth && source.Height >= minHeight);
 		}
-
-		#endregion
 	}
 }
