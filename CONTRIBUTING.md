@@ -9,7 +9,7 @@
 ## 构建与运行
 
 ```shell
-git clone <repo-url>
+git clone https://github.com/houyangbaoxin2009/fptp.git
 cd fptp
 dotnet build
 dotnet run
