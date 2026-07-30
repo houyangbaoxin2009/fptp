@@ -7,6 +7,9 @@
     <LangVersion>latest</LangVersion>
     <PackageId>$(AssemblyName)</PackageId>
 
+    <!-- 排除 publish 文件夹，不在 VS 中显示 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish\**</DefaultItemExcludes>
+
     <StartupObject>fptp.Program</StartupObject>
     <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
   </PropertyGroup>

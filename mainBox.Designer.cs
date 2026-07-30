@@ -60,7 +60,7 @@ partial class mainBox
 		pictureBox1.BackColor = SystemColors.ActiveCaption;
 		pictureBox1.Location = new Point(12, 12);
 		pictureBox1.Name = "pictureBox1";
-		pictureBox1.Size = new Size(341, 426);
+		pictureBox1.Size = new Size(341, 476);
 		pictureBox1.TabIndex = 0;
 		pictureBox1.TabStop = false;
 		// 
@@ -98,7 +98,7 @@ partial class mainBox
 		// lblInfo
 		//
 		lblInfo.AutoSize = true;
-		lblInfo.Location = new Point(387, 440);
+		lblInfo.Location = new Point(387, 492);
 		lblInfo.Name = "lblInfo";
 		lblInfo.Size = new Size(0, 17);
 		lblInfo.TabIndex = 5;
@@ -256,11 +256,50 @@ partial class mainBox
 		btnSettings.UseVisualStyleBackColor = true;
 		btnSettings.Click += BtnSettings_Click;
 		// 
+		// btnUndo
+		// 
+		btnUndo = new Button();
+		btnUndo.Enabled = false;
+		btnUndo.Location = new Point(6, 22);
+		btnUndo.Name = "btnUndo";
+		btnUndo.Size = new Size(138, 29);
+		btnUndo.TabIndex = 0;
+		btnUndo.Text = "撤回";
+		btnUndo.UseVisualStyleBackColor = true;
+		btnUndo.Click += BtnUndo_Click;
+		// 
+		// btnReload
+		// 
+		btnReload = new Button();
+		btnReload.Enabled = false;
+		btnReload.Location = new Point(150, 22);
+		btnReload.Name = "btnReload";
+		btnReload.Size = new Size(138, 29);
+		btnReload.TabIndex = 1;
+		btnReload.Text = "重新开始";
+		btnReload.UseVisualStyleBackColor = true;
+		btnReload.Click += BtnReload_Click;
+		// 
+		// groupBox5
+		// 
+		groupBox5 = new GroupBox();
+		groupBox5.Controls.Add(btnReload);
+		groupBox5.Controls.Add(btnUndo);
+		groupBox5.Location = new Point(372, 432);
+		groupBox5.Name = "groupBox5";
+		groupBox5.Size = new Size(300, 55);
+		groupBox5.TabIndex = 11;
+		groupBox5.TabStop = false;
+		groupBox5.Text = "历史";
+		// 
 		// mainWindow
 		// 
 		AutoScaleDimensions = new SizeF(7F, 17F);
 		AutoScaleMode = AutoScaleMode.Font;
-		ClientSize = new Size(684, 480);
+		ClientSize = new Size(684, 510);
+		FormBorderStyle = FormBorderStyle.FixedSingle;
+		MaximizeBox = false;
+		Controls.Add(groupBox5);
 		Controls.Add(groupBox4);
 		Controls.Add(groupBox3);
 		Controls.Add(groupBox2);
@@ -301,4 +340,7 @@ partial class mainBox
 	private Button btnAutoCrop;
 	private Button btnUnload;
 	private Button btnSettings;
+	private GroupBox groupBox5;
+	private Button btnUndo;
+	private Button btnReload;
 }

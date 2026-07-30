@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Windows.Forms;
 
 namespace fptp
@@ -10,12 +12,16 @@ namespace fptp
 		private Bitmap sourceImage;
 		private Bitmap currentImage;
 		private GenSettings settings;
+		private AppSettings appSettings;
 		private bool _applyingSettings;
+		private readonly Stack<Bitmap> undoStack = new Stack<Bitmap>();
+		private const int MaxUndoSteps = 20;
 
 		public mainBox()
 		{
 			InitializeComponent();
 			settings = Assalg.LoadGenSettings();
+			appSettings = Assalg.LoadAppSettings();
 		}
 
 		private void ApplySettings()
@@ -78,6 +84,11 @@ namespace fptp
 					pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 					pictureBox1.Image = currentImage;
 
+					ClearUndo();
+					btnReload.Enabled = true;
+
+					ClearPublishFiles();
+					ExportStage("原始图片", currentImage);
 				}
 				catch (Exception ex)
 				{
@@ -90,6 +101,7 @@ namespace fptp
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
 
+			PushUndo();
 			settings = Assalg.LoadGenSettings();
 			int targetW = settings.DefaultSize switch
 			{
@@ -117,12 +129,15 @@ namespace fptp
 
 			string sizeName = settings.DefaultSize switch { 2 => "二寸", 3 => "小二寸", _ => "一寸" };
 			lblInfo.Text = $"已裁剪为{sizeName}照 ({targetW}x{targetH})。";
+
+			ExportStage("智能裁剪", currentImage);
 		}
 
 		private void BtnBlackWhite_Click(object sender, EventArgs e)
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
 
+			PushUndo();
 			this.Cursor = Cursors.WaitCursor;
 
 			Bitmap bwImage = Prepalg.ToGrayscale(currentImage);
@@ -133,12 +148,15 @@ namespace fptp
 
 			this.Cursor = Cursors.Default;
 			lblInfo.Text = "已转换为黑白照。";
+
+			ExportStage("黑白", currentImage);
 		}
 
 		private void BtnChangeBg_Click(object sender, EventArgs e)
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
 
+			PushUndo();
 			settings = Assalg.LoadGenSettings();
 
 			Color targetColor = Color.White;
@@ -165,23 +183,32 @@ namespace fptp
 
 			this.Cursor = Cursors.Default;
 			lblInfo.Text = "底色修改完成。";
+
+			ExportStage("换底色", currentImage);
 		}
 
 		private void BtnLayout5_Click(object sender, EventArgs e)
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
 
-			lblInfo.Text = "正在生成排版...";
+			lblInfo.Text = "正在生成5寸排版...";
 
+			int photoW = currentImage.Width;
+			int photoH = currentImage.Height;
+			int paperWidth = 1500;
+			int paperHeight = 1050;
 			int gap = 40;
-			int cols = 4;
-			int rows = 2;
 
-			int canvasWidth = (Basic.ONE_INCH_W * cols) + (gap * (cols + 1));
-			int canvasHeight = (Basic.ONE_INCH_H * rows) + (gap * (rows + 1));
+			int cols = Math.Max(1, (paperWidth + gap) / (photoW + gap));
+			int rows = Math.Max(1, (paperHeight + gap) / (photoH + gap));
 
-			Bitmap layoutPaper = new Bitmap(canvasWidth, canvasHeight);
-			using (Bitmap oneInchPhoto = Prepalg.SmartCrop(currentImage, Basic.ONE_INCH_W, Basic.ONE_INCH_H))
+			int contentWidth = cols * photoW + (cols - 1) * gap;
+			int contentHeight = rows * photoH + (rows - 1) * gap;
+
+			int startX = (paperWidth - contentWidth) / 2;
+			int startY = (paperHeight - contentHeight) / 2;
+
+			Bitmap layoutPaper = new Bitmap(paperWidth, paperHeight);
 			using (Graphics g = Graphics.FromImage(layoutPaper))
 			{
 				g.Clear(Color.White);
@@ -192,15 +219,15 @@ namespace fptp
 				{
 					for (int c = 0; c < cols; c++)
 					{
-						int x = gap + c * (Basic.ONE_INCH_W + gap);
-						int y = gap + r * (Basic.ONE_INCH_H + gap);
+						int x = startX + c * (photoW + gap);
+						int y = startY + r * (photoH + gap);
 
-						g.DrawImage(oneInchPhoto, x, y, Basic.ONE_INCH_W, Basic.ONE_INCH_H);
+						g.DrawImage(currentImage, x, y, photoW, photoH);
 
 						using (Pen pen = new Pen(Color.LightGray, 1))
 						{
 							pen.DashStyle = DashStyle.Dash;
-							g.DrawRectangle(pen, x, y, Basic.ONE_INCH_W, Basic.ONE_INCH_H);
+							g.DrawRectangle(pen, x, y, photoW, photoH);
 						}
 					}
 				}
@@ -211,7 +238,9 @@ namespace fptp
 			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 			pictureBox1.Image = layoutPaper;
 
-			lblInfo.Text = "排版完成 (4x2)。请点击保存。";
+			lblInfo.Text = $"5寸排版完成 ({cols}列x{rows}行，共{cols * rows}张)。请点击保存。";
+
+			ExportStage("排版", layoutPaper);
 		}
 
 		private void BtnLayout6_Click(object sender, EventArgs e)
@@ -220,41 +249,41 @@ namespace fptp
 
 			lblInfo.Text = "正在生成6寸排版...";
 
+			int photoW = currentImage.Width;
+			int photoH = currentImage.Height;
 			int paperWidth = 1800;
 			int paperHeight = 1200;
+			int gap = 50;
+
+			int cols = Math.Max(1, (paperWidth + gap) / (photoW + gap));
+			int rows = Math.Max(1, (paperHeight + gap) / (photoH + gap));
+
+			int contentWidth = cols * photoW + (cols - 1) * gap;
+			int contentHeight = rows * photoH + (rows - 1) * gap;
+
+			int startX = (paperWidth - contentWidth) / 2;
+			int startY = (paperHeight - contentHeight) / 2;
 
 			Bitmap layoutPaper = new Bitmap(paperWidth, paperHeight);
-
-			using (Bitmap oneInchPhoto = Prepalg.SmartCrop(currentImage, Basic.ONE_INCH_W, Basic.ONE_INCH_H))
 			using (Graphics g = Graphics.FromImage(layoutPaper))
 			{
 				g.Clear(Color.White);
 				g.SmoothingMode = SmoothingMode.HighQuality;
 				g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-				int cols = 5;
-				int rows = 2;
-				int gap = 50;
-
-				int contentWidth = cols * Basic.ONE_INCH_W + (cols - 1) * gap;
-				int contentHeight = rows * Basic.ONE_INCH_H + (rows - 1) * gap;
-
-				int startX = (paperWidth - contentWidth) / 2;
-				int startY = (paperHeight - contentHeight) / 2;
-
 				for (int r = 0; r < rows; r++)
 				{
 					for (int c = 0; c < cols; c++)
 					{
-						int x = startX + c * (Basic.ONE_INCH_W + gap);
-						int y = startY + r * (Basic.ONE_INCH_H + gap);
+						int x = startX + c * (photoW + gap);
+						int y = startY + r * (photoH + gap);
 
-						g.DrawImage(oneInchPhoto, x, y, Basic.ONE_INCH_W, Basic.ONE_INCH_H);
+						g.DrawImage(currentImage, x, y, photoW, photoH);
 
 						using (Pen pen = new Pen(Color.LightGray, 1))
 						{
 							pen.DashStyle = DashStyle.Dash;
-							g.DrawRectangle(pen, x, y, Basic.ONE_INCH_W, Basic.ONE_INCH_H);
+							g.DrawRectangle(pen, x, y, photoW, photoH);
 						}
 					}
 				}
@@ -265,7 +294,9 @@ namespace fptp
 			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 			pictureBox1.Image = layoutPaper;
 
-			lblInfo.Text = "6寸排版完成 (5列x2行，共10张)。请点击保存。";
+			lblInfo.Text = $"6寸排版完成 ({cols}列x{rows}行，共{cols * rows}张)。请点击保存。";
+
+			ExportStage("排版", layoutPaper);
 		}
 
 		private void BtnSave_Click(object sender, EventArgs e)
@@ -313,6 +344,7 @@ namespace fptp
 				{
 					settings = dialog.Result;
 					Assalg.SaveGenSettings(settings);
+					appSettings = dialog.AppResult;
 					ApplySettings();
 					lblInfo.Text = "设置已保存。";
 				}
@@ -346,6 +378,9 @@ namespace fptp
 				sourceImage = null;
 			}
 
+			ClearUndo();
+			ClearPublishFiles();
+			btnReload.Enabled = false;
 			lblInfo.Text = "图片已卸载，请重新加载。";
 		}
 
@@ -369,5 +404,94 @@ namespace fptp
 		}
 
 		private void label1_Click(object sender, EventArgs e) { }
+
+		// ── 撤回 / 重载 ──
+
+		private void PushUndo()
+		{
+			if (currentImage == null) return;
+			undoStack.Push((Bitmap)currentImage.Clone());
+
+			while (undoStack.Count > MaxUndoSteps)
+			{
+				Bitmap old = undoStack.Pop();
+				old.Dispose();
+			}
+
+			btnUndo.Enabled = true;
+		}
+
+		private void ClearUndo()
+		{
+			while (undoStack.Count > 0)
+			{
+				Bitmap old = undoStack.Pop();
+				old.Dispose();
+			}
+			btnUndo.Enabled = false;
+		}
+
+		private void BtnUndo_Click(object sender, EventArgs e)
+		{
+			if (undoStack.Count == 0 || currentImage == null) return;
+
+			currentImage.Dispose();
+			currentImage = undoStack.Pop();
+
+			pictureBox1.Image = currentImage;
+			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+			btnUndo.Enabled = undoStack.Count > 0;
+
+			lblInfo.Text = "已撤回上一步操作。";
+		}
+
+		private void BtnReload_Click(object sender, EventArgs e)
+		{
+			if (sourceImage == null) return;
+
+			ClearUndo();
+
+			currentImage?.Dispose();
+			currentImage = (Bitmap)sourceImage.Clone();
+			pictureBox1.Image = currentImage;
+			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+
+			ClearPublishFiles();
+			ExportStage("原始图片", currentImage);
+			lblInfo.Text = "已重新加载原始图片。";
+		}
+
+		protected override void OnFormClosing(FormClosingEventArgs e)
+		{
+			ClearUndo();
+			base.OnFormClosing(e);
+		}
+
+		// ── 各阶段图片导出 ──
+
+		private static string PublishDir => Path.Combine(
+			Path.GetDirectoryName(Application.ExecutablePath)!, "publish");
+
+		private void EnsurePublishDir()
+		{
+			if (!Directory.Exists(PublishDir))
+				Directory.CreateDirectory(PublishDir);
+		}
+
+		private void ClearPublishFiles()
+		{
+			if (!Directory.Exists(PublishDir)) return;
+			foreach (string f in Directory.GetFiles(PublishDir, "*.jpg"))
+				File.Delete(f);
+		}
+
+		private void ExportStage(string name, Bitmap image)
+		{
+			if (image == null) return;
+			if (!appSettings.Privacy.AllowExternalAccess) return;
+			EnsurePublishDir();
+			string path = Path.Combine(PublishDir, $"{name}.jpg");
+			Assalg.SaveImage(image, path);
+		}
 	}
 }
