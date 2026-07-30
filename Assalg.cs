@@ -2,6 +2,8 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Text.Json;
+using System.Windows.Forms;
 
 namespace fptp
 {
@@ -73,6 +75,40 @@ namespace fptp
 		{
 			if (source == null) return false;
 			return (source.Width >= minWidth && source.Height >= minHeight);
+		}
+
+		// ── 生成设置读写 ──
+
+		private static string SettingsFile => Path.Combine(
+			Path.GetDirectoryName(Application.ExecutablePath), "gen_setting.json");
+
+		public static GenSettings LoadGenSettings()
+		{
+			try
+			{
+				if (File.Exists(SettingsFile))
+				{
+					string json = File.ReadAllText(SettingsFile);
+					return JsonSerializer.Deserialize<GenSettings>(json) ?? new GenSettings();
+				}
+			}
+			catch
+			{
+			}
+			return new GenSettings();
+		}
+
+		public static void SaveGenSettings(GenSettings settings)
+		{
+			try
+			{
+				string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+				File.WriteAllText(SettingsFile, json);
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"保存设置失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+			}
 		}
 	}
 }

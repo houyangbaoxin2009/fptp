@@ -9,13 +9,13 @@ namespace fptp
 	{
 		private Bitmap sourceImage;
 		private Bitmap currentImage;
-		private AppSettings settings;
+		private GenSettings settings;
 		private bool _applyingSettings;
 
 		public mainBox()
 		{
 			InitializeComponent();
-			settings = SettingsManager.Load();
+			settings = Assalg.LoadGenSettings();
 		}
 
 		private void ApplySettings()
@@ -31,14 +31,14 @@ namespace fptp
 			if (cmbBgColor.SelectedItem != null)
 			{
 				settings.BackgroundColor = cmbBgColor.SelectedItem.ToString();
-				SettingsManager.Save(settings);
+				Assalg.SaveGenSettings(settings);
 			}
 		}
 
 		private void SaveToleranceSetting()
 		{
 			settings.Tolerance = TrackBar.Value;
-			SettingsManager.Save(settings);
+			Assalg.SaveGenSettings(settings);
 		}
 
 		private void BtnLoad_Click(object sender, EventArgs e)
@@ -90,7 +90,7 @@ namespace fptp
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
 
-			settings = SettingsManager.Load();
+			settings = Assalg.LoadGenSettings();
 			int targetW = settings.DefaultSize switch
 			{
 				2 => Basic.TWO_INCH_W,
@@ -139,7 +139,7 @@ namespace fptp
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
 
-			settings = SettingsManager.Load();
+			settings = Assalg.LoadGenSettings();
 
 			Color targetColor = Color.White;
 			if (cmbBgColor.SelectedItem != null)
@@ -273,7 +273,7 @@ namespace fptp
 			var toSave = (Bitmap)pictureBox1.Image;
 			if (!Basic.CheckImage(toSave, this)) return;
 
-			settings = SettingsManager.Load();
+			settings = Assalg.LoadGenSettings();
 
 			using (SaveFileDialog sfd = new SaveFileDialog())
 			{
@@ -306,13 +306,13 @@ namespace fptp
 
 		private void BtnSettings_Click(object sender, EventArgs e)
 		{
-			settings = SettingsManager.Load();
-			using (SettingsBox dialog = new SettingsBox(settings))
+			settings = Assalg.LoadGenSettings();
+			using (GenSettingsBox dialog = new GenSettingsBox(settings))
 			{
 				if (dialog.ShowDialog(this) == DialogResult.OK)
 				{
 					settings = dialog.Result;
-					SettingsManager.Save(settings);
+					Assalg.SaveGenSettings(settings);
 					ApplySettings();
 					lblInfo.Text = "设置已保存。";
 				}

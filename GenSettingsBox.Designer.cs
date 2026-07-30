@@ -1,6 +1,6 @@
 namespace fptp;
 
-partial class SettingsBox
+partial class GenSettingsBox
 {
 	private System.ComponentModel.IContainer components = null;
 

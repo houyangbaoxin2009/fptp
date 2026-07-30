@@ -3,11 +3,11 @@ using System.Windows.Forms;
 
 namespace fptp
 {
-	public partial class SettingsBox : Form
+	public partial class GenSettingsBox : Form
 	{
-		public AppSettings Result { get; private set; }
+		public GenSettings Result { get; private set; }
 
-		public SettingsBox(AppSettings current)
+		public GenSettingsBox(GenSettings current)
 		{
 			InitializeComponent();
 			Result = current;
