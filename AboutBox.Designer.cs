@@ -138,7 +138,7 @@ partial class AboutBox
 		okButton.TabIndex = 24;
 		okButton.Text = "确定(&O)";
 		// 
-		// AboutBox1
+		// AboutBox
 		// 
 		AcceptButton = okButton;
 		AutoScaleDimensions = new SizeF(7F, 17F);
@@ -149,7 +149,7 @@ partial class AboutBox
 		Margin = new Padding(4);
 		MaximizeBox = false;
 		MinimizeBox = false;
-		Name = "AboutBox1";
+		Name = "AboutBox";
 		Padding = new Padding(10, 12, 10, 12);
 		ShowIcon = false;
 		ShowInTaskbar = false;
