@@ -16,10 +16,11 @@ partial class AboutBox : Form
 	private void AboutBox1_Load(object sender, EventArgs e)
 	{
 		Text = $"关于 {Basic.AppName}";
-		labelProductName.Text = Basic.AppName;
-		labelVersion.Text = $"v{Basic.AppVersion}";
+		labelProductName.Text = $"{Basic.AppName} v{Basic.AppVersion}";
+		labelVersion.Text = $".NET Framework 4.8 | Windows 7 SP1+";
 		labelCopyright.Text = Basic.AppCopyright;
-		labelCompanyName.Text = Basic.AppCompany;
+		labelCompany.Text = Basic.AppCompany;
+		labelLicense.Text = "Apache License, Version 2.0";
 	}
 
 	private void OpenFile(string fileName)
@@ -67,8 +68,39 @@ partial class AboutBox : Form
 	private void btnChangelog_Click(object sender, EventArgs e) => OpenFile("CHANGELOG.md");
 	private void btnReadme_Click(object sender, EventArgs e) => OpenFile("README.md");
 	private void btnContributing_Click(object sender, EventArgs e) => OpenFile("CONTRIBUTING.md");
-	private void btnApiDoc_Click(object sender, EventArgs e) => OpenFile("README.md");
-	private void btnGitHub_Click(object sender, EventArgs e) => OpenUrl("https://github.com/FranJ2/fptp");
-	private void btnDonate_Click(object sender, EventArgs e) => OpenUrl("https://github.com/FranJ2/fptp");
-	private void btnWebsite_Click(object sender, EventArgs e) => OpenUrl("https://github.com/FranJ2/fptp");
+	private void btnApiDoc_Click(object sender, EventArgs e) => OpenFile("API.md");
+	private void btnGitHub_Click(object sender, EventArgs e) => OpenUrl(Basic.AppGitHub);
+	private void btnDonate_Click(object sender, EventArgs e)
+	{
+		string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
+		string imgPath = Path.Combine(exeDir, "Assets", "donate.jpg");
+		if (!File.Exists(imgPath))
+		{
+			MessageBox.Show(this, "未找到收款码图片。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+			return;
+		}
+
+		using (var img = Image.FromFile(imgPath))
+		using (var form = new Form())
+		{
+			form.Text = "给作者买一杯咖啡 ☕";
+			form.FormBorderStyle = FormBorderStyle.FixedDialog;
+			form.MaximizeBox = false;
+			form.MinimizeBox = false;
+			form.StartPosition = FormStartPosition.CenterParent;
+			form.ClientSize = new Size(img.Width + 20, img.Height + 40);
+			form.ShowIcon = false;
+			form.ShowInTaskbar = false;
+
+			var pb = new PictureBox
+			{
+				Image = (Image)img.Clone(),
+				SizeMode = PictureBoxSizeMode.AutoSize,
+				Location = new Point(10, 10),
+			};
+			form.Controls.Add(pb);
+			form.ShowDialog(this);
+		}
+	}
+	private void btnWebsite_Click(object sender, EventArgs e) => OpenUrl(Basic.AppWebsite);
 }

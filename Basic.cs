@@ -15,6 +15,8 @@ namespace fptp
 		public const string AppVersion = "1.1.1.0";
 		public const string AppCopyright = "Copyright © 2026 Jiro";
 		public const string AppCompany = "FranJ2";
+		public const string AppGitHub = "https://github.com/houyangbaoxin2009/fptp";
+		public const string AppWebsite = "https://github.com/houyangbaoxin2009/fptp.git";
 
 		// ── 证件照标准尺寸（像素 @300DPI） ──
 		public const int ONE_INCH_W = 295;   // 一寸 25mm x 35mm
