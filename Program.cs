@@ -12,6 +12,15 @@ namespace fptp
 		[STAThread]
 		static void Main(string[] args)
 		{
+			foreach (string arg in args)
+			{
+				if (arg.ToLower() == "-v" || arg.ToLower() == "--version")
+				{
+					// 调用 Basic 里的方法获取标题和版本
+					Console.WriteLine(Basic.GetAppTitle());
+					return; // 直接退出，不执行后续代码
+				}
+			}
 			// 【新增】检测是否有命令行参数
 			if (args.Length > 0)
 			{
