@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# 生成文档 PDF（发布时自动生成）
+*.pdf
+
+# Inno Setup 安装程序输出
+installer/
