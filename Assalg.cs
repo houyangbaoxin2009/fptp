@@ -77,6 +77,40 @@ namespace fptp
 			return (source.Width >= minWidth && source.Height >= minHeight);
 		}
 
+		// ── 应用设置读写 ──
+
+		private static string AppSettingsFile => Path.Combine(
+			Path.GetDirectoryName(Application.ExecutablePath), "setting.json");
+
+		public static AppSettings LoadAppSettings()
+		{
+			try
+			{
+				if (File.Exists(AppSettingsFile))
+				{
+					string json = File.ReadAllText(AppSettingsFile);
+					return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+				}
+			}
+			catch
+			{
+			}
+			return new AppSettings();
+		}
+
+		public static void SaveAppSettings(AppSettings settings)
+		{
+			try
+			{
+				string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+				File.WriteAllText(AppSettingsFile, json);
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show($"保存设置失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+			}
+		}
+
 		// ── 生成设置读写 ──
 
 		private static string SettingsFile => Path.Combine(

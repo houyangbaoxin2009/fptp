@@ -22,6 +22,8 @@ partial class GenSettingsBox
 		label4 = new Label();
 		trackBar = new TrackBar();
 		lblToleranceVal = new Label();
+		btnReset = new Button();
+		btnImport = new Button();
 		btnOk = new Button();
 		btnCancel = new Button();
 		((System.ComponentModel.ISupportInitialize)trackBar).BeginInit();
@@ -108,9 +110,63 @@ partial class GenSettingsBox
 		lblToleranceVal.TabIndex = 8;
 		lblToleranceVal.Text = "0";
 		//
+		// chkAllowExternal
+		//
+		chkAllowExternal = new CheckBox();
+		chkAllowExternal.Location = new Point(10, 22);
+		chkAllowExternal.Name = "chkAllowExternal";
+		chkAllowExternal.Size = new Size(280, 25);
+		chkAllowExternal.TabIndex = 0;
+		chkAllowExternal.Text = "允许外部访问数据";
+		chkAllowExternal.UseVisualStyleBackColor = true;
+		//
+		// groupPrivacy
+		//
+		groupPrivacy = new GroupBox();
+		groupPrivacy.Controls.Add(chkAllowExternal);
+		groupPrivacy.Location = new Point(12, 175);
+		groupPrivacy.Name = "groupPrivacy";
+		groupPrivacy.Size = new Size(300, 55);
+		groupPrivacy.TabIndex = 11;
+		groupPrivacy.TabStop = false;
+		groupPrivacy.Text = "隐私";
+		//
+		// btnReset
+		//
+		btnReset = new Button();
+		btnReset.Location = new Point(12, 238);
+		btnReset.Name = "btnReset";
+		btnReset.Size = new Size(96, 29);
+		btnReset.TabIndex = 12;
+		btnReset.Text = "重置设置";
+		btnReset.UseVisualStyleBackColor = true;
+		btnReset.Click += BtnReset_Click;
+		//
+		// btnImport
+		//
+		btnImport = new Button();
+		btnImport.Location = new Point(114, 238);
+		btnImport.Name = "btnImport";
+		btnImport.Size = new Size(96, 29);
+		btnImport.TabIndex = 13;
+		btnImport.Text = "导入设置";
+		btnImport.UseVisualStyleBackColor = true;
+		btnImport.Click += BtnImport_Click;
+		//
+		// btnExport
+		//
+		btnExport = new Button();
+		btnExport.Location = new Point(216, 238);
+		btnExport.Name = "btnExport";
+		btnExport.Size = new Size(96, 29);
+		btnExport.TabIndex = 14;
+		btnExport.Text = "导出设置";
+		btnExport.UseVisualStyleBackColor = true;
+		btnExport.Click += BtnExport_Click;
+		//
 		// btnOk
 		//
-		btnOk.Location = new Point(110, 180);
+		btnOk.Location = new Point(110, 278);
 		btnOk.Name = "btnOk";
 		btnOk.Size = new Size(85, 30);
 		btnOk.TabIndex = 9;
@@ -121,7 +177,7 @@ partial class GenSettingsBox
 		// btnCancel
 		//
 		btnCancel.DialogResult = DialogResult.Cancel;
-		btnCancel.Location = new Point(210, 180);
+		btnCancel.Location = new Point(210, 278);
 		btnCancel.Name = "btnCancel";
 		btnCancel.Size = new Size(85, 30);
 		btnCancel.TabIndex = 10;
@@ -129,13 +185,31 @@ partial class GenSettingsBox
 		btnCancel.UseVisualStyleBackColor = true;
 		btnCancel.Click += btnCancel_Click;
 		//
+		// 控件添加到窗体
+		//
+		Controls.Add(btnExport);
+		Controls.Add(btnImport);
+		Controls.Add(btnReset);
+		Controls.Add(groupPrivacy);
+		Controls.Add(btnCancel);
+		Controls.Add(btnOk);
+		Controls.Add(lblToleranceVal);
+		Controls.Add(trackBar);
+		Controls.Add(cmbBgColor);
+		Controls.Add(label4);
+		Controls.Add(cmbSize);
+		Controls.Add(label3);
+		Controls.Add(cmbSaveFormat);
+		Controls.Add(label2);
+		Controls.Add(label1);
+		//
 		// SettingsBox
 		//
 		AcceptButton = btnOk;
 		AutoScaleDimensions = new SizeF(7F, 17F);
 		AutoScaleMode = AutoScaleMode.Font;
 		CancelButton = btnCancel;
-		ClientSize = new Size(324, 230);
+		ClientSize = new Size(324, 335);
 		FormBorderStyle = FormBorderStyle.FixedDialog;
 		MaximizeBox = false;
 		MinimizeBox = false;
@@ -161,4 +235,9 @@ partial class GenSettingsBox
 	private Label lblToleranceVal;
 	private Button btnOk;
 	private Button btnCancel;
+	private GroupBox groupPrivacy;
+	private CheckBox chkAllowExternal;
+	private Button btnReset;
+	private Button btnImport;
+	private Button btnExport;
 }
