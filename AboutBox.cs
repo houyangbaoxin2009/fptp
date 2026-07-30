@@ -88,17 +88,35 @@ partial class AboutBox : Form
 			form.MaximizeBox = false;
 			form.MinimizeBox = false;
 			form.StartPosition = FormStartPosition.CenterParent;
-			form.ClientSize = new Size(img.Width + 20, img.Height + 40);
 			form.ShowIcon = false;
 			form.ShowInTaskbar = false;
+			form.KeyPreview = true;
+
+			// 缩放到屏幕工作区的 80%，避免过大无法关闭
+			var wa = Screen.GetWorkingArea(form);
+			float maxW = wa.Width * 0.5f;
+			float maxH = wa.Height * 0.5f;
+			float scale = Math.Min(1f, Math.Min(maxW / img.Width, maxH / img.Height));
+			int dispW = (int)(img.Width * scale);
+			int dispH = (int)(img.Height * scale);
+
+			form.ClientSize = new Size(dispW + 20, dispH + 40);
 
 			var pb = new PictureBox
 			{
+				SizeMode = PictureBoxSizeMode.Zoom,
 				Image = (Image)img.Clone(),
-				SizeMode = PictureBoxSizeMode.AutoSize,
 				Location = new Point(10, 10),
+				Size = new Size(dispW, dispH),
 			};
 			form.Controls.Add(pb);
+
+			// Escape 关闭
+			form.KeyDown += (_, args) =>
+			{
+				if (args.KeyCode == Keys.Escape) form.Close();
+			};
+
 			form.ShowDialog(this);
 		}
 	}
