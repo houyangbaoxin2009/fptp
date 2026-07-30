@@ -9,10 +9,36 @@ namespace fptp
 	{
 		private Bitmap sourceImage;
 		private Bitmap currentImage;
+		private AppSettings settings;
+		private bool _applyingSettings;
 
 		public mainBox()
 		{
 			InitializeComponent();
+			settings = SettingsManager.Load();
+		}
+
+		private void ApplySettings()
+		{
+			_applyingSettings = true;
+			cmbBgColor.Text = settings.BackgroundColor;
+			TrackBar.Value = settings.Tolerance;
+			_applyingSettings = false;
+		}
+
+		private void SaveBgColorSetting()
+		{
+			if (cmbBgColor.SelectedItem != null)
+			{
+				settings.BackgroundColor = cmbBgColor.SelectedItem.ToString();
+				SettingsManager.Save(settings);
+			}
+		}
+
+		private void SaveToleranceSetting()
+		{
+			settings.Tolerance = TrackBar.Value;
+			SettingsManager.Save(settings);
 		}
 
 		private void BtnLoad_Click(object sender, EventArgs e)
@@ -64,10 +90,24 @@ namespace fptp
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
 
+			settings = SettingsManager.Load();
+			int targetW = settings.DefaultSize switch
+			{
+				2 => Basic.TWO_INCH_W,
+				3 => Basic.PASSPORT_W,
+				_ => Basic.ONE_INCH_W,
+			};
+			int targetH = settings.DefaultSize switch
+			{
+				2 => Basic.TWO_INCH_H,
+				3 => Basic.PASSPORT_H,
+				_ => Basic.ONE_INCH_H,
+			};
+
 			lblInfo.Text = "正在智能裁剪...";
 			Application.DoEvents();
 
-			Bitmap croppedImage = Prepalg.SmartCrop(currentImage, Basic.ONE_INCH_W, Basic.ONE_INCH_H);
+			Bitmap croppedImage = Prepalg.SmartCrop(currentImage, targetW, targetH);
 
 			currentImage.Dispose();
 			currentImage = croppedImage;
@@ -75,7 +115,8 @@ namespace fptp
 			pictureBox1.Image = currentImage;
 			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 
-			lblInfo.Text = "已裁剪为一寸照 (295x413)。";
+			string sizeName = settings.DefaultSize switch { 2 => "二寸", 3 => "小二寸", _ => "一寸" };
+			lblInfo.Text = $"已裁剪为{sizeName}照 ({targetW}x{targetH})。";
 		}
 
 		private void BtnBlackWhite_Click(object sender, EventArgs e)
@@ -97,6 +138,8 @@ namespace fptp
 		private void BtnChangeBg_Click(object sender, EventArgs e)
 		{
 			if (!Basic.CheckImage(currentImage, this)) return;
+
+			settings = SettingsManager.Load();
 
 			Color targetColor = Color.White;
 			if (cmbBgColor.SelectedItem != null)
@@ -230,10 +273,13 @@ namespace fptp
 			var toSave = (Bitmap)pictureBox1.Image;
 			if (!Basic.CheckImage(toSave, this)) return;
 
+			settings = SettingsManager.Load();
+
 			using (SaveFileDialog sfd = new SaveFileDialog())
 			{
 				sfd.Filter = "JPEG 图片|*.jpg|PNG 图片|*.png";
-				sfd.FileName = $"{Basic.AppName}_照片.jpg";
+				string ext = settings.SaveFormat == "png" ? "png" : "jpg";
+				sfd.FileName = $"{Basic.AppName}_照片.{ext}";
 
 				if (sfd.ShowDialog(this) == DialogResult.OK)
 				{
@@ -254,6 +300,21 @@ namespace fptp
 					{
 						this.Cursor = Cursors.Default;
 					}
+				}
+			}
+		}
+
+		private void BtnSettings_Click(object sender, EventArgs e)
+		{
+			settings = SettingsManager.Load();
+			using (SettingsBox dialog = new SettingsBox(settings))
+			{
+				if (dialog.ShowDialog(this) == DialogResult.OK)
+				{
+					settings = dialog.Result;
+					SettingsManager.Save(settings);
+					ApplySettings();
+					lblInfo.Text = "设置已保存。";
 				}
 			}
 		}
@@ -291,12 +352,22 @@ namespace fptp
 		private void Form1_Load_1(object sender, EventArgs e)
 		{
 			this.Text = Basic.GetAppTitle();
+			ApplySettings();
 		}
 
 		private void groupBox2_Enter(object sender, EventArgs e) { }
 		private void groupBox3_Enter(object sender, EventArgs e) { }
 		private void groupBox4_Enter(object sender, EventArgs e) { }
-		private void comboBox1_SelectedIndexChanged(object sender, EventArgs e) { }
+		private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+		{
+			if (!_applyingSettings) SaveBgColorSetting();
+		}
+
+		private void TrackBar_Scroll(object sender, EventArgs e)
+		{
+			if (!_applyingSettings) SaveToleranceSetting();
+		}
+
 		private void label1_Click(object sender, EventArgs e) { }
 	}
 }

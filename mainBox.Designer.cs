@@ -33,6 +33,7 @@ partial class mainBox
 		btnBlackWhite = new Button();
 		btnLayout5 = new Button();
 		btnSave = new Button();
+		btnSettings = new Button();
 		lblInfo = new Label();
 		btnAbout = new Button();
 		groupBox1 = new GroupBox();
@@ -93,34 +94,15 @@ partial class mainBox
 		btnLayout5.UseVisualStyleBackColor = true;
 		btnLayout5.Click += BtnLayout5_Click;
 		// 
-		// btnSave
-		// 
-		btnSave.Location = new Point(6, 22);
-		btnSave.Name = "btnSave";
-		btnSave.Size = new Size(75, 28);
-		btnSave.TabIndex = 4;
-		btnSave.Text = "导出本地";
-		btnSave.UseVisualStyleBackColor = true;
-		btnSave.Click += BtnSave_Click;
-		// 
+		//
 		// lblInfo
-		// 
+		//
 		lblInfo.AutoSize = true;
-		lblInfo.Location = new Point(387, 421);
+		lblInfo.Location = new Point(387, 440);
 		lblInfo.Name = "lblInfo";
 		lblInfo.Size = new Size(0, 17);
 		lblInfo.TabIndex = 5;
-		// 
-		// btnAbout
-		// 
-		btnAbout.Location = new Point(169, 21);
-		btnAbout.Name = "btnAbout";
-		btnAbout.Size = new Size(75, 29);
-		btnAbout.TabIndex = 6;
-		btnAbout.Text = "关于";
-		btnAbout.UseVisualStyleBackColor = true;
-		btnAbout.Click += BtnAbout_Click;
-		// 
+		//
 		// groupBox1
 		// 
 		groupBox1.Controls.Add(btnLayout6);
@@ -186,6 +168,7 @@ partial class mainBox
 		TrackBar.Size = new Size(104, 45);
 		TrackBar.TabIndex = 5;
 		TrackBar.Value = 60;
+		TrackBar.Scroll += TrackBar_Scroll;
 		// 
 		// btnChangeBg
 		// 
@@ -221,32 +204,63 @@ partial class mainBox
 		// 
 		// groupBox4
 		// 
+		groupBox4.Controls.Add(btnSettings);
 		groupBox4.Controls.Add(btnUnload);
 		groupBox4.Controls.Add(btnSave);
 		groupBox4.Controls.Add(btnAbout);
 		groupBox4.Location = new Point(372, 335);
 		groupBox4.Name = "groupBox4";
-		groupBox4.Size = new Size(300, 56);
+		groupBox4.Size = new Size(300, 90);
 		groupBox4.TabIndex = 10;
 		groupBox4.TabStop = false;
 		groupBox4.Text = "完成";
 		groupBox4.Enter += groupBox4_Enter;
 		// 
+		// btnSave
+		// 
+		btnSave.Location = new Point(6, 22);
+		btnSave.Name = "btnSave";
+		btnSave.Size = new Size(138, 29);
+		btnSave.TabIndex = 4;
+		btnSave.Text = "导出本地";
+		btnSave.UseVisualStyleBackColor = true;
+		btnSave.Click += BtnSave_Click;
+		// 
 		// btnUnload
 		// 
-		btnUnload.Location = new Point(88, 21);
+		btnUnload.Location = new Point(150, 22);
 		btnUnload.Name = "btnUnload";
-		btnUnload.Size = new Size(75, 29);
+		btnUnload.Size = new Size(138, 29);
 		btnUnload.TabIndex = 7;
 		btnUnload.Text = "卸载图片";
 		btnUnload.UseVisualStyleBackColor = true;
 		btnUnload.Click += BtnUnload_Click;
 		// 
+		// btnAbout
+		// 
+		btnAbout.Location = new Point(6, 55);
+		btnAbout.Name = "btnAbout";
+		btnAbout.Size = new Size(138, 29);
+		btnAbout.TabIndex = 6;
+		btnAbout.Text = "关于";
+		btnAbout.UseVisualStyleBackColor = true;
+		btnAbout.Click += BtnAbout_Click;
+		// 
+		// btnSettings
+		// 
+		btnSettings.Location = new Point(150, 55);
+		btnSettings.Name = "btnSettings";
+		btnSettings.Size = new Size(138, 29);
+		btnSettings.TabIndex = 8;
+		btnSettings.Text = "设置";
+		btnSettings.UseVisualStyleBackColor = true;
+		btnSettings.Click += BtnSettings_Click;
+		// 
 		// mainWindow
 		// 
 		AutoScaleDimensions = new SizeF(7F, 17F);
 		AutoScaleMode = AutoScaleMode.Font;
-		ClientSize = new Size(684, 450);
+		ClientSize = new Size(684, 480);
 		Controls.Add(groupBox4);
 		Controls.Add(groupBox3);
 		Controls.Add(groupBox2);
@@ -286,4 +300,5 @@ partial class mainBox
 	private Label label1;
 	private Button btnAutoCrop;
 	private Button btnUnload;
+	private Button btnSettings;
 }
