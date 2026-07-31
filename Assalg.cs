@@ -88,72 +88,116 @@ namespace fptp
 			return (source.Width >= minWidth && source.Height >= minHeight);
 		}
 
-		// ── 应用设置读写 ──
-
-		private static string AppSettingsFile => Path.Combine(
-			Path.GetDirectoryName(Application.ExecutablePath), "setting.json");
-
-		public static AppSettings LoadAppSettings()
-		{
-			try
-			{
-				if (File.Exists(AppSettingsFile))
-				{
-					string json = File.ReadAllText(AppSettingsFile);
-					return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-				}
-			}
-			catch
-			{
-			}
-			return new AppSettings();
-		}
-
-		public static void SaveAppSettings(AppSettings settings)
-		{
-			try
-			{
-				string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-				File.WriteAllText(AppSettingsFile, json);
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show($"保存设置失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
-			}
-		}
-
-		// ── 生成设置读写 ──
+		// ── 设置读写（统一文件 setting.json：{app}{gen}{lang}）──
 
 		private static string SettingsFile => Path.Combine(
-			Path.GetDirectoryName(Application.ExecutablePath), "gen_setting.json");
+			Path.GetDirectoryName(Application.ExecutablePath), "setting.json");
 
-		public static GenSettings LoadGenSettings()
+		/// <summary>
+		/// 读取完整设置包。文件不存在或损坏时返回默认包。
+		/// 兼容旧格式（setting.json 为纯 app、gen_setting.json 为纯 gen）自动迁移。
+		/// </summary>
+		private static SettingsPackage LoadPackage()
 		{
 			try
 			{
 				if (File.Exists(SettingsFile))
 				{
 					string json = File.ReadAllText(SettingsFile);
-					return JsonSerializer.Deserialize<GenSettings>(json) ?? new GenSettings();
+					// 新格式：顶层含 app/gen/lang
+					if (json.Contains("\"app\"") || json.Contains("\"gen\"") || json.Contains("\"lang\""))
+						return JsonSerializer.Deserialize<SettingsPackage>(json) ?? new SettingsPackage();
+					// 旧格式：整个文件是 AppSettings
+					return MigrateLegacySettings();
 				}
 			}
 			catch
 			{
 			}
-			return new GenSettings();
+			return MigrateLegacySettings();
 		}
 
-		public static void SaveGenSettings(GenSettings settings)
+		/// <summary>
+		/// 旧版两个独立文件（setting.json=app、gen_setting.json=gen）迁移到统一文件。
+		/// </summary>
+		private static SettingsPackage MigrateLegacySettings()
+		{
+			var pkg = new SettingsPackage();
+			string exeDir = Path.GetDirectoryName(Application.ExecutablePath) ?? "";
+			string legacyGen = Path.Combine(exeDir, "gen_setting.json");
+
+			try
+			{
+				if (File.Exists(legacyGen))
+					pkg.Gen = JsonSerializer.Deserialize<GenSettings>(File.ReadAllText(legacyGen)) ?? new GenSettings();
+				if (File.Exists(SettingsFile))
+					pkg.App = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsFile)) ?? new AppSettings();
+			}
+			catch
+			{
+			}
+
+			SavePackage(pkg);
+			return pkg;
+		}
+
+		/// <summary>将完整设置包写回统一文件。</summary>
+		private static void SavePackage(SettingsPackage pkg)
 		{
 			try
 			{
-				string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+				string json = JsonSerializer.Serialize(pkg, new JsonSerializerOptions { WriteIndented = true });
 				File.WriteAllText(SettingsFile, json);
 			}
 			catch (Exception ex)
 			{
 				MessageBox.Show($"保存设置失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
+		}
+
+		public static AppSettings LoadAppSettings()
+		{
+			return LoadPackage().App;
+		}
+
+		public static void SaveAppSettings(AppSettings settings)
+		{
+			var pkg = LoadPackage();
+			pkg.App = settings;
+			SavePackage(pkg);
+		}
+
+		// ── 生成设置读写 ──
+
+		public static GenSettings LoadGenSettings()
+		{
+			return LoadPackage().Gen;
+		}
+
+		public static void SaveGenSettings(GenSettings settings)
+		{
+			var pkg = LoadPackage();
+			pkg.Gen = settings;
+			SavePackage(pkg);
+		}
+
+		// ── 语言包读写 ──
+
+		/// <summary>读取设置文件中的语言包，无则返回 null（调用方回退内置资源）。</summary>
+		public static LangPackage? LoadLangPackage()
+		{
+			var pkg = LoadPackage();
+			if (pkg.Lang != null && pkg.Lang.Ass != null && pkg.Lang.Ass.Count > 0)
+				return pkg.Lang;
+			return null;
+		}
+
+		/// <summary>将语言包写入设置文件。</summary>
+		public static void SaveLangPackage(LangPackage lang)
+		{
+			var pkg = LoadPackage();
+			pkg.Lang = lang;
+			SavePackage(pkg);
 		}
 	}
 }
