@@ -19,6 +19,25 @@ namespace fptp
 		private readonly Stack<Bitmap> undoStack = new Stack<Bitmap>();
 		private const int MaxUndoSteps = 20;
 
+		/// <summary>快捷键动作映射：动作名 → 实际执行方法。</summary>
+		private readonly Dictionary<string, Action> keyActions = new Dictionary<string, Action>
+		{
+			["reload"] = () => { },
+			["undo"] = () => { },
+			["settings"] = () => { },
+			["about"] = () => { },
+			["load"] = () => { },
+			["unload"] = () => { },
+			["crop"] = () => { },
+			["grayscale"] = () => { },
+			["changeBg"] = () => { },
+			["layout"] = () => { },
+			["save"] = () => { },
+			["print"] = () => { },
+			["batch"] = () => { },
+			["oneClick"] = () => { },
+		};
+
 		public mainBox()
 		{
 			InitializeComponent();
@@ -28,6 +47,47 @@ namespace fptp
 			settings = Assalg.LoadGenSettings();
 			appSettings = Assalg.LoadAppSettings();
 			Lang.Load(appSettings.Language);
+			BindKeyActions();
+		}
+
+		/// <summary>将快捷键动作绑定到具体按钮事件处理。</summary>
+		private void BindKeyActions()
+		{
+			keyActions["reload"] = () => BtnReload_Click(this, EventArgs.Empty);
+			keyActions["undo"] = () => BtnUndo_Click(this, EventArgs.Empty);
+			keyActions["settings"] = () => BtnSettings_Click(this, EventArgs.Empty);
+			keyActions["about"] = () => BtnAbout_Click(this, EventArgs.Empty);
+			keyActions["load"] = () => BtnLoad_Click(this, EventArgs.Empty);
+			keyActions["unload"] = () => BtnUnload_Click(this, EventArgs.Empty);
+			keyActions["crop"] = () => BtnAutoCrop_Click(this, EventArgs.Empty);
+			keyActions["grayscale"] = () => BtnBlackWhite_Click(this, EventArgs.Empty);
+			keyActions["changeBg"] = () => BtnChangeBg_Click(this, EventArgs.Empty);
+			keyActions["layout"] = () => BtnLayout_Click(this, EventArgs.Empty);
+			keyActions["save"] = () => BtnSave_Click(this, EventArgs.Empty);
+			keyActions["print"] = () => BtnPrint_Click(this, EventArgs.Empty);
+			keyActions["batch"] = () => BtnBatch_Click(this, EventArgs.Empty);
+			keyActions["oneClick"] = () => BtnOneClick_Click(this, EventArgs.Empty);
+		}
+
+		/// <summary>
+		/// 拦截快捷键：按 setting.json 的 key 段配置分发到对应动作。
+		/// </summary>
+		protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+		{
+			string combo = KeySettings.FormatKeys(keyData);
+			if (combo != "")
+			{
+				var keys = Assalg.LoadKeySettings();
+				foreach (var kv in keys.Actions)
+				{
+					if (kv.Value == combo && keyActions.TryGetValue(kv.Key, out Action? act))
+					{
+						act();
+						return true;
+					}
+				}
+			}
+			return base.ProcessCmdKey(ref msg, keyData);
 		}
 
 		/// <summary>
@@ -36,28 +96,28 @@ namespace fptp
 		private void ApplyLang()
 		{
 			Text = Basic.GetAppTitle();
-			groupBox3.Text = Lang.Get("main.importGroup");
 			btnLoad.Text = Lang.Get("main.load");
+			btnBatch.Text = Lang.Get("main.batch");
 			groupBox2.Text = Lang.Get("main.prepGroup");
 			btnAutoCrop.Text = Lang.Get("main.crop");
 			btnBlackWhite.Text = Lang.Get("main.grayscale");
 			btnChangeBg.Text = Lang.Get("main.changeBg");
 			chkAnimeMode.Text = Lang.Get("main.animeMode");
 			label1.Text = Lang.Get("main.tolerance");
-			groupBox1.Text = Lang.Get("main.layoutGroup");
 			btnLayout.Text = Lang.Get("main.layout");
-			groupBox4.Text = Lang.Get("main.finishGroup");
+			btnOneClick.Text = Lang.Get("main.oneClick");
 			btnSave.Text = Lang.Get("main.save");
 			btnPrint.Text = Lang.Get("main.print");
 			btnUnload.Text = Lang.Get("main.unload");
 			btnAbout.Text = Lang.Get("main.about");
 			btnSettings.Text = Lang.Get("main.settings");
-			groupBox5.Text = Lang.Get("main.historyGroup");
 			btnUndo.Text = Lang.Get("main.undo");
 			btnReload.Text = Lang.Get("main.reload");
+			btnPresetSave.Text = Lang.Get("main.presetSave");
+			btnPresetDel.Text = Lang.Get("main.presetDel");
 
-			string[] colors = { "蓝色", "红色", "白色" };
-			string[] colorKeys = { "color.blue", "color.red", "color.white" };
+			string[] colors = { "蓝色", "红色", "白色", "透明" };
+			string[] colorKeys = { "color.blue", "color.red", "color.white", "color.transparent" };
 			string selColor = cmbBgColor.Text;
 			cmbBgColor.Items.Clear();
 			for (int i = 0; i < colors.Length; i++)
@@ -65,6 +125,7 @@ namespace fptp
 			cmbBgColor.Text = TranslateSetting(selColor, colors, colorKeys);
 
 			ReloadLayoutPresets();
+			ReloadPresetList();
 		}
 
 		/// <summary>
@@ -102,8 +163,97 @@ namespace fptp
 			_applyingSettings = false;
 		}
 
+		// ── 处理预设模板 ──
+
+		/// <summary>重建预设下拉列表，恢复当前选中。</summary>
+		private void ReloadPresetList()
+		{
+			int sel = settings.CurrentPreset;
+			cmbPreset.Items.Clear();
+			foreach (PresetProfile p in settings.Presets)
+				cmbPreset.Items.Add(p.Name);
+			if (sel >= 0 && sel < cmbPreset.Items.Count)
+				cmbPreset.SelectedIndex = sel;
+			else
+			{
+				cmbPreset.SelectedIndex = -1;
+				cmbPreset.Text = Lang.Get("main.presetNone");
+			}
+		}
+
+		private void cmbPreset_SelectedIndexChanged(object sender, EventArgs e)
+		{
+			if (_applyingSettings) return;
+			int idx = cmbPreset.SelectedIndex;
+			settings.CurrentPreset = idx;
+			Assalg.SaveGenSettings(settings);
+			if (idx < 0 || idx >= settings.Presets.Count) return;
+
+			// 一键套用预设参数到界面
+			PresetProfile p = settings.Presets[idx];
+			_applyingSettings = true;
+			settings.DefaultSize = p.DefaultSize;
+			settings.BackgroundColor = p.BackgroundColor;
+			settings.Tolerance = p.Tolerance;
+			settings.AnimeMode = p.AnimeMode;
+			settings.LayoutPreset = p.LayoutPreset;
+			settings.SaveFormat = p.SaveFormat;
+			settings.SaveQuality = p.SaveQuality;
+			cmbBgColor.SelectedIndex = ColorIndexFromStored(p.BackgroundColor);
+			TrackBar.Value = p.Tolerance;
+			chkAnimeMode.Checked = p.AnimeMode;
+			cmbLayout.SelectedIndex = p.LayoutPreset;
+			_applyingSettings = false;
+			Assalg.SaveGenSettings(settings);
+			lblInfo.Text = Lang.Get("msg.presetApplied", p.Name);
+		}
+
+		private void BtnPresetSave_Click(object sender, EventArgs e)
+		{
+			using (InputBox dlg = new InputBox(Lang.Get("msg.presetName"), ""))
+			{
+				if (dlg.ShowDialog(this) != DialogResult.OK) return;
+				string name = dlg.Value.Trim();
+				if (name.Length == 0) return;
+
+				var preset = new PresetProfile
+				{
+					Name = name,
+					DefaultSize = settings.DefaultSize,
+					BackgroundColor = settings.BackgroundColor,
+					Tolerance = TrackBar.Value,
+					AnimeMode = chkAnimeMode.Checked,
+					LayoutPreset = cmbLayout.SelectedIndex >= 0 ? cmbLayout.SelectedIndex : 0,
+					SaveFormat = settings.SaveFormat,
+					SaveQuality = settings.SaveQuality,
+				};
+				settings.Presets.Add(preset);
+				settings.CurrentPreset = settings.Presets.Count - 1;
+				Assalg.SaveGenSettings(settings);
+				ReloadPresetList();
+				cmbPreset.SelectedIndex = settings.Presets.Count - 1;
+				lblInfo.Text = Lang.Get("msg.presetSaved", name);
+			}
+		}
+
+		private void BtnPresetDel_Click(object sender, EventArgs e)
+		{
+			int idx = cmbPreset.SelectedIndex;
+			if (idx < 0 || idx >= settings.Presets.Count) return;
+
+			DialogResult dr = MessageBox.Show(this, Lang.Get("msg.presetDelConfirm"),
+				Lang.Get("msg.tip"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+			if (dr != DialogResult.Yes) return;
+
+			settings.Presets.RemoveAt(idx);
+			settings.CurrentPreset = -1;
+			Assalg.SaveGenSettings(settings);
+			ReloadPresetList();
+			lblInfo.Text = Lang.Get("msg.presetDeleted");
+		}
+
 		/// <summary>
-		/// 将设置中存储的颜色值（蓝色/红色/白色）映射为下拉索引。
+		/// 将设置中存储的颜色值（蓝色/红色/白色/透明）映射为下拉索引。
 		/// </summary>
 		private static int ColorIndexFromStored(string stored)
 		{
@@ -111,6 +261,7 @@ namespace fptp
 			{
 				case "蓝色": return 0;
 				case "红色": return 1;
+				case "透明": return 3;
 				default: return 2;
 			}
 		}
@@ -121,6 +272,7 @@ namespace fptp
 			{
 				case 0: settings.BackgroundColor = "蓝色"; break;
 				case 1: settings.BackgroundColor = "红色"; break;
+				case 3: settings.BackgroundColor = "透明"; break;
 				default: settings.BackgroundColor = "白色"; break;
 			}
 			Assalg.SaveGenSettings(settings);
@@ -254,6 +406,7 @@ namespace fptp
 			{
 				case 0: targetColor = Color.FromArgb(65, 105, 225); break;   // 蓝色
 				case 1: targetColor = Color.FromArgb(220, 20, 60); break;    // 红色
+				case 3: targetColor = Color.Transparent; break;              // 透明
 				default: targetColor = Color.White; break;                   // 白色
 			}
 
@@ -405,6 +558,15 @@ namespace fptp
 			string[] formats = { "jpg", "png", "bmp", "tiff", "gif" };
 			string[] formatKeys = { "fmt.jpg", "fmt.png", "fmt.bmp", "fmt.tiff", "fmt.gif" };
 
+			// 含透明像素的图片只能以 PNG 保存（JPEG/BMP/GIF 无 alpha）
+			bool hasAlpha = Assalg.HasAlpha(toSave);
+			if (hasAlpha && ext != "png")
+			{
+				ext = "png";
+				settings.SaveFormat = "png";
+				Assalg.SaveGenSettings(settings);
+			}
+
 			using (SaveFileDialog sfd = new SaveFileDialog())
 			{
 				// 构造格式过滤器：JPEG|*.jpg|PNG|*.png|...
@@ -419,6 +581,15 @@ namespace fptp
 					try
 					{
 						this.Cursor = Cursors.WaitCursor;
+
+						// 用户手动选了不支持透明的格式时强制回退 PNG
+						string chosenExt = Path.GetExtension(sfd.FileName).ToLower();
+						if (hasAlpha && chosenExt != ".png" && chosenExt != ".tiff")
+						{
+							sfd.FileName = Path.ChangeExtension(sfd.FileName, ".png");
+							MessageBox.Show(Lang.Get("msg.alphaPng"), Lang.Get("msg.tip"),
+								MessageBoxButtons.OK, MessageBoxIcon.Information);
+						}
 
 						Assalg.SaveImage(toSave, sfd.FileName, settings.SaveQuality);
 
@@ -530,15 +701,16 @@ namespace fptp
 
 		private void Form1_Load_1(object sender, EventArgs e)
 		{
+			// 顶栏按钮强制贴右，避免窗口宽度变化时被裁剪
+			btnAbout.Left = ClientSize.Width - btnAbout.Width - 14;
+			btnSettings.Left = btnAbout.Left - btnSettings.Width - 8;
+			Theme.Apply(this);
 			ApplyLang();
 			ApplySettings();
 			if (appSettings.AutoUpdate)
 				Updater.CheckSilent(this);
 		}
 
-		private void groupBox2_Enter(object sender, EventArgs e) { }
-		private void groupBox3_Enter(object sender, EventArgs e) { }
-		private void groupBox4_Enter(object sender, EventArgs e) { }
 		private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
 		{
 			if (!_applyingSettings) SaveBgColorSetting();
@@ -614,6 +786,127 @@ namespace fptp
 			lblInfo.Text = Lang.Get("msg.reloadDone");
 		}
 
+		// ── 文件夹批处理 ──
+
+		private void BtnBatch_Click(object sender, EventArgs e)
+		{
+			settings = Assalg.LoadGenSettings();
+			using (BatchBox dlg = new BatchBox(settings))
+			{
+				dlg.ShowDialog(this);
+			}
+		}
+
+		// ── 一键完整流程：智能裁剪 → 换底色 → 排版 ──
+
+		private void BtnOneClick_Click(object sender, EventArgs e)
+		{
+			if (!Basic.CheckImage(currentImage, this)) return;
+
+			settings = Assalg.LoadGenSettings();
+
+			PushUndo();
+			this.Cursor = Cursors.WaitCursor;
+			Application.DoEvents();
+
+			try
+			{
+				Bitmap work = (Bitmap)currentImage.Clone();
+
+				// 1. 智能裁剪（按默认尺寸）
+				int targetW = settings.DefaultSize switch
+				{
+					2 => Basic.TWO_INCH_W,
+					3 => Basic.PASSPORT_W,
+					_ => Basic.ONE_INCH_W,
+				};
+				int targetH = settings.DefaultSize switch
+				{
+					2 => Basic.TWO_INCH_H,
+					3 => Basic.PASSPORT_H,
+					_ => Basic.ONE_INCH_H,
+				};
+				Bitmap cropped = Prepalg.SmartCrop(work, targetW, targetH);
+				if (cropped != null) { work.Dispose(); work = cropped; }
+
+				// 2. 换底色
+				Color targetColor = cmbBgColor.SelectedIndex switch
+				{
+					0 => Color.FromArgb(65, 105, 225),
+					1 => Color.FromArgb(220, 20, 60),
+					_ => Color.White,
+				};
+				Bitmap bg = settings.AnimeMode
+					? Prepalg.ReplaceBackgroundAnime(work, targetColor, TrackBar.Value, this)
+					: Prepalg.ReplaceBackground(work, targetColor, TrackBar.Value, this);
+				if (bg != null) { work.Dispose(); work = bg; }
+
+				// 3. 排版
+				int preset = cmbLayout.SelectedIndex >= 0 ? cmbLayout.SelectedIndex : settings.LayoutPreset;
+				int paperW, paperH;
+				switch (preset)
+				{
+					case 1: paperW = Basic.LAYOUT_6INCH_W; paperH = Basic.LAYOUT_6INCH_H; break;
+					case 2: paperW = Basic.LAYOUT_A4_W; paperH = Basic.LAYOUT_A4_H; break;
+					case 3: paperW = Basic.LAYOUT_A5_W; paperH = Basic.LAYOUT_A5_H; break;
+					default: paperW = Basic.LAYOUT_5INCH_W; paperH = Basic.LAYOUT_5INCH_H; break;
+				}
+				Bitmap layout = MakeLayout(work, paperW, paperH);
+				work.Dispose();
+				work = layout;
+
+				currentImage.Dispose();
+				currentImage = work;
+				pictureBox1.Image = currentImage;
+				pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+
+				lblInfo.Text = Lang.Get("msg.oneClickDone");
+				ExportStage("一键处理", currentImage);
+			}
+			finally
+			{
+				this.Cursor = Cursors.Default;
+			}
+		}
+
+		/// <summary>在相纸上居中排列照片（供一键流程与批处理复用）。</summary>
+		private Bitmap MakeLayout(Bitmap photo, int paperWidth, int paperHeight)
+		{
+			int gap = Basic.LAYOUT_GAP;
+			int cols = Math.Max(1, (paperWidth + gap) / (photo.Width + gap));
+			int rows = Math.Max(1, (paperHeight + gap) / (photo.Height + gap));
+			int contentW = cols * photo.Width + (cols - 1) * gap;
+			int contentH = rows * photo.Height + (rows - 1) * gap;
+			int startX = (paperWidth - contentW) / 2;
+			int startY = (paperHeight - contentH) / 2;
+
+			Bitmap paper = new Bitmap(paperWidth, paperHeight);
+			using (Graphics g = Graphics.FromImage(paper))
+			{
+				g.Clear(Color.White);
+				g.SmoothingMode = SmoothingMode.HighQuality;
+				g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+				for (int r = 0; r < rows; r++)
+				{
+					for (int c = 0; c < cols; c++)
+					{
+						int x = startX + c * (photo.Width + gap);
+						int y = startY + r * (photo.Height + gap);
+						g.DrawImage(photo, x, y, photo.Width, photo.Height);
+						if (settings.GuideLineStyle != 2)
+						{
+							using (Pen pen = new Pen(Color.LightGray, 1))
+							{
+								pen.DashStyle = settings.GuideLineStyle == 1 ? DashStyle.Solid : DashStyle.Dash;
+								g.DrawRectangle(pen, x, y, photo.Width, photo.Height);
+							}
+						}
+					}
+				}
+			}
+			return paper;
+		}
+
 		protected override void OnFormClosing(FormClosingEventArgs e)
 		{
 			ClearUndo();
@@ -645,6 +938,11 @@ namespace fptp
 			EnsurePublishDir();
 			string path = Path.Combine(PublishDir, $"{name}.jpg");
 			Assalg.SaveImage(image, path);
+		}
+
+		private void groupBox2_Enter(object sender, EventArgs e)
+		{
+
 		}
 	}
 }

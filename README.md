@@ -32,13 +32,17 @@ FPTP 是一款完全免费开源的 Windows 桌面证件照工具：导入生活
 ## 功能
 
 - **智能裁剪** — 按一寸（295×413）/ 二寸（413×626）/ 小二寸（390×567）标准比例居中裁剪缩放，照片自动对正
-- **换底色** — 基于色键 + 容差的像素级背景替换算法，支持白 / 蓝 / 红底，容差可调，一键去除杂乱背景
+- **换底色** — 基于色键 + 容差的像素级背景替换算法，支持白 / 蓝 / 红 / **透明**底，容差可调，一键去除杂乱背景
 - **变黑白** — ColorMatrix 颜色矩阵算法，证件照标准灰度
 - **排版输出** — 预设 5 寸（1500×1050）/ 6 寸（1800×1200）/ A4 / A5 相纸布局，支持自定义宽高，自动排列，带裁剪辅助线，拿去打印店直接出片
 - **一键打印** — 直接打印当前图片，自动缩放居中，可选手打印机
-- **配置自由修改** — 所有设置（尺寸 / 底色 / 容差 / 输出质量 / 排版布局 / 语言 / 更新策略）统一存为 `setting.json` 纯文本，可直接编辑文件改配置，改完即生效；语言包支持独立导入导出
+- **一键处理** — 智能裁剪 → 换底色 → 排版 全流程一键完成
+- **文件夹批处理** — 选择输入/输出文件夹，后台线程逐张处理，进度条实时反馈、可取消，支持预设文件
+- **预设系统** — 保存 / 套用 / 删除当前全部参数，一键切换常用配置
+- **快捷键** — 全局快捷键操作：Ctrl+R 重新开始、Ctrl+Z 撤回、Ctrl+, 设置、Ctrl+O 加载、Ctrl+S 导出等，可在设置中自定义
+- **配置自由修改** — 所有设置（尺寸 / 底色 / 容差 / 输出质量 / 排版布局 / 语言 / 更新策略 / **快捷键**）统一存为 `setting.json` 纯文本，可直接编辑文件改配置，改完即生效；语言包支持独立导入导出
 - **命令行批处理 / 完全自动化** — 支持 `-i -o -s` 参数批量转换，可脚本化循环处理成百上千张照片，无人值守一次跑完，适合证件照批量制作与工作流集成
-- **高质量保存** — JPEG / PNG / BMP / TIFF / GIF 五种格式，JPEG 质量可调（70-100）
+- **高质量保存** — JPEG / PNG / BMP / TIFF / GIF 五种格式，JPEG 质量可调（70-100）；透明背景自动存为 PNG
 - **中英双语** — 界面语言即时切换，命令行可用 `--lang` 指定
 - **自动更新** — 默认开启，静默检查更新并安装，不打断使用；可在设置中关闭或手动检查
 - **开源可审计** — Apache 2.0 许可，代码完全公开，放心使用
@@ -52,19 +56,65 @@ FPTP 是一款完全免费开源的 Windows 桌面证件照工具：导入生活
 1. **导入** → 点击"本地图片"加载照片
 2. **预处理** → 智能裁剪 / 变黑白 / 修改底色（可选，可组合使用）
 3. **排版** → 选择布局（5 寸 / 6 寸 / A4 / A5 / 自定义）后点击"排版"
-4. **导出** → 保存为 JPG 或 PNG
+4. **导出** → 保存为 JPG / PNG 或点击"打印"
 
-**底色替换**：选择白/蓝/红底，拖动滑块调节容差（值越大替换越激进），点击"修改底色"。
+**底色替换**：选择白/蓝/红/透明底，拖动滑块调节容差（值越大替换越激进），点击"修改底色"。
+
+**一键处理**：点击"一键处理"，自动完成 智能裁剪 → 换底色 → 排版 全流程。
+
+**文件夹批处理**：点击"批处理"，选择输入/输出文件夹，勾选要执行的步骤（裁剪 / 黑白 / 换底 / 排版），后台逐张处理，进度条实时反馈，可随时取消。
+
+**预设系统**：调整好参数后点击"保存预设"，下次一键套用；预设也可删除。
+
+**快捷键**：Ctrl+R 重新开始、Ctrl+Z 撤回、Ctrl+, 设置、Ctrl+O 加载、Ctrl+S 导出等，全部快捷键可在 设置 → 快捷键 中自定义或恢复默认。
 
 **排版布局**：在"排版"按钮旁的下拉框选择 5 寸 / 6 寸 / A4 / A5 或自定义尺寸（设置 → 排版布局中配置自定义宽高）。
 
 **切换语言**：设置 → 界面语言选择简体中文或 English，立即生效。
 
-**输出选项**：设置中可调整 JPEG 质量（70-100）与排版辅助线样式（虚线/实线/无）。保存对话框支持 JPEG / PNG / BMP / TIFF / GIF，点击"打印"可直接打印当前图片。
+**输出选项**：设置中可调整 JPEG 质量（70-100）与排版辅助线样式（虚线/实线/无）。保存对话框支持 JPEG / PNG / BMP / TIFF / GIF，透明背景自动保存为 PNG，点击"打印"可直接打印当前图片。
 
 ### 命令行模式
 
-在控制台（cmd / PowerShell）中执行：
+在控制台（cmd / PowerShell）中执行，支持**子命令模式**（推荐）与**旧版参数兼容**两种写法。
+
+**子命令模式**：`fptp.exe <模块> <命令> [参数]`，共三个模块：
+
+| 模块 | 命令 | 说明 |
+|------|------|------|
+| `basic` | `info` | 应用信息 JSON（版本、公司、标准尺寸） |
+| `basic` | `version` | 显示版本号 |
+| `prep` | `crop` | 智能裁剪（`-w` 宽 / `-h` 高） |
+| `prep` | `grayscale` | 变黑白 |
+| `prep` | `bgcolor` | 换底色（`-c` 颜色 / `-t` 容差 / `-a` 动画模式） |
+| `prep` | `batch` | 文件夹批处理（`-i` 输入目录 / `-o` 输出目录，支持 `--preset`） |
+| `ass` | `save` | 图片格式转换保存 |
+| `ass` | `checkres` | 分辨率检查（`-w` 最小宽 / `-h` 最小高） |
+| `ass` | `settings` | 导出当前设置 JSON |
+
+所有命令支持全局参数 `--lang zh-CN|en-US` 指定输出语言。
+
+**示例**：
+
+```shell
+fptp.exe basic version
+fptp.exe prep crop -i in.jpg -o out.jpg -w 295 -h 413
+fptp.exe prep grayscale -i in.jpg -o out.jpg
+fptp.exe prep bgcolor -i in.jpg -o out.jpg -c blue -t 40 -a
+fptp.exe prep bgcolor -i in.jpg -o out.jpg -c transparent -t 30
+fptp.exe ass checkres -i in.jpg -w 295 -h 413
+```
+
+**批处理**（处理文件夹内全部 jpg/png/bmp，自动裁剪 + 换底 + 排版，输出 JSON 结果）：
+
+```shell
+fptp.exe prep batch -i C:\in -o C:\out -c blue -t 60 -a -l 0
+fptp.exe prep batch -i C:\in -o C:\out --preset preset.json
+```
+
+`-c` 颜色：`white` / `blue` / `red` / `transparent`；`-t` 容差 0-150；`-a` 动画模式；`-l` 排版 0=5寸 / 1=6寸 / 2=A4 / 3=A5。透明底色自动输出 PNG。
+
+**旧版参数兼容**（单张裁剪转换，功能不变）：
 
 ```shell
 fptp.exe -i "输入.jpg" -o "输出.jpg" -s 1
@@ -75,28 +125,7 @@ fptp.exe -i "输入.jpg" -o "输出.jpg" -s 1
 | `-i, --input` | 输入图片路径（必填） |
 | `-o, --output` | 输出图片路径（必填） |
 | `-s, --size` | `1` 一寸 295×413（默认） / `2` 二寸 413×626 |
-| `--lang` | 启动语言：`zh-CN`（默认） / `en-US` |
 | `-v, --version` | 显示版本号 |
-
-**示例**：
-
-```shell
-fptp.exe -v
-fptp.exe -i photo.jpg -o output.jpg -s 1
-fptp.exe -i "C:\我的照片\证件照.jpg" -o "D:\out\一寸.jpg" -s 1 --lang en-US
-```
-
-**批量自动化**（cmd / PowerShell 循环处理整个文件夹）：
-
-```shell
-for %f in (C:\photos\*.jpg) do fptp.exe -i "%f" -o "C:\out\%~nf.jpg" -s 1
-```
-
-```powershell
-Get-ChildItem C:\photos\*.jpg | ForEach-Object {
-    fptp.exe -i $_.FullName -o "C:\out\$($_.BaseName).jpg" -s 1
-}
-```
 
 处理完成退出码：成功 0，失败 1，便于脚本判断与日志记录。
 
@@ -109,20 +138,28 @@ Get-ChildItem C:\photos\*.jpg | ForEach-Object {
 
 ```
 fptp/
-├── Program.cs              入口点 —— 双模式启动（CLI + GUI）
-├── mainBox.cs              主窗体交互逻辑和事件处理
-├── mainBox.Designer.cs     主窗体设计器代码（控件布局）
-├── AboutBox.cs             关于对话框逻辑
+├── Program.cs              入口点 —— 双模式启动（CLI 子命令 + GUI）
+├── mainBox.cs              主窗体交互逻辑和事件处理（快捷键绑定、批处理、一键处理、预设）
+├── mainBox.Designer.cs     主窗体设计器代码（顶栏 + 侧栏 + 画布 + 状态栏布局）
+├── BatchBox.cs             文件夹批处理对话框逻辑
+├── BatchBox.Designer.cs    文件夹批处理对话框设计器代码
+├── AboutBox.cs             关于对话框逻辑（联系方式 + QQ 群）
 ├── AboutBox.Designer.cs    关于对话框设计器代码
-├── GenSettingsBox.cs       设置对话框逻辑（语言/自动更新/排版布局）
+├── GenSettingsBox.cs       设置对话框逻辑（语言/自动更新/排版布局/快捷键）
 ├── GenSettingsBox.Designer.cs  设置对话框设计器代码
+├── KeySettingsBox.cs       快捷键调整对话框逻辑
+├── KeySettingsBox.Designer.cs  快捷键调整对话框设计器代码
+├── InputBox.cs             单输入框对话框（预设命名等）
 ├── CustomSizeBox.cs        自定义排版尺寸对话框
+├── Theme.cs                界面主题应用
 ├── Basic.cs                应用配置常量（版本、尺寸）和通用工具方法
 ├── Lang.cs                 多语言支持（语言包加载与查询）
 ├── Updater.cs              自动更新（GitCode / GitHub 按地区选源）
 ├── RegionDetector.cs       用户地区检测（IP 定位）
-├── Prepalg.cs              预处理算法（智能裁剪 / 灰度转换 / 换底）
-├── Assalg.cs               辅助算法（图片保存 / 颜色计算 / 分辨率检查）
+├── Prepalg.cs              预处理算法（智能裁剪 / 灰度转换 / 换底，支持透明）
+├── Assalg.cs               辅助算法（图片保存 / 颜色计算 / 分辨率检查 / 设置与快捷键读写）
+├── SettingsPackage.cs      设置包（语言 / 快捷键 / 预设，导入导出）
+├── GenSettings.cs          生成设置模型（尺寸、底色、容差、排版、输出质量）
 ├── Resources/lang.zh-CN.json   简体中文语言包
 ├── Resources/lang.en-US.json   English 语言包
 ├── fptp.csproj             .NET Framework 4.8 SDK 风格项目文件

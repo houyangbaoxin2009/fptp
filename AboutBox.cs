@@ -114,7 +114,7 @@ partial class AboutBox : Form
 			form.ShowIcon = false;
 			form.ShowInTaskbar = false;
 			form.KeyPreview = true;
-			form.ClientSize = new Size(280, 116);
+			form.ClientSize = new Size(280, 142);
 
 			var lblEmail = new Label
 			{
@@ -141,11 +141,26 @@ partial class AboutBox : Form
 				Location = new Point(16, 88),
 				Text = "3187909557",
 			};
+			var lblQqGroup = new Label
+			{
+				AutoSize = true,
+				Location = new Point(16, 112),
+				Text = Lang.Get("about.qqGroup"),
+			};
+			var lnkQqGroup = new LinkLabel
+			{
+				AutoSize = true,
+				Location = new Point(76, 112),
+				Text = Lang.Get("about.qqGroupJoin"),
+			};
+			lnkQqGroup.Click += (_, _) => OpenUrl("https://qm.qq.com/q/rM7Vy0YSiI");
 
 			form.Controls.Add(lblEmail);
 			form.Controls.Add(lnkEmail);
 			form.Controls.Add(lblQq);
 			form.Controls.Add(lnkQq);
+			form.Controls.Add(lblQqGroup);
+			form.Controls.Add(lnkQqGroup);
 
 			// Escape 关闭
 			form.KeyDown += (_, args) =>

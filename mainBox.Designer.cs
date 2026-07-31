@@ -1,4 +1,4 @@
-﻿namespace fptp;
+namespace fptp;
 
 partial class mainBox
 {
@@ -28,317 +28,448 @@ partial class mainBox
 	/// </summary>
 	private void InitializeComponent()
 	{
-		pictureBox1 = new PictureBox();
-		btnLoad = new Button();
-		btnBlackWhite = new Button();
-		cmbLayout = new ComboBox();
-		btnSave = new Button();
-		btnSettings = new Button();
-		lblInfo = new Label();
-		btnAbout = new Button();
-		chkAnimeMode = new CheckBox();
-		groupBox1 = new GroupBox();
-		btnLayout = new Button();
-		groupBox2 = new GroupBox();
-		btnAutoCrop = new Button();
-		label1 = new Label();
-		TrackBar = new TrackBar();
-		btnChangeBg = new Button();
-		cmbBgColor = new ComboBox();
-		groupBox3 = new GroupBox();
-		groupBox4 = new GroupBox();
-		btnUnload = new Button();
-		btnPrint = new Button();
-		((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
-		groupBox1.SuspendLayout();
-		groupBox2.SuspendLayout();
-		((System.ComponentModel.ISupportInitialize)TrackBar).BeginInit();
-		groupBox3.SuspendLayout();
-		groupBox4.SuspendLayout();
-		SuspendLayout();
-		// 
-		// pictureBox1
-		// 
-		pictureBox1.BackColor = SystemColors.ActiveCaption;
-		pictureBox1.Location = new Point(12, 12);
-		pictureBox1.Name = "pictureBox1";
-		pictureBox1.Size = new Size(341, 476);
-		pictureBox1.TabIndex = 0;
-		pictureBox1.TabStop = false;
-		// 
-		// btnLoad
-		// 
-		btnLoad.Location = new Point(6, 22);
-		btnLoad.Name = "btnLoad";
-		btnLoad.Size = new Size(75, 29);
-		btnLoad.TabIndex = 1;
-		btnLoad.Text = "本地图片";
-		btnLoad.UseVisualStyleBackColor = true;
-		btnLoad.Click += BtnLoad_Click;
-		// 
-		// btnBlackWhite
-		// 
-		btnBlackWhite.Location = new Point(86, 22);
-		btnBlackWhite.Name = "btnBlackWhite";
-		btnBlackWhite.Size = new Size(75, 29);
-		btnBlackWhite.TabIndex = 2;
-		btnBlackWhite.Text = "变黑白";
-		btnBlackWhite.UseVisualStyleBackColor = true;
-		btnBlackWhite.Click += BtnBlackWhite_Click;
-		// 
-		// cmbLayout
-		// 
-		cmbLayout.DropDownStyle = ComboBoxStyle.DropDownList;
-		cmbLayout.Location = new Point(6, 25);
-		cmbLayout.Name = "cmbLayout";
-		cmbLayout.Size = new Size(200, 25);
-		cmbLayout.TabIndex = 3;
-		// 
-		// lblInfo
-		// 
-		lblInfo.AutoSize = true;
-		lblInfo.Location = new Point(387, 492);
-		lblInfo.Name = "lblInfo";
-		lblInfo.Size = new Size(0, 17);
-		lblInfo.TabIndex = 5;
-		//
-		// groupBox1
-		// 
-		groupBox1.Controls.Add(btnLayout);
-		groupBox1.Controls.Add(cmbLayout);
-		groupBox1.Location = new Point(373, 226);
-		groupBox1.Name = "groupBox1";
-		groupBox1.Size = new Size(299, 103);
-		groupBox1.TabIndex = 7;
-		groupBox1.TabStop = false;
-		groupBox1.Text = "排版";
-		// 
-		// btnLayout
-		// 
-		btnLayout.Location = new Point(212, 23);
-		btnLayout.Name = "btnLayout";
-		btnLayout.Size = new Size(78, 29);
-		btnLayout.TabIndex = 4;
-		btnLayout.Text = "排版";
-		btnLayout.UseVisualStyleBackColor = true;
-		btnLayout.Click += BtnLayout_Click;
-		// 
-		// groupBox2
-		// 
-		groupBox2.Controls.Add(chkAnimeMode);
-		groupBox2.Controls.Add(btnAutoCrop);
-		groupBox2.Controls.Add(label1);
-		groupBox2.Controls.Add(TrackBar);
-		groupBox2.Controls.Add(btnChangeBg);
-		groupBox2.Controls.Add(cmbBgColor);
-		groupBox2.Controls.Add(btnBlackWhite);
-		groupBox2.Location = new Point(373, 78);
-		groupBox2.Name = "groupBox2";
-		groupBox2.Size = new Size(299, 142);
-		groupBox2.TabIndex = 8;
-		groupBox2.TabStop = false;
-		groupBox2.Text = "预处理";
-		groupBox2.Enter += groupBox2_Enter;
-		// 
-		// chkAnimeMode
-		// 
-		chkAnimeMode.AutoSize = true;
-		chkAnimeMode.Location = new Point(196, 101);
-		chkAnimeMode.Name = "chkAnimeMode";
-		chkAnimeMode.Size = new Size(95, 21);
-		chkAnimeMode.TabIndex = 8;
-		chkAnimeMode.Text = "动画模式";
-		chkAnimeMode.UseVisualStyleBackColor = true;
-		chkAnimeMode.CheckedChanged += chkAnimeMode_CheckedChanged;
-		// 
-		// btnAutoCrop
-		// 
-		btnAutoCrop.Location = new Point(6, 22);
-		btnAutoCrop.Name = "btnAutoCrop";
-		btnAutoCrop.Size = new Size(75, 29);
-		btnAutoCrop.TabIndex = 7;
-		btnAutoCrop.Text = "智能裁剪";
-		btnAutoCrop.UseVisualStyleBackColor = true;
-		btnAutoCrop.Click += BtnAutoCrop_Click;
-		// 
-		// label1
-		// 
-		label1.AutoSize = true;
-		label1.Location = new Point(12, 100);
-		label1.Name = "label1";
-		label1.Size = new Size(68, 17);
-		label1.TabIndex = 6;
-		label1.Text = "算法灵敏度";
-		label1.Click += label1_Click;
-		// 
-		// TrackBar
-		// 
-		TrackBar.Location = new Point(87, 91);
-		TrackBar.Maximum = 150;
-		TrackBar.Name = "TrackBar";
-		TrackBar.Size = new Size(104, 45);
-		TrackBar.TabIndex = 5;
-		TrackBar.Value = 60;
-		TrackBar.Scroll += TrackBar_Scroll;
-		// 
-		// btnChangeBg
-		// 
-		btnChangeBg.Location = new Point(5, 57);
-		btnChangeBg.Name = "btnChangeBg";
-		btnChangeBg.Size = new Size(75, 29);
-		btnChangeBg.TabIndex = 4;
-		btnChangeBg.Text = "修改底色";
-		btnChangeBg.UseVisualStyleBackColor = true;
-		btnChangeBg.Click += BtnChangeBg_Click;
-		// 
-		// cmbBgColor
-		// 
-		cmbBgColor.FormattingEnabled = true;
-		cmbBgColor.Items.AddRange(new object[] { "蓝色", "红色", "白色" });
-		cmbBgColor.Location = new Point(86, 57);
-		cmbBgColor.Name = "cmbBgColor";
-		cmbBgColor.Size = new Size(121, 25);
-		cmbBgColor.TabIndex = 3;
-		cmbBgColor.Text = "蓝色";
-		cmbBgColor.SelectedIndexChanged += comboBox1_SelectedIndexChanged;
-		// 
-		// groupBox3
-		// 
-		groupBox3.Controls.Add(btnLoad);
-		groupBox3.Location = new Point(372, 12);
-		groupBox3.Name = "groupBox3";
-		groupBox3.Size = new Size(300, 63);
-		groupBox3.TabIndex = 9;
-		groupBox3.TabStop = false;
-		groupBox3.Text = "导入";
-		groupBox3.Enter += groupBox3_Enter;
-		// 
-		// groupBox4
-		// 
-		groupBox4.Controls.Add(btnPrint);
-		groupBox4.Controls.Add(btnSettings);
-		groupBox4.Controls.Add(btnUnload);
-		groupBox4.Controls.Add(btnSave);
-		groupBox4.Controls.Add(btnAbout);
-		groupBox4.Location = new Point(372, 335);
-		groupBox4.Name = "groupBox4";
-		groupBox4.Size = new Size(300, 90);
-		groupBox4.TabIndex = 10;
-		groupBox4.TabStop = false;
-		groupBox4.Text = "完成";
-		groupBox4.Enter += groupBox4_Enter;
-		// 
-		// btnSave
-		// 
-		btnSave.Location = new Point(6, 22);
-		btnSave.Name = "btnSave";
-		btnSave.Size = new Size(92, 29);
-		btnSave.TabIndex = 4;
-		btnSave.Text = "导出本地";
-		btnSave.UseVisualStyleBackColor = true;
-		btnSave.Click += BtnSave_Click;
-		// 
-		// btnPrint
-		// 
-		btnPrint.Location = new Point(104, 22);
-		btnPrint.Name = "btnPrint";
-		btnPrint.Size = new Size(92, 29);
-		btnPrint.TabIndex = 9;
-		btnPrint.Text = "打印";
-		btnPrint.UseVisualStyleBackColor = true;
-		btnPrint.Click += BtnPrint_Click;
-		// 
-		// btnUnload
-		// 
-		btnUnload.Location = new Point(202, 22);
-		btnUnload.Name = "btnUnload";
-		btnUnload.Size = new Size(92, 29);
-		btnUnload.TabIndex = 7;
-		btnUnload.Text = "卸载图片";
-		btnUnload.UseVisualStyleBackColor = true;
-		btnUnload.Click += BtnUnload_Click;
-		// 
-		// btnAbout
-		// 
-		btnAbout.Location = new Point(6, 55);
-		btnAbout.Name = "btnAbout";
-		btnAbout.Size = new Size(138, 29);
-		btnAbout.TabIndex = 6;
-		btnAbout.Text = "关于";
-		btnAbout.UseVisualStyleBackColor = true;
-		btnAbout.Click += BtnAbout_Click;
-		// 
-		// btnSettings
-		// 
-		btnSettings.Location = new Point(150, 55);
-		btnSettings.Name = "btnSettings";
-		btnSettings.Size = new Size(138, 29);
-		btnSettings.TabIndex = 8;
-		btnSettings.Text = "设置";
-		btnSettings.UseVisualStyleBackColor = true;
-		btnSettings.Click += BtnSettings_Click;
-		// 
-		// btnUndo
-		// 
-		btnUndo = new Button();
-		btnUndo.Enabled = false;
-		btnUndo.Location = new Point(6, 22);
-		btnUndo.Name = "btnUndo";
-		btnUndo.Size = new Size(138, 29);
-		btnUndo.TabIndex = 0;
-		btnUndo.Text = "撤回";
-		btnUndo.UseVisualStyleBackColor = true;
-		btnUndo.Click += BtnUndo_Click;
-		// 
-		// btnReload
-		// 
-		btnReload = new Button();
-		btnReload.Enabled = false;
-		btnReload.Location = new Point(150, 22);
-		btnReload.Name = "btnReload";
-		btnReload.Size = new Size(138, 29);
-		btnReload.TabIndex = 1;
-		btnReload.Text = "重新开始";
-		btnReload.UseVisualStyleBackColor = true;
-		btnReload.Click += BtnReload_Click;
-		// 
-		// groupBox5
-		// 
-		groupBox5 = new GroupBox();
-		groupBox5.Controls.Add(btnReload);
-		groupBox5.Controls.Add(btnUndo);
-		groupBox5.Location = new Point(372, 432);
-		groupBox5.Name = "groupBox5";
-		groupBox5.Size = new Size(300, 55);
-		groupBox5.TabIndex = 11;
-		groupBox5.TabStop = false;
-		groupBox5.Text = "历史";
-		// 
-		// mainWindow
-		// 
-		AutoScaleDimensions = new SizeF(7F, 17F);
-		AutoScaleMode = AutoScaleMode.Font;
-		ClientSize = new Size(684, 510);
-		FormBorderStyle = FormBorderStyle.FixedSingle;
-		MaximizeBox = false;
-		Controls.Add(groupBox5);
-		Controls.Add(groupBox4);
-		Controls.Add(groupBox3);
-		Controls.Add(groupBox2);
-		Controls.Add(groupBox1);
-		Controls.Add(lblInfo);
-		Controls.Add(pictureBox1);
-		Name = "mainWindow";
-		Load += Form1_Load_1;
-		((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
-		groupBox1.ResumeLayout(false);
-		groupBox2.ResumeLayout(false);
-		groupBox2.PerformLayout();
-		((System.ComponentModel.ISupportInitialize)TrackBar).EndInit();
-		groupBox3.ResumeLayout(false);
-		groupBox4.ResumeLayout(false);
-		ResumeLayout(false);
-		PerformLayout();
+			this.pictureBox1 = new System.Windows.Forms.PictureBox();
+			this.btnLoad = new System.Windows.Forms.Button();
+			this.btnBlackWhite = new System.Windows.Forms.Button();
+			this.btnLayout = new System.Windows.Forms.Button();
+			this.cmbLayout = new System.Windows.Forms.ComboBox();
+			this.btnSave = new System.Windows.Forms.Button();
+			this.btnSettings = new System.Windows.Forms.Button();
+			this.lblInfo = new System.Windows.Forms.Label();
+			this.btnAbout = new System.Windows.Forms.Button();
+			this.chkAnimeMode = new System.Windows.Forms.CheckBox();
+			this.groupBox2 = new System.Windows.Forms.GroupBox();
+			this.btnReload = new System.Windows.Forms.Button();
+			this.btnUndo = new System.Windows.Forms.Button();
+			this.btnAutoCrop = new System.Windows.Forms.Button();
+			this.label1 = new System.Windows.Forms.Label();
+			this.TrackBar = new System.Windows.Forms.TrackBar();
+			this.btnChangeBg = new System.Windows.Forms.Button();
+			this.cmbBgColor = new System.Windows.Forms.ComboBox();
+			this.btnPresetDel = new System.Windows.Forms.Button();
+			this.btnPresetSave = new System.Windows.Forms.Button();
+			this.cmbPreset = new System.Windows.Forms.ComboBox();
+			this.btnUnload = new System.Windows.Forms.Button();
+			this.btnPrint = new System.Windows.Forms.Button();
+			this.btnBatch = new System.Windows.Forms.Button();
+			this.btnOneClick = new System.Windows.Forms.Button();
+			this.pnlMain = new System.Windows.Forms.Panel();
+			this.pnlSide = new System.Windows.Forms.Panel();
+			this.pnlExport = new System.Windows.Forms.Panel();
+			this.pnlLayout = new System.Windows.Forms.Panel();
+			this.pnlImport = new System.Windows.Forms.Panel();
+			this.pnlTop = new System.Windows.Forms.Panel();
+			this.pnlStatus = new System.Windows.Forms.Panel();
+			((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
+			this.groupBox2.SuspendLayout();
+			((System.ComponentModel.ISupportInitialize)(this.TrackBar)).BeginInit();
+			this.pnlMain.SuspendLayout();
+			this.pnlSide.SuspendLayout();
+			this.pnlExport.SuspendLayout();
+			this.pnlLayout.SuspendLayout();
+			this.pnlImport.SuspendLayout();
+			this.pnlTop.SuspendLayout();
+			this.pnlStatus.SuspendLayout();
+			this.SuspendLayout();
+			// 
+			// pictureBox1
+			// 
+			this.pictureBox1.BackColor = System.Drawing.SystemColors.ControlDark;
+			this.pictureBox1.Dock = System.Windows.Forms.DockStyle.Fill;
+			this.pictureBox1.Location = new System.Drawing.Point(0, 0);
+			this.pictureBox1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pictureBox1.Name = "pictureBox1";
+			this.pictureBox1.Size = new System.Drawing.Size(366, 348);
+			this.pictureBox1.TabIndex = 0;
+			this.pictureBox1.TabStop = false;
+			// 
+			// btnLoad
+			// 
+			this.btnLoad.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnLoad.Location = new System.Drawing.Point(9, 9);
+			this.btnLoad.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnLoad.Name = "btnLoad";
+			this.btnLoad.Size = new System.Drawing.Size(108, 23);
+			this.btnLoad.TabIndex = 0;
+			this.btnLoad.Text = "本地图片";
+			this.btnLoad.UseVisualStyleBackColor = true;
+			// 
+			// btnBlackWhite
+			// 
+			this.btnBlackWhite.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnBlackWhite.Location = new System.Drawing.Point(87, 40);
+			this.btnBlackWhite.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnBlackWhite.Name = "btnBlackWhite";
+			this.btnBlackWhite.Size = new System.Drawing.Size(74, 23);
+			this.btnBlackWhite.TabIndex = 4;
+			this.btnBlackWhite.Text = "变黑白";
+			this.btnBlackWhite.UseVisualStyleBackColor = true;
+			// 
+			// btnLayout
+			// 
+			this.btnLayout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnLayout.Location = new System.Drawing.Point(180, 9);
+			this.btnLayout.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnLayout.Name = "btnLayout";
+			this.btnLayout.Size = new System.Drawing.Size(60, 23);
+			this.btnLayout.TabIndex = 2;
+			this.btnLayout.Text = "排版";
+			this.btnLayout.UseVisualStyleBackColor = true;
+			// 
+			// cmbLayout
+			// 
+			this.cmbLayout.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+			this.cmbLayout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.cmbLayout.Location = new System.Drawing.Point(9, 11);
+			this.cmbLayout.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.cmbLayout.Name = "cmbLayout";
+			this.cmbLayout.Size = new System.Drawing.Size(102, 20);
+			this.cmbLayout.TabIndex = 0;
+			// 
+			// btnSave
+			// 
+			this.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnSave.Location = new System.Drawing.Point(9, 9);
+			this.btnSave.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnSave.Name = "btnSave";
+			this.btnSave.Size = new System.Drawing.Size(74, 23);
+			this.btnSave.TabIndex = 0;
+			this.btnSave.Text = "导出本地";
+			this.btnSave.UseVisualStyleBackColor = true;
+			// 
+			// btnSettings
+			// 
+			this.btnSettings.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+			this.btnSettings.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnSettings.Location = new System.Drawing.Point(449, 4);
+			this.btnSettings.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnSettings.Name = "btnSettings";
+			this.btnSettings.Size = new System.Drawing.Size(74, 25);
+			this.btnSettings.TabIndex = 2;
+			this.btnSettings.Text = "设置";
+			this.btnSettings.UseVisualStyleBackColor = true;
+			// 
+			// lblInfo
+			// 
+			this.lblInfo.AutoSize = true;
+			this.lblInfo.Location = new System.Drawing.Point(12, 4);
+			this.lblInfo.Name = "lblInfo";
+			this.lblInfo.Size = new System.Drawing.Size(0, 12);
+			this.lblInfo.TabIndex = 0;
+			// 
+			// btnAbout
+			// 
+			this.btnAbout.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+			this.btnAbout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnAbout.Location = new System.Drawing.Point(529, 4);
+			this.btnAbout.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnAbout.Name = "btnAbout";
+			this.btnAbout.Size = new System.Drawing.Size(74, 25);
+			this.btnAbout.TabIndex = 1;
+			this.btnAbout.Text = "关于";
+			this.btnAbout.UseVisualStyleBackColor = true;
+			// 
+			// chkAnimeMode
+			// 
+			this.chkAnimeMode.AutoSize = true;
+			this.chkAnimeMode.Location = new System.Drawing.Point(9, 102);
+			this.chkAnimeMode.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.chkAnimeMode.Name = "chkAnimeMode";
+			this.chkAnimeMode.Size = new System.Drawing.Size(72, 16);
+			this.chkAnimeMode.TabIndex = 9;
+			this.chkAnimeMode.Text = "动画模式";
+			this.chkAnimeMode.UseVisualStyleBackColor = true;
+			// 
+			// groupBox2
+			// 
+			this.groupBox2.Controls.Add(this.chkAnimeMode);
+			this.groupBox2.Controls.Add(this.btnAutoCrop);
+			this.groupBox2.Controls.Add(this.label1);
+			this.groupBox2.Controls.Add(this.TrackBar);
+			this.groupBox2.Controls.Add(this.btnChangeBg);
+			this.groupBox2.Controls.Add(this.cmbBgColor);
+			this.groupBox2.Controls.Add(this.btnBlackWhite);
+			this.groupBox2.Controls.Add(this.btnPresetDel);
+			this.groupBox2.Controls.Add(this.btnPresetSave);
+			this.groupBox2.Controls.Add(this.cmbPreset);
+			this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
+			this.groupBox2.Location = new System.Drawing.Point(0, 41);
+			this.groupBox2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.groupBox2.Name = "groupBox2";
+			this.groupBox2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.groupBox2.Size = new System.Drawing.Size(249, 307);
+			this.groupBox2.TabIndex = 1;
+			this.groupBox2.TabStop = false;
+			this.groupBox2.Text = "预处理";
+			this.groupBox2.Enter += new System.EventHandler(this.groupBox2_Enter);
+			// 
+			// btnReload
+			// 
+			this.btnReload.Enabled = false;
+			this.btnReload.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnReload.Location = new System.Drawing.Point(289, 4);
+			this.btnReload.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnReload.Name = "btnReload";
+			this.btnReload.Size = new System.Drawing.Size(74, 25);
+			this.btnReload.TabIndex = 11;
+			this.btnReload.Text = "重新开始";
+			this.btnReload.UseVisualStyleBackColor = true;
+			// 
+			// btnUndo
+			// 
+			this.btnUndo.Enabled = false;
+			this.btnUndo.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnUndo.Location = new System.Drawing.Point(369, 4);
+			this.btnUndo.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnUndo.Name = "btnUndo";
+			this.btnUndo.Size = new System.Drawing.Size(74, 25);
+			this.btnUndo.TabIndex = 10;
+			this.btnUndo.Text = "撤回";
+			this.btnUndo.UseVisualStyleBackColor = true;
+			// 
+			// btnAutoCrop
+			// 
+			this.btnAutoCrop.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnAutoCrop.Location = new System.Drawing.Point(9, 40);
+			this.btnAutoCrop.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnAutoCrop.Name = "btnAutoCrop";
+			this.btnAutoCrop.Size = new System.Drawing.Size(74, 23);
+			this.btnAutoCrop.TabIndex = 3;
+			this.btnAutoCrop.Text = "智能裁剪";
+			this.btnAutoCrop.UseVisualStyleBackColor = true;
+			// 
+			// label1
+			// 
+			this.label1.AutoSize = true;
+			this.label1.Location = new System.Drawing.Point(79, 70);
+			this.label1.Name = "label1";
+			this.label1.Size = new System.Drawing.Size(65, 12);
+			this.label1.TabIndex = 7;
+			this.label1.Text = "算法灵敏度";
+			// 
+			// TrackBar
+			// 
+			this.TrackBar.Location = new System.Drawing.Point(130, 64);
+			this.TrackBar.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.TrackBar.Maximum = 150;
+			this.TrackBar.Name = "TrackBar";
+			this.TrackBar.Size = new System.Drawing.Size(110, 45);
+			this.TrackBar.TabIndex = 8;
+			this.TrackBar.Value = 60;
+			// 
+			// btnChangeBg
+			// 
+			this.btnChangeBg.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnChangeBg.Location = new System.Drawing.Point(166, 40);
+			this.btnChangeBg.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnChangeBg.Name = "btnChangeBg";
+			this.btnChangeBg.Size = new System.Drawing.Size(74, 23);
+			this.btnChangeBg.TabIndex = 5;
+			this.btnChangeBg.Text = "修改底色";
+			this.btnChangeBg.UseVisualStyleBackColor = true;
+			// 
+			// cmbBgColor
+			// 
+			this.cmbBgColor.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+			this.cmbBgColor.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.cmbBgColor.FormattingEnabled = true;
+			this.cmbBgColor.Items.AddRange(new object[] {
+            "蓝色",
+            "红色",
+            "白色",
+            "透明"});
+			this.cmbBgColor.Location = new System.Drawing.Point(9, 66);
+			this.cmbBgColor.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.cmbBgColor.Name = "cmbBgColor";
+			this.cmbBgColor.Size = new System.Drawing.Size(64, 20);
+			this.cmbBgColor.TabIndex = 6;
+			// 
+			// btnPresetDel
+			// 
+			this.btnPresetDel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnPresetDel.Location = new System.Drawing.Point(165, 13);
+			this.btnPresetDel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnPresetDel.Name = "btnPresetDel";
+			this.btnPresetDel.Size = new System.Drawing.Size(75, 23);
+			this.btnPresetDel.TabIndex = 2;
+			this.btnPresetDel.Text = "删除";
+			this.btnPresetDel.UseVisualStyleBackColor = true;
+			// 
+			// btnPresetSave
+			// 
+			this.btnPresetSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnPresetSave.Location = new System.Drawing.Point(87, 13);
+			this.btnPresetSave.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnPresetSave.Name = "btnPresetSave";
+			this.btnPresetSave.Size = new System.Drawing.Size(72, 23);
+			this.btnPresetSave.TabIndex = 1;
+			this.btnPresetSave.Text = "保存预设";
+			this.btnPresetSave.UseVisualStyleBackColor = true;
+			// 
+			// cmbPreset
+			// 
+			this.cmbPreset.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+			this.cmbPreset.Location = new System.Drawing.Point(9, 14);
+			this.cmbPreset.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.cmbPreset.Name = "cmbPreset";
+			this.cmbPreset.Size = new System.Drawing.Size(74, 20);
+			this.cmbPreset.TabIndex = 0;
+			// 
+			// btnUnload
+			// 
+			this.btnUnload.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnUnload.Location = new System.Drawing.Point(166, 9);
+			this.btnUnload.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnUnload.Name = "btnUnload";
+			this.btnUnload.Size = new System.Drawing.Size(74, 23);
+			this.btnUnload.TabIndex = 2;
+			this.btnUnload.Text = "卸载图片";
+			this.btnUnload.UseVisualStyleBackColor = true;
+			// 
+			// btnPrint
+			// 
+			this.btnPrint.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnPrint.Location = new System.Drawing.Point(87, 9);
+			this.btnPrint.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnPrint.Name = "btnPrint";
+			this.btnPrint.Size = new System.Drawing.Size(74, 23);
+			this.btnPrint.TabIndex = 1;
+			this.btnPrint.Text = "打印";
+			this.btnPrint.UseVisualStyleBackColor = true;
+			// 
+			// btnBatch
+			// 
+			this.btnBatch.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnBatch.Location = new System.Drawing.Point(122, 9);
+			this.btnBatch.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnBatch.Name = "btnBatch";
+			this.btnBatch.Size = new System.Drawing.Size(118, 23);
+			this.btnBatch.TabIndex = 1;
+			this.btnBatch.Text = "文件夹批处理";
+			this.btnBatch.UseVisualStyleBackColor = true;
+			// 
+			// btnOneClick
+			// 
+			this.btnOneClick.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+			this.btnOneClick.Location = new System.Drawing.Point(115, 9);
+			this.btnOneClick.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.btnOneClick.Name = "btnOneClick";
+			this.btnOneClick.Size = new System.Drawing.Size(60, 23);
+			this.btnOneClick.TabIndex = 1;
+			this.btnOneClick.Text = "一键处理";
+			this.btnOneClick.UseVisualStyleBackColor = true;
+			// 
+			// pnlMain
+			// 
+			this.pnlMain.Controls.Add(this.pictureBox1);
+			this.pnlMain.Dock = System.Windows.Forms.DockStyle.Fill;
+			this.pnlMain.Location = new System.Drawing.Point(0, 33);
+			this.pnlMain.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pnlMain.Name = "pnlMain";
+			this.pnlMain.Size = new System.Drawing.Size(366, 348);
+			this.pnlMain.TabIndex = 0;
+			// 
+			// pnlSide
+			// 
+			this.pnlSide.Controls.Add(this.pnlExport);
+			this.pnlSide.Controls.Add(this.pnlLayout);
+			this.pnlSide.Controls.Add(this.groupBox2);
+			this.pnlSide.Controls.Add(this.pnlImport);
+			this.pnlSide.Dock = System.Windows.Forms.DockStyle.Right;
+			this.pnlSide.Location = new System.Drawing.Point(366, 33);
+			this.pnlSide.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pnlSide.Name = "pnlSide";
+			this.pnlSide.Size = new System.Drawing.Size(249, 348);
+			this.pnlSide.TabIndex = 0;
+			// 
+			// pnlExport
+			// 
+			this.pnlExport.Controls.Add(this.btnUnload);
+			this.pnlExport.Controls.Add(this.btnPrint);
+			this.pnlExport.Controls.Add(this.btnSave);
+			this.pnlExport.Dock = System.Windows.Forms.DockStyle.Bottom;
+			this.pnlExport.Location = new System.Drawing.Point(0, 266);
+			this.pnlExport.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pnlExport.Name = "pnlExport";
+			this.pnlExport.Padding = new System.Windows.Forms.Padding(9, 0, 9, 0);
+			this.pnlExport.Size = new System.Drawing.Size(249, 41);
+			this.pnlExport.TabIndex = 3;
+			// 
+			// pnlLayout
+			// 
+			this.pnlLayout.Controls.Add(this.btnLayout);
+			this.pnlLayout.Controls.Add(this.btnOneClick);
+			this.pnlLayout.Controls.Add(this.cmbLayout);
+			this.pnlLayout.Dock = System.Windows.Forms.DockStyle.Bottom;
+			this.pnlLayout.Location = new System.Drawing.Point(0, 307);
+			this.pnlLayout.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pnlLayout.Name = "pnlLayout";
+			this.pnlLayout.Padding = new System.Windows.Forms.Padding(9, 0, 9, 0);
+			this.pnlLayout.Size = new System.Drawing.Size(249, 41);
+			this.pnlLayout.TabIndex = 2;
+			// 
+			// pnlImport
+			// 
+			this.pnlImport.Controls.Add(this.btnBatch);
+			this.pnlImport.Controls.Add(this.btnLoad);
+			this.pnlImport.Dock = System.Windows.Forms.DockStyle.Top;
+			this.pnlImport.Location = new System.Drawing.Point(0, 0);
+			this.pnlImport.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pnlImport.Name = "pnlImport";
+			this.pnlImport.Padding = new System.Windows.Forms.Padding(9, 0, 9, 0);
+			this.pnlImport.Size = new System.Drawing.Size(249, 41);
+			this.pnlImport.TabIndex = 0;
+			// 
+			// pnlTop
+			// 
+			this.pnlTop.Controls.Add(this.btnReload);
+			this.pnlTop.Controls.Add(this.btnSettings);
+			this.pnlTop.Controls.Add(this.btnUndo);
+			this.pnlTop.Controls.Add(this.btnAbout);
+			this.pnlTop.Dock = System.Windows.Forms.DockStyle.Top;
+			this.pnlTop.Location = new System.Drawing.Point(0, 0);
+			this.pnlTop.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pnlTop.Name = "pnlTop";
+			this.pnlTop.Size = new System.Drawing.Size(615, 33);
+			this.pnlTop.TabIndex = 0;
+			// 
+			// pnlStatus
+			// 
+			this.pnlStatus.Controls.Add(this.lblInfo);
+			this.pnlStatus.Dock = System.Windows.Forms.DockStyle.Bottom;
+			this.pnlStatus.Location = new System.Drawing.Point(0, 381);
+			this.pnlStatus.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.pnlStatus.Name = "pnlStatus";
+			this.pnlStatus.Size = new System.Drawing.Size(615, 18);
+			this.pnlStatus.TabIndex = 0;
+			// 
+			// mainBox
+			// 
+			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
+			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+			this.ClientSize = new System.Drawing.Size(615, 399);
+			this.Controls.Add(this.pnlMain);
+			this.Controls.Add(this.pnlSide);
+			this.Controls.Add(this.pnlStatus);
+			this.Controls.Add(this.pnlTop);
+			this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+			this.MinimumSize = new System.Drawing.Size(551, 329);
+			this.Name = "mainBox";
+			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+			((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+			this.groupBox2.ResumeLayout(false);
+			this.groupBox2.PerformLayout();
+			((System.ComponentModel.ISupportInitialize)(this.TrackBar)).EndInit();
+			this.pnlMain.ResumeLayout(false);
+			this.pnlSide.ResumeLayout(false);
+			this.pnlExport.ResumeLayout(false);
+			this.pnlLayout.ResumeLayout(false);
+			this.pnlImport.ResumeLayout(false);
+			this.pnlTop.ResumeLayout(false);
+			this.pnlStatus.ResumeLayout(false);
+			this.pnlStatus.PerformLayout();
+			this.ResumeLayout(false);
+
 	}
 
 	#endregion
@@ -351,10 +482,7 @@ partial class mainBox
 	private Button btnSave;
 	private Label lblInfo;
 	private Button btnAbout;
-	private GroupBox groupBox1;
 	private GroupBox groupBox2;
-	private GroupBox groupBox3;
-	private GroupBox groupBox4;
 	private Button btnChangeBg;
 	private ComboBox cmbBgColor;
 	private TrackBar TrackBar;
@@ -364,7 +492,20 @@ partial class mainBox
 	private Button btnUnload;
 	private Button btnSettings;
 	private Button btnPrint;
-	private GroupBox groupBox5;
 	private Button btnUndo;
 	private Button btnReload;
+	private Button btnBatch;
+	private ComboBox cmbPreset;
+	private Button btnPresetSave;
+	private Button btnPresetDel;
+	private Button btnOneClick;
+	private Panel pnlMain;
+	private Panel pnlSide;
+	private Panel pnlImport;
+	private Panel pnlLayout;
+	private Panel pnlExport;
+	private Panel pnlTop;
+	private Panel pnlStatus;
 }
+
+

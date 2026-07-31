@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Forms;
@@ -144,6 +145,8 @@ namespace fptp
 			Console.WriteLine("  fptp.exe prep crop -i in.jpg -o out.jpg -w 295 -h 413");
 			Console.WriteLine("  fptp.exe prep grayscale -i in.jpg -o out.jpg");
 			Console.WriteLine("  fptp.exe prep bgcolor -i in.jpg -o out.jpg -c white -t 40 -a");
+			Console.WriteLine("  fptp.exe prep batch -i C:\\in -o C:\\out -c blue -t 60 -a -l 0");
+			Console.WriteLine("  fptp.exe prep batch -i C:\\in -o C:\\out --preset preset.json");
 			Console.WriteLine("  fptp.exe ass save -i in.jpg -o out.jpg");
 			Console.WriteLine("  fptp.exe ass checkres -i in.jpg -w 295 -h 413");
 			Console.WriteLine("  fptp.exe ass settings");
@@ -197,13 +200,182 @@ namespace fptp
 				"crop" => RunPrepCrop(args),
 				"grayscale" => RunPrepGrayscale(args),
 				"bgcolor" => RunPrepBgColor(args),
+				"batch" => RunPrepBatch(args),
 				_ => UnknownPrepCommand(command)
 			};
 		}
 
 		static int UnknownPrepCommand(string command)
 		{
-			Console.WriteLine(Lang.Get("cli.unknownCommand", "prep", command, "crop grayscale bgcolor"));			return 1;
+			Console.WriteLine(Lang.Get("cli.unknownCommand", "prep", command, "crop grayscale bgcolor batch"));			return 1;
+		}
+
+		// ── prep batch：文件夹批处理（支持 --preset 预设文件 / 直接参数）──
+
+		static int RunPrepBatch(string[] args)
+		{
+			string inputDir = ParseArgValue(args, "-i", "--input") ?? "";
+			string outputDir = ParseArgValue(args, "-o", "--output") ?? "";
+
+			if (string.IsNullOrEmpty(inputDir) || string.IsNullOrEmpty(outputDir))
+			{
+				Console.WriteLine("用法: fptp.exe prep batch -i <dir> -o <dir> [--preset <file.json>] [-t <tolerance>] [-a] [-l <layout>]");
+				return 1;
+			}
+
+			if (!Directory.Exists(inputDir))
+			{
+				Console.WriteLine("Error: 输入目录不存在: " + inputDir);
+				return 1;
+			}
+
+			// 参数来源：预设文件 > 命令行参数 > 默认值
+			GenSettings gen = Assalg.LoadGenSettings();
+			string presetFile = ParseArgValue(args, "--preset", "--preset") ?? "";
+			if (!string.IsNullOrEmpty(presetFile))
+			{
+				if (!File.Exists(presetFile))
+				{
+					Console.WriteLine("Error: 预设文件不存在: " + presetFile);
+					return 1;
+				}
+				try
+				{
+					gen = JsonSerializer.Deserialize<GenSettings>(File.ReadAllText(presetFile)) ?? gen;
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine("Error: 预设文件解析失败: " + ex.Message);
+					return 1;
+				}
+			}
+
+			if (TryParseInt(ParseArgValue(args, "-t", "--tolerance"), out int t) && t >= 0 && t <= 150)
+				gen.Tolerance = t;
+			if (HasFlag(args, "-a", "--anime"))
+				gen.AnimeMode = true;
+			if (TryParseInt(ParseArgValue(args, "-l", "--layout"), out int l) && l >= 0 && l <= 4)
+				gen.LayoutPreset = l;
+			string colorName = ParseArgValue(args, "-c", "--color") ?? "";
+			if (!string.IsNullOrEmpty(colorName))
+			{
+				Color c = Color.FromName(colorName);
+				if (!c.IsKnownColor)
+				{
+					Console.WriteLine(Lang.Get("cli.unknownColor", colorName));
+					return 1;
+				}
+				gen.BackgroundColor = MapColorToStored(colorName);
+			}
+
+			try
+			{
+				int total = BatchProcess(inputDir, outputDir, gen);
+				Console.WriteLine(JsonSerializer.Serialize(new { success = true, processed = total, input = inputDir, output = outputDir }, JsonOptions));
+				return total > 0 ? 0 : 1;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("Error: " + ex.Message);
+				return 1;
+			}
+		}
+
+		/// <summary>将 CLI 颜色名映射为存储的中文值。</summary>
+		static string MapColorToStored(string colorName)
+		{
+			switch (colorName.ToLower())
+			{
+				case "blue": return "蓝色";
+				case "red": return "红色";
+				case "transparent": case "none": return "透明";
+				default: return "白色";
+			}
+		}
+
+		/// <summary>批量处理目录下全部图片：裁剪 + 换底色 + 排版（按预设勾选逻辑：默认全流程）。</summary>
+		static int BatchProcess(string inputDir, string outputDir, GenSettings gen)
+		{
+			Directory.CreateDirectory(outputDir);
+			string[] files = Directory.GetFiles(inputDir, "*.*", SearchOption.TopDirectoryOnly);
+			int total = 0;
+
+			foreach (string f in files)
+			{
+				string ext = Path.GetExtension(f).ToLower();
+				if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".bmp") continue;
+
+				using (Bitmap source = new Bitmap(f))
+				{
+					Bitmap cur = (Bitmap)source.Clone();
+					try
+					{
+						int targetW = gen.DefaultSize switch { 2 => Basic.TWO_INCH_W, 3 => Basic.PASSPORT_W, _ => Basic.ONE_INCH_W };
+						int targetH = gen.DefaultSize switch { 2 => Basic.TWO_INCH_H, 3 => Basic.PASSPORT_H, _ => Basic.ONE_INCH_H };
+						Bitmap cropped = Prepalg.SmartCrop(cur, targetW, targetH);
+						if (cropped != null) { cur.Dispose(); cur = cropped; }
+
+						Color bg = gen.BackgroundColor switch
+						{
+							"蓝色" => Color.FromArgb(65, 105, 225),
+							"红色" => Color.FromArgb(220, 20, 60),
+							"透明" => Color.Transparent,
+							_ => Color.White,
+						};
+						Bitmap bgDone = gen.AnimeMode
+							? Prepalg.ReplaceBackgroundAnime(cur, bg, gen.Tolerance)
+							: Prepalg.ReplaceBackground(cur, bg, gen.Tolerance);
+						if (bgDone != null) { cur.Dispose(); cur = bgDone; }
+
+						int pw, ph;
+						switch (gen.LayoutPreset)
+						{
+							case 1: pw = Basic.LAYOUT_6INCH_W; ph = Basic.LAYOUT_6INCH_H; break;
+							case 2: pw = Basic.LAYOUT_A4_W; ph = Basic.LAYOUT_A4_H; break;
+							case 3: pw = Basic.LAYOUT_A5_W; ph = Basic.LAYOUT_A5_H; break;
+							default: pw = Basic.LAYOUT_5INCH_W; ph = Basic.LAYOUT_5INCH_H; break;
+						}
+						Bitmap layout = MakeLayoutForCli(cur, pw, ph, gen);
+						cur.Dispose();
+						cur = layout;
+
+						// 透明背景只能存 PNG
+						string outExt = gen.BackgroundColor == "透明" ? ".png" : ".jpg";
+						string outFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(f) + outExt);
+						Assalg.SaveImage(cur, outFile, gen.SaveQuality);
+						total++;
+					}
+					finally
+					{
+						cur.Dispose();
+					}
+				}
+			}
+			return total;
+		}
+
+		/// <summary>CLI 版排版生成。</summary>
+		static Bitmap MakeLayoutForCli(Bitmap photo, int paperW, int paperH, GenSettings gen)
+		{
+			int gap = Basic.LAYOUT_GAP;
+			int cols = Math.Max(1, (paperW + gap) / (photo.Width + gap));
+			int rows = Math.Max(1, (paperH + gap) / (photo.Height + gap));
+			int contentW = cols * photo.Width + (cols - 1) * gap;
+			int contentH = rows * photo.Height + (rows - 1) * gap;
+			int startX = (paperW - contentW) / 2;
+			int startY = (paperH - contentH) / 2;
+
+			Bitmap paper = new Bitmap(paperW, paperH);
+			using (Graphics g = Graphics.FromImage(paper))
+			{
+				g.Clear(Color.White);
+				g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+				g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+				for (int r = 0; r < rows; r++)
+					for (int c = 0; c < cols; c++)
+						g.DrawImage(photo, startX + c * (photo.Width + gap), startY + r * (photo.Height + gap), photo.Width, photo.Height);
+			}
+			return paper;
 		}
 
 		static int RunPrepCrop(string[] args)
@@ -310,6 +482,9 @@ namespace fptp
 					? Prepalg.ReplaceBackgroundAnime(source, bgColor, tolerance)
 					: Prepalg.ReplaceBackground(source, bgColor, tolerance))
 				{
+					// 透明背景只能存 PNG
+					if (bgColor.A == 0)
+						outputPath = Path.ChangeExtension(outputPath, ".png");
 					Assalg.SaveImage(result, outputPath);
 				}
 				Console.WriteLine(JsonSerializer.Serialize(new { success = true, output = outputPath, anime }, JsonOptions));

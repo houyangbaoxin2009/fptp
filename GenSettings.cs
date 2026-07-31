@@ -1,5 +1,18 @@
 namespace fptp
 {
+	/// <summary>处理预设：一组参数组合，一键套用。</summary>
+	public class PresetProfile
+	{
+		public string Name { get; set; } = "";
+		public int DefaultSize { get; set; } = 1;
+		public string BackgroundColor { get; set; } = "蓝色";
+		public int Tolerance { get; set; } = 60;
+		public bool AnimeMode { get; set; } = false;
+		public int LayoutPreset { get; set; } = 0;
+		public string SaveFormat { get; set; } = "jpg";
+		public int SaveQuality { get; set; } = 100;
+	}
+
 	public class GenSettings
 	{
 		public string SaveFormat { get; set; } = "jpg";
@@ -21,5 +34,12 @@ namespace fptp
 		public int LayoutPreset { get; set; } = 0;
 		public int CustomLayoutW { get; set; } = 1500;
 		public int CustomLayoutH { get; set; } = 1050;
+
+		/// <summary>处理预设模板列表</summary>
+		public System.Collections.Generic.List<PresetProfile> Presets { get; set; } =
+			new System.Collections.Generic.List<PresetProfile>();
+
+		/// <summary>当前选中的预设索引，-1 表示未使用预设</summary>
+		public int CurrentPreset { get; set; } = -1;
 	}
 }

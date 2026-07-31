@@ -41,6 +41,8 @@ namespace fptp
 			btnLangExport.Text = Lang.Get("settings.lang.export");
 			groupUpdate.Text = Lang.Get("settings.autoUpdate");
 			chkAutoUpdate.Text = Lang.Get("settings.autoUpdateDesc");
+			groupKey.Text = Lang.Get("settings.key");
+			btnKeySettings.Text = Lang.Get("settings.key.adjust");
 			groupLayout.Text = Lang.Get("settings.layoutSize");
 			label5.Text = Lang.Get("settings.layoutPreset");
 			label6.Text = Lang.Get("settings.customW");
@@ -144,7 +146,7 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 将设置中存储的颜色值映射为下拉索引（0=蓝 1=红 2=白）。
+		/// 将设置中存储的颜色值映射为下拉索引（0=蓝 1=红 2=白 3=透明）。
 		/// </summary>
 		private static int ColorIndexFromStored(string stored)
 		{
@@ -152,6 +154,7 @@ namespace fptp
 			{
 				case "蓝色": return 0;
 				case "红色": return 1;
+				case "透明": return 3;
 				default: return 2;
 			}
 		}
@@ -175,12 +178,13 @@ namespace fptp
 				2 => 3,
 				_ => 1,
 			};
-			Result.BackgroundColor = cmbBgColor.SelectedIndex switch
-			{
-				0 => "蓝色",
-				1 => "红色",
-				_ => "白色",
-			};
+				Result.BackgroundColor = cmbBgColor.SelectedIndex switch
+				{
+					0 => "蓝色",
+					1 => "红色",
+					3 => "透明",
+					_ => "白色",
+				};
 			Result.Tolerance = trackBar.Value;
 
 			Result.LayoutPreset = cmbLayoutPreset.SelectedIndex >= 0 ? cmbLayoutPreset.SelectedIndex : 0;
@@ -288,6 +292,7 @@ namespace fptp
 							{
 								0 => "蓝色",
 								1 => "红色",
+								3 => "透明",
 								_ => "白色",
 							},
 							Tolerance = trackBar.Value,
@@ -419,6 +424,15 @@ namespace fptp
 		{
 			DialogResult = DialogResult.Cancel;
 			Close();
+		}
+
+		/// <summary>打开快捷键调整对话框。</summary>
+		private void BtnKeySettings_Click(object sender, EventArgs e)
+		{
+			using (KeySettingsBox box = new KeySettingsBox())
+			{
+				box.ShowDialog(this);
+			}
 		}
 	}
 }

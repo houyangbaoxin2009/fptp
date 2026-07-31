@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Windows.Forms;
 
 namespace fptp
 {
@@ -44,6 +45,64 @@ namespace fptp
 	}
 
 	/// <summary>
+	/// 快捷键设置：动作名 → 组合键字符串（如 "Ctrl+R"）。
+	/// </summary>
+	public class KeySettings
+	{
+		[JsonPropertyName("actions")]
+		public Dictionary<string, string> Actions { get; set; } = new Dictionary<string, string>
+		{
+			["reload"] = "Ctrl+R",        // 重新开始
+			["undo"] = "Ctrl+Z",          // 撤回
+			["settings"] = "Ctrl+,",      // 设置（Ctrl+C 与复制冲突，改用 Ctrl+,）
+			["about"] = "Ctrl+A",         // 关于
+			["load"] = "Ctrl+O",          // 加载图片
+			["unload"] = "Ctrl+W",        // 卸载图片
+			["crop"] = "Ctrl+Shift+C",    // 智能裁剪
+			["grayscale"] = "Ctrl+G",     // 变黑白
+			["changeBg"] = "Ctrl+B",      // 修改底色
+			["layout"] = "Ctrl+L",        // 排版
+			["save"] = "Ctrl+S",          // 导出
+			["print"] = "Ctrl+P",         // 打印
+			["batch"] = "Ctrl+Shift+B",   // 文件夹批处理
+			["oneClick"] = "F9",          // 一键处理
+		};
+
+		/// <summary>将 Keys 组合键格式化为字符串（如 Ctrl+Shift+C）。</summary>
+		public static string FormatKeys(Keys keyData)
+		{
+			var parts = new List<string>();
+			if ((keyData & Keys.Control) != 0) parts.Add("Ctrl");
+			if ((keyData & Keys.Alt) != 0) parts.Add("Alt");
+			if ((keyData & Keys.Shift) != 0) parts.Add("Shift");
+
+			Keys key = keyData & Keys.KeyCode;
+			if (key == Keys.None) return "";
+			parts.Add(key == Keys.Oemcomma ? "," : key.ToString());
+			return string.Join("+", parts);
+		}
+
+		/// <summary>将快捷键字符串解析为 Keys 组合（供 ProcessCmdKey 比对）。解析失败返回 None。</summary>
+		public static Keys ParseKeys(string combo)
+		{
+			if (string.IsNullOrWhiteSpace(combo)) return Keys.None;
+			Keys result = Keys.None;
+			string[] parts = combo.Split('+');
+			foreach (string part in parts)
+			{
+				string p = part.Trim();
+				if (p.Equals("Ctrl", System.StringComparison.OrdinalIgnoreCase)) { result |= Keys.Control; continue; }
+				if (p.Equals("Alt", System.StringComparison.OrdinalIgnoreCase)) { result |= Keys.Alt; continue; }
+				if (p.Equals("Shift", System.StringComparison.OrdinalIgnoreCase)) { result |= Keys.Shift; continue; }
+				if (p == ",") { result |= Keys.Oemcomma; continue; }
+				if (System.Enum.TryParse(p, true, out Keys k))
+					result |= k;
+			}
+			return result;
+		}
+	}
+
+	/// <summary>
 	/// 设置包：app（应用设置）、gen（生成设置）、lang（语言包）、high（隐藏设置）四部分。
 	/// </summary>
 	public class SettingsPackage
@@ -59,6 +118,9 @@ namespace fptp
 
 		[JsonPropertyName("high")]
 		public HighSettings High { get; set; } = new();
+
+		[JsonPropertyName("key")]
+		public KeySettings Key { get; set; } = new();
 
 		public string ToJson()
 		{

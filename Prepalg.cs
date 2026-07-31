@@ -100,9 +100,10 @@ namespace fptp
 		/// 以左上角像素颜色为基准，容差范围内的像素替换为目标颜色；
 		/// 容差至容差+羽化带之间的过渡像素按距离线性混合，
 		/// 消除头发边缘抗锯齿产生的白边。
+		/// 新背景色为透明（Alpha=0）时输出透明背景（需 PNG 保存）。
 		/// </summary>
 		/// <param name="source">原图</param>
-		/// <param name="newColor">新背景色</param>
+		/// <param name="newColor">新背景色（Alpha=0 表示透明）</param>
 		/// <param name="tolerance">颜色容差 0-150，越大替换越激进</param>
 		/// <param name="parent">父窗体，传入后可刷新界面防止假死</param>
 		/// <returns>处理后的图片</returns>
@@ -127,6 +128,7 @@ namespace fptp
 			Color sampleColor = source.GetPixel(0, 0);
 			int sr = sampleColor.R, sg = sampleColor.G, sb = sampleColor.B;
 			int newArgb = newColor.ToArgb();
+			bool transparent = newColor.A == 0;
 			const int feather = 30;
 
 			int[] outPixels = new int[width * height];
@@ -141,18 +143,27 @@ namespace fptp
 
 				if (diff < tolerance)
 				{
-					outPixels[i] = newArgb;
+					outPixels[i] = transparent ? 0 : newArgb;
 				}
 				else if (diff < tolerance + feather)
 				{
 					// 边缘羽化：按距离线性混合原色与新背景色
 					double t = (double)(diff - tolerance) / feather;
 					int pr = (p >> 16) & 0xFF, pg = (p >> 8) & 0xFF, pb = p & 0xFF;
-					int nr = (newArgb >> 16) & 0xFF, ng = (newArgb >> 8) & 0xFF, nb = newArgb & 0xFF;
-					int r = (int)(pr + (nr - pr) * t);
-					int g = (int)(pg + (ng - pg) * t);
-					int b = (int)(pb + (nb - pb) * t);
-					outPixels[i] = unchecked((int)0xFF000000 | (r << 16) | (g << 8) | b);
+					if (transparent)
+					{
+						// 透明目标：只衰减 alpha，保留原色（去白边）
+						int a = (int)(255 * (1 - t));
+						outPixels[i] = unchecked((a << 24) | (pr << 16) | (pg << 8) | pb);
+					}
+					else
+					{
+						int nr = (newArgb >> 16) & 0xFF, ng = (newArgb >> 8) & 0xFF, nb = newArgb & 0xFF;
+						int r = (int)(pr + (nr - pr) * t);
+						int g = (int)(pg + (ng - pg) * t);
+						int b = (int)(pb + (nb - pb) * t);
+						outPixels[i] = unchecked((int)0xFF000000 | (r << 16) | (g << 8) | b);
+					}
 				}
 				else
 				{
@@ -240,6 +251,7 @@ namespace fptp
 			try
 			{
 				int newArgb = newColor.ToArgb();
+				bool transparent = newColor.A == 0;
 				int[] outPixels = new int[width * height];
 				const int feather = 30;
 				int sr2 = sampleColor.R, sg2 = sampleColor.G, sb2 = sampleColor.B;
@@ -248,7 +260,7 @@ namespace fptp
 				{
 					if (mark[i] == 1)
 					{
-						outPixels[i] = newArgb;
+						outPixels[i] = transparent ? 0 : newArgb;
 						continue;
 					}
 
@@ -275,11 +287,20 @@ namespace fptp
 					{
 						double t = (double)Math.Max(0, diff - tolerance) / feather;
 						int pr = (p >> 16) & 0xFF, pg = (p >> 8) & 0xFF, pb = p & 0xFF;
-						int nr = (newArgb >> 16) & 0xFF, ng = (newArgb >> 8) & 0xFF, nb = newArgb & 0xFF;
-						int r = (int)(pr + (nr - pr) * t);
-						int g = (int)(pg + (ng - pg) * t);
-						int b = (int)(pb + (nb - pb) * t);
-						outPixels[i] = unchecked((int)0xFF000000 | (r << 16) | (g << 8) | b);
+						if (transparent)
+						{
+							// 透明目标：只衰减 alpha，保留原色（去白边）
+							int a = (int)(255 * (1 - t));
+							outPixels[i] = unchecked((a << 24) | (pr << 16) | (pg << 8) | pb);
+						}
+						else
+						{
+							int nr = (newArgb >> 16) & 0xFF, ng = (newArgb >> 8) & 0xFF, nb = newArgb & 0xFF;
+							int r = (int)(pr + (nr - pr) * t);
+							int g = (int)(pg + (ng - pg) * t);
+							int b = (int)(pb + (nb - pb) * t);
+							outPixels[i] = unchecked((int)0xFF000000 | (r << 16) | (g << 8) | b);
+						}
 					}
 					else
 					{

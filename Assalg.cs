@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -48,6 +49,41 @@ namespace fptp
 			{
 				bmp.Save(filePath, codecInfo, null);
 			}
+		}
+
+		/// <summary>
+		/// 检测图片是否含透明像素（Alpha < 255）。
+		/// 用于判断是否必须以 PNG 等支持透明的格式保存。
+		/// </summary>
+		/// <param name="bmp">待检测图片</param>
+		/// <returns>含透明像素返回 true</returns>
+		public static bool HasAlpha(Bitmap bmp)
+		{
+			if (bmp == null) return false;
+			if (bmp.PixelFormat != PixelFormat.Format32bppArgb && bmp.PixelFormat != PixelFormat.Format32bppPArgb)
+				return false;
+
+			int width = bmp.Width;
+			int height = bmp.Height;
+			int[] pixels = new int[width * height];
+			BitmapData data = bmp.LockBits(new Rectangle(0, 0, width, height),
+				ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+			try
+			{
+				Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+			}
+			finally
+			{
+				bmp.UnlockBits(data);
+			}
+
+			// 抽样检查：全图扫描成本高，按 1/8 步长抽样足够可靠
+			for (int i = 0; i < pixels.Length; i += 8)
+			{
+				if (((pixels[i] >> 24) & 0xFF) < 255)
+					return true;
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -245,6 +281,20 @@ namespace fptp
 		{
 			var pkg = LoadPackage();
 			pkg.Lang = lang;
+			SavePackage(pkg);
+		}
+
+		// ── 快捷键读写（key 段）──
+
+		public static KeySettings LoadKeySettings()
+		{
+			return LoadPackage().Key ?? new KeySettings();
+		}
+
+		public static void SaveKeySettings(KeySettings keys)
+		{
+			var pkg = LoadPackage();
+			pkg.Key = keys;
 			SavePackage(pkg);
 		}
 
