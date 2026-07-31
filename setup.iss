@@ -6,6 +6,7 @@
 #define MyAppPublisher "FranJ2"
 #define MyAppURL "https://github.com/houyangbaoxin2009/fptp"
 #define MyAppExeName "fptp.exe"
+#define MyAppIcon "FPTP.ico"
 
 [Setup]
 AppId={{A8B3C4D5-E6F7-8901-2345-6789ABCDEF01}
@@ -22,6 +23,7 @@ OutputBaseFilename=FPTP-v{#MyAppVersion}-Setup
 Compression=lzma2
 SolidCompression=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile={#MyAppIcon}
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ChangesEnvironment=yes

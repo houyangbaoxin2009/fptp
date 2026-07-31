@@ -22,6 +22,8 @@ namespace fptp
 		public mainBox()
 		{
 			InitializeComponent();
+			// 应用 exe 图标作为窗口与任务栏图标
+			Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
 			Assalg.MergeInstallOptions();
 			settings = Assalg.LoadGenSettings();
 			appSettings = Assalg.LoadAppSettings();

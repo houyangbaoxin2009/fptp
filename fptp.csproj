@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <PackageId>$(AssemblyName)</PackageId>
+    <ApplicationIcon>FPTP.ico</ApplicationIcon>
 
     <!-- 排除 publish 文件夹，不在 VS 中显示 -->
     <DefaultItemExcludes>$(DefaultItemExcludes);publish\**</DefaultItemExcludes>
