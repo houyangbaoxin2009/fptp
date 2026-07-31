@@ -8,13 +8,18 @@ using System.Windows.Forms;
 namespace fptp
 {
 	/// <summary>
-	/// 自动更新。从 GitCode Releases 检查最新版本并下载安装。
+	/// 自动更新。按用户地区从 GitCode 或 GitHub Releases 检查最新版本并下载安装。
+	/// 中国用户走 GitCode，国外用户走 GitHub。
 	/// </summary>
 	public static class Updater
 	{
 		// GitCode API：获取仓库所有 Releases（数组，首个为最新）
-		private const string ReleasesApi =
+		private const string GitCodeReleasesApi =
 			"https://api.gitcode.com/api/v5/repos/jiro2025/fptp/releases";
+
+		// GitHub API：结构与 GitCode 一致，供国外用户使用
+		private const string GitHubReleasesApi =
+			"https://api.github.com/repos/houyangbaoxin2009/fptp/releases";
 
 		private const string InstallerName = "FPTP-Setup.exe";
 
@@ -84,11 +89,29 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 从 GitCode API 获取最新 Release 的 tag 与首个安装包下载地址。
+		/// 按地区选择源获取最新 Release。所选源请求失败时自动回退另一平台。
 		/// </summary>
 		private static LatestRelease? FetchLatestRelease()
 		{
-			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(ReleasesApi);
+			string primary = RegionDetector.IsChina() ? GitCodeReleasesApi : GitHubReleasesApi;
+			string fallback = primary == GitCodeReleasesApi ? GitHubReleasesApi : GitCodeReleasesApi;
+
+			try
+			{
+				return TryFetch(primary);
+			}
+			catch
+			{
+				return TryFetch(fallback);
+			}
+		}
+
+		/// <summary>
+		/// 从指定平台 API 获取最新 Release 的 tag 与首个安装包下载地址。
+		/// </summary>
+		private static LatestRelease? TryFetch(string api)
+		{
+			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(api);
 			request.Method = "GET";
 			request.Timeout = 10000;
 			request.UserAgent = "FPTP-Updater/1.0";
