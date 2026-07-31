@@ -2,7 +2,7 @@
 ; 编译：ISCC.exe setup.iss
 
 #define MyAppName "FPTP"
-#define MyAppVersion "1.1.1.1"
+#define MyAppVersion "1.2.0.0"
 #define MyAppPublisher "FranJ2"
 #define MyAppURL "https://github.com/houyangbaoxin2009/fptp"
 #define MyAppExeName "fptp.exe"
@@ -37,7 +37,7 @@ Source: "bin\Release\net48\publish\fptp.bat"; DestDir: "{app}"; Flags: ignorever
 Source: "bin\Release\net48\publish\register-path.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\publish\*.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\publish\*.pdf"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\Release\net48\publish\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs
+Source: "bin\Release\net48\publish\Resources\*"; DestDir: "{app}\Resources"; Flags: ignoreversion recursesubdirs
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
