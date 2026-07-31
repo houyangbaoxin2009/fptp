@@ -367,3 +367,12 @@ FodyWeavers.xsd
 
 # Inno Setup 安装程序输出
 installer/
+
+
+# AI 会话与记忆记录（不推送到远程）
+.omo/
+
+
+# AGENTS.md（仅本地）
+AGENTS.md
+
