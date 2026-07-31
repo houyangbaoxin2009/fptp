@@ -29,7 +29,22 @@ namespace fptp
 	}
 
 	/// <summary>
-	/// 设置包：app（应用设置）、gen（生成设置）、lang（语言包）三部分。
+	/// 隐藏设置：安装程序写入、应用读取的不可见参数。
+	/// 不在设置面板显示，不参与导入导出。
+	/// </summary>
+	public class HighSettings
+	{
+		/// <summary>文档格式：md / pdf / none（安装时选择）。</summary>
+		[JsonPropertyName("docsFormat")]
+		public string DocsFormat { get; set; } = "md";
+
+		/// <summary>安装器语言：zh-CN / en-US，空表示未记录。</summary>
+		[JsonPropertyName("installLang")]
+		public string InstallLang { get; set; } = "";
+	}
+
+	/// <summary>
+	/// 设置包：app（应用设置）、gen（生成设置）、lang（语言包）、high（隐藏设置）四部分。
 	/// </summary>
 	public class SettingsPackage
 	{
@@ -41,6 +56,9 @@ namespace fptp
 
 		[JsonPropertyName("lang")]
 		public LangPackage Lang { get; set; } = new();
+
+		[JsonPropertyName("high")]
+		public HighSettings High { get; set; } = new();
 
 		public string ToJson()
 		{

@@ -90,8 +90,48 @@ namespace fptp
 
 		// ── 设置读写（统一文件 setting.json：{app}{gen}{lang}）──
 
-		private static string SettingsFile => Path.Combine(
-			Path.GetDirectoryName(Application.ExecutablePath), "setting.json");
+		/// <summary>
+		/// 设置文件路径：优先 exe 目录（便携/可写场景），
+		/// 不可写时（如安装到 Program Files 的普通用户）回退 %APPDATA%\FPTP。
+		/// 首次访问时探测并缓存，运行期间路径不变。
+		/// </summary>
+		private static string? _settingsFile;
+
+		private static string SettingsFile
+		{
+			get
+			{
+				if (_settingsFile != null) return _settingsFile;
+				string exeDir = Path.GetDirectoryName(Application.ExecutablePath) ?? "";
+				if (IsDirWritable(exeDir))
+					_settingsFile = Path.Combine(exeDir, "setting.json");
+				else
+				{
+					string appData = Path.Combine(
+						Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FPTP");
+					try { Directory.CreateDirectory(appData); } catch { }
+					_settingsFile = Path.Combine(appData, "setting.json");
+				}
+				return _settingsFile;
+			}
+		}
+
+		/// <summary>检测目录是否可写（尝试创建并删除探针文件）。</summary>
+		private static bool IsDirWritable(string dir)
+		{
+			if (string.IsNullOrEmpty(dir)) return false;
+			try
+			{
+				string probe = Path.Combine(dir, ".fptp_write_probe.tmp");
+				File.WriteAllText(probe, "t");
+				File.Delete(probe);
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
+		}
 
 		/// <summary>
 		/// 读取完整设置包。文件不存在或损坏时返回默认包。
@@ -118,7 +158,8 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 旧版两个独立文件（setting.json=app、gen_setting.json=gen）迁移到统一文件。
+		/// 旧版两个独立文件（exe 目录 setting.json=app、gen_setting.json=gen）迁移到统一文件。
+		/// 兼容路径：exe 目录（旧版存放处）与 SettingsFile（当前路径，可能已回退 %APPDATA%）。
 		/// </summary>
 		private static SettingsPackage MigrateLegacySettings()
 		{
@@ -130,19 +171,25 @@ namespace fptp
 			{
 				if (File.Exists(legacyGen))
 					pkg.Gen = JsonSerializer.Deserialize<GenSettings>(File.ReadAllText(legacyGen)) ?? new GenSettings();
+				// 旧 app 设置：优先 exe 目录旧文件，其次当前 SettingsFile
+				string legacyApp = Path.Combine(exeDir, "setting.json");
 				if (File.Exists(SettingsFile))
 					pkg.App = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsFile)) ?? new AppSettings();
+				else if (File.Exists(legacyApp))
+					pkg.App = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(legacyApp)) ?? new AppSettings();
 			}
 			catch
 			{
 			}
 
-			SavePackage(pkg);
+			// 启动时自动迁移，写失败静默（如 Program Files 只读），下次启动再试
+			SavePackage(pkg, showError: false);
 			return pkg;
 		}
 
 		/// <summary>将完整设置包写回统一文件。</summary>
-		private static void SavePackage(SettingsPackage pkg)
+		/// <param name="showError">写失败时是否弹窗提示（启动自动路径传 false 静默）。</param>
+		private static void SavePackage(SettingsPackage pkg, bool showError = true)
 		{
 			try
 			{
@@ -151,7 +198,8 @@ namespace fptp
 			}
 			catch (Exception ex)
 			{
-				MessageBox.Show($"保存设置失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				if (showError)
+					MessageBox.Show($"保存设置失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
 		}
 
@@ -198,6 +246,58 @@ namespace fptp
 			var pkg = LoadPackage();
 			pkg.Lang = lang;
 			SavePackage(pkg);
+		}
+
+		// ── 隐藏设置读写（high 段：安装程序写入，不入设置面板与导入导出）──
+
+		public static HighSettings LoadHighSettings()
+		{
+			return LoadPackage().High;
+		}
+
+		public static void SaveHighSettings(HighSettings settings, bool showError = true)
+		{
+			var pkg = LoadPackage();
+			pkg.High = settings;
+			SavePackage(pkg, showError);
+		}
+
+		/// <summary>
+		/// 合并安装程序写入的 install-options.json 到设置 high 段。
+		/// 不删除标记文件：静默更新时安装器不写该文件（保留用户原偏好），
+		/// 文件常驻以记录安装选项。仅当值变化时才写盘，避免每次启动无谓写入。
+		/// </summary>
+		public static void MergeInstallOptions()
+		{
+			string exeDir = Path.GetDirectoryName(Application.ExecutablePath) ?? "";
+			string optionsFile = Path.Combine(exeDir, "install-options.json");
+			if (!File.Exists(optionsFile)) return;
+
+			try
+			{
+				var options = JsonSerializer.Deserialize<HighSettings>(File.ReadAllText(optionsFile));
+				if (options != null)
+				{
+					HighSettings high = LoadHighSettings();
+					bool changed = false;
+					if (!string.IsNullOrEmpty(options.DocsFormat) && options.DocsFormat != high.DocsFormat)
+					{
+						high.DocsFormat = options.DocsFormat;
+						changed = true;
+					}
+					if (!string.IsNullOrEmpty(options.InstallLang) && options.InstallLang != high.InstallLang)
+					{
+						high.InstallLang = options.InstallLang;
+						changed = true;
+					}
+					if (changed)
+						SaveHighSettings(high, showError: false);
+				}
+			}
+			catch
+			{
+				// 合并失败不阻塞启动，保留标记文件供下次尝试
+			}
 		}
 	}
 }

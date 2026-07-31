@@ -1,5 +1,39 @@
 # 更新日志
 
+## [1.3.2.0] — 2026-07-31
+
+### 修复
+- 修复安装到 Program Files 后非管理员启动报"保存设置失败：拒绝访问"
+  - 原因：设置文件硬编码写到 exe 目录，普通用户对 Program Files 无写权限
+  - 方案：设置文件路径优先 exe 目录，不可写时自动回退 `%APPDATA%\FPTP\setting.json`（启动时探测并缓存）
+- 修复安装向导在 Inno Setup 6.7.3 下崩溃 "Runtime error: Could not call proc"
+  - 原因：6.7.3 中访问 `TNewRadioButton.Checked` 属性必崩（即使用户正停留在该页）
+  - 方案：改用 `TInputOptionWizardPage.Values[]` 索引读取选项，并在用户离开页面时缓存
+
+### 优化
+- 安装选项合并改为仅当值变化时才写盘，避免每次启动无谓写入
+- 启动自动路径（设置迁移 / 安装选项合并）写盘失败静默，不弹错误框；用户主动操作仍提示
+
+## [1.3.1.0] — 2026-07-31
+
+### 新增
+- 安装向导新增"文档安装"选项页：可选择安装 Markdown / PDF 文档或不安装（安装到 Program Files 后仍可用）
+- 设置文件新增 high 隐藏段（docsFormat / installLang）：安装程序写入、应用读取，不入设置面板与导入导出
+- 关于窗口文档按钮按安装的文档格式打开（.md / .pdf），选择"不安装"时禁用
+
+### 变更
+- 安装向导支持中英双语（[Languages] 段，跟随系统语言）
+- 安装选项写入 `install-options.json`，应用启动时合并到设置隐藏段（high：docsFormat / installLang）
+- 自动更新改为静默安装：/VERYSILENT /NORESTART /SUPPRESSMSGBOXES，不再弹安装向导
+
+## [1.3.0.0] — 2026-07-31
+
+### 新增
+- 关于窗口重构分组：文档 / 支持与联系 / 操作
+- 关于窗口新增"报告问题"按钮：按地区跳转 GitCode / GitHub Issues
+- 关于窗口新增"联系作者"按钮：邮箱联系（3187909557@qq.com）
+- 关于窗口显示当前更新源（按地区自动判断 GitCode / GitHub）
+
 ## [1.2.1.0] — 2026-07-31
 
 ### 新增

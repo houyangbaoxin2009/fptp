@@ -2,7 +2,7 @@
 ; 编译：ISCC.exe setup.iss
 
 #define MyAppName "FPTP"
-#define MyAppVersion "1.2.1.0"
+#define MyAppVersion "1.3.2.0"
 #define MyAppPublisher "FranJ2"
 #define MyAppURL "https://github.com/houyangbaoxin2009/fptp"
 #define MyAppExeName "fptp.exe"
@@ -22,8 +22,27 @@ OutputBaseFilename=FPTP-v{#MyAppVersion}-Setup
 Compression=lzma2
 SolidCompression=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
 ChangesEnvironment=yes
+
+[Languages]
+Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[CustomMessages]
+chinesesimp.DocsPageTitle=文档安装
+chinesesimp.DocsPageDescription=选择要安装的文档格式
+chinesesimp.DocsPageSubCaption=安装的文档将保存到应用目录，可在应用设置中切换。
+chinesesimp.DocsOptionMd=Markdown 文档（.md）
+chinesesimp.DocsOptionPdf=PDF 文档（.pdf）
+chinesesimp.DocsOptionNone=不安装文档
+english.DocsPageTitle=Documentation
+english.DocsPageDescription=Select the documentation format to install
+english.DocsPageSubCaption=Installed documents are saved to the app folder.
+english.DocsOptionMd=Markdown documents (.md)
+english.DocsOptionPdf=PDF documents (.pdf)
+english.DocsOptionNone=Do not install documents
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "快捷方式："
@@ -35,8 +54,8 @@ Source: "bin\Release\net48\publish\fptp.exe.config"; DestDir: "{app}"; Flags: ig
 Source: "bin\Release\net48\publish\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\publish\fptp.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\publish\register-path.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\Release\net48\publish\*.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\Release\net48\publish\*.pdf"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\net48\publish\*.md"; DestDir: "{app}"; Flags: ignoreversion; Check: ShouldInstallDocs
+Source: "bin\Release\net48\publish\*.pdf"; DestDir: "{app}"; Flags: ignoreversion; Check: ShouldInstallDocs
 Source: "bin\Release\net48\publish\Resources\*"; DestDir: "{app}\Resources"; Flags: ignoreversion recursesubdirs
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -51,6 +70,74 @@ Filename: "{app}\{#MyAppExeName}"; Description: "运行 FPTP"; Flags: postinstal
 ; 添加/移除 PATH（由 Pascal 脚本处理，见下方代码）
 
 [Code]
+var
+  DocsPage: TInputOptionWizardPage;
+  SelectedDocsFormat: String;
+
+procedure InitializeWizard;
+begin
+  // 静默模式（静默更新）不创建页面，SelectedDocsFormat 保持默认 'md'
+  if not WizardSilent then
+  begin
+    DocsPage := CreateInputOptionPage(wpSelectTasks,
+      ExpandConstant('{cm:DocsPageTitle}'),
+      ExpandConstant('{cm:DocsPageDescription}'),
+      ExpandConstant('{cm:DocsPageSubCaption}'),
+      True, False);
+    // 注意：6.7.3 中访问 TNewRadioButton.Checked 会报 "Could not call proc"，
+    // 必须用 DocsPage.Values[] 索引读取
+    DocsPage.Add(ExpandConstant('{cm:DocsOptionMd}'));
+    DocsPage.Add(ExpandConstant('{cm:DocsOptionPdf}'));
+    DocsPage.Add(ExpandConstant('{cm:DocsOptionNone}'));
+    DocsPage.Values[0] := True;
+  end;
+  // 默认值；用户离开文档页时由 NextButtonClick 覆盖
+  SelectedDocsFormat := 'md';
+end;
+
+function GetDocsFormat: String;
+begin
+  if DocsPage = nil then
+    Result := 'md'
+  else if DocsPage.Values[0] then
+    Result := 'md'
+  else if DocsPage.Values[1] then
+    Result := 'pdf'
+  else
+    Result := 'none';
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  // 用户离开文档选择页时缓存选择（此时控件存活；安装阶段控件已释放不可访问）
+  if (not WizardSilent) and (DocsPage <> nil) and (CurPageID = DocsPage.ID) then
+    SelectedDocsFormat := GetDocsFormat;
+end;
+
+function ShouldInstallDocs: Boolean;
+begin
+  Result := SelectedDocsFormat <> 'none';
+end;
+
+function GetInstallLang: String;
+begin
+  if ExpandConstant('{language}') = 'english' then
+    Result := 'en-US'
+  else
+    Result := 'zh-CN';
+end;
+
+procedure WriteInstallOptions;
+var
+  JsonString: string;
+begin
+  JsonString := '{"docsFormat":"' + SelectedDocsFormat + '","installLang":"' + GetInstallLang + '"}';
+  if SaveStringToFile(ExpandConstant('{app}\install-options.json'), JsonString, False) then
+    Log('install-options.json 写入成功: ' + JsonString)
+  else
+    Log('install-options.json 写入失败');
+end;
 
 procedure AddToPath;
 var
@@ -103,6 +190,9 @@ begin
   begin
     if WizardIsTaskSelected('addtopath') then
       AddToPath;
+    // 静默模式（静默更新）不写 install-options.json，避免默认值覆盖用户偏好
+    if not WizardSilent then
+      WriteInstallOptions;
   end;
 end;
 

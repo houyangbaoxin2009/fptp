@@ -22,6 +22,7 @@ namespace fptp
 		public mainBox()
 		{
 			InitializeComponent();
+			Assalg.MergeInstallOptions();
 			settings = Assalg.LoadGenSettings();
 			appSettings = Assalg.LoadAppSettings();
 			Lang.Load(appSettings.Language);

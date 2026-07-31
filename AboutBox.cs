@@ -8,6 +8,8 @@ namespace fptp;
 
 partial class AboutBox : Form
 {
+	private string docExt = ".md";
+
 	public AboutBox()
 	{
 		InitializeComponent();
@@ -21,15 +23,29 @@ partial class AboutBox : Form
 		labelCopyright.Text = Basic.AppCopyright;
 		labelCompany.Text = Basic.AppCompany;
 		labelLicense.Text = "Apache License, Version 2.0";
+		labelUpdateSource.Text = Lang.Get("about.updateSource", RegionDetector.IsChina() ? Lang.Get("about.sourceGitCode") : Lang.Get("about.sourceGitHub"));
+		groupDocs.Text = Lang.Get("about.groupDocs");
+		groupSupport.Text = Lang.Get("about.groupSupport");
+		groupAction.Text = Lang.Get("about.groupAction");
 		btnChangelog.Text = Lang.Get("about.changelog");
 		btnReadme.Text = Lang.Get("about.readme");
 		btnContributing.Text = Lang.Get("about.contributing");
 		btnApiDoc.Text = Lang.Get("about.api");
 		btnGitHub.Text = Lang.Get("about.github");
+		btnReportIssue.Text = Lang.Get("about.reportIssue");
+		btnContact.Text = Lang.Get("about.contact");
 		btnDonate.Text = Lang.Get("about.donate");
 		btnWebsite.Text = Lang.Get("about.website");
 		btnCheckUpdate.Text = Lang.Get("about.checkUpdate");
 		btnOk.Text = Lang.Get("about.ok");
+
+		string docsFormat = Assalg.LoadHighSettings().DocsFormat;
+		docExt = docsFormat == "pdf" ? ".pdf" : ".md";
+		bool docsEnabled = docsFormat != "none";
+		btnChangelog.Enabled = docsEnabled;
+		btnReadme.Enabled = docsEnabled;
+		btnContributing.Enabled = docsEnabled;
+		btnApiDoc.Enabled = docsEnabled;
 	}
 
 	private void OpenFile(string fileName)
@@ -74,11 +90,72 @@ partial class AboutBox : Form
 		}
 	}
 
-	private void btnChangelog_Click(object sender, EventArgs e) => OpenFile("CHANGELOG.md");
-	private void btnReadme_Click(object sender, EventArgs e) => OpenFile("README.md");
-	private void btnContributing_Click(object sender, EventArgs e) => OpenFile("CONTRIBUTING.md");
-	private void btnApiDoc_Click(object sender, EventArgs e) => OpenFile("API.md");
+	private void OpenDoc(string fileName)
+	{
+		OpenFile(Path.ChangeExtension(fileName, docExt));
+	}
+
+	private void btnChangelog_Click(object sender, EventArgs e) => OpenDoc("CHANGELOG.md");
+	private void btnReadme_Click(object sender, EventArgs e) => OpenDoc("README.md");
+	private void btnContributing_Click(object sender, EventArgs e) => OpenDoc("CONTRIBUTING.md");
+	private void btnApiDoc_Click(object sender, EventArgs e) => OpenDoc("API.md");
 	private void btnGitHub_Click(object sender, EventArgs e) => OpenUrl(Basic.AppGitHub);
+	private void btnReportIssue_Click(object sender, EventArgs e) =>
+		OpenUrl(RegionDetector.IsChina() ? "https://gitcode.com/jiro2025/fptp/issues" : "https://github.com/houyangbaoxin2009/fptp/issues");
+	private void btnContact_Click(object sender, EventArgs e)
+	{
+		using (var form = new Form())
+		{
+			form.Text = Lang.Get("about.contactTitle");
+			form.FormBorderStyle = FormBorderStyle.FixedDialog;
+			form.MaximizeBox = false;
+			form.MinimizeBox = false;
+			form.StartPosition = FormStartPosition.CenterParent;
+			form.ShowIcon = false;
+			form.ShowInTaskbar = false;
+			form.KeyPreview = true;
+			form.ClientSize = new Size(280, 116);
+
+			var lblEmail = new Label
+			{
+				AutoSize = true,
+				Location = new Point(16, 16),
+				Text = Lang.Get("about.email"),
+			};
+			var lnkEmail = new LinkLabel
+			{
+				AutoSize = true,
+				Location = new Point(16, 40),
+				Text = "3187909557@qq.com",
+			};
+			lnkEmail.Click += (_, _) => OpenUrl("mailto:3187909557@qq.com");
+			var lblQq = new Label
+			{
+				AutoSize = true,
+				Location = new Point(16, 64),
+				Text = Lang.Get("about.qq"),
+			};
+			var lnkQq = new LinkLabel
+			{
+				AutoSize = true,
+				Location = new Point(16, 88),
+				Text = "3187909557",
+			};
+
+			form.Controls.Add(lblEmail);
+			form.Controls.Add(lnkEmail);
+			form.Controls.Add(lblQq);
+			form.Controls.Add(lnkQq);
+
+			// Escape 关闭
+			form.KeyDown += (_, args) =>
+			{
+				if (args.KeyCode == Keys.Escape) form.Close();
+			};
+
+			form.ShowDialog(this);
+		}
+	}
 	private void btnDonate_Click(object sender, EventArgs e)
 	{
 		string exeDir = Path.GetDirectoryName(Application.ExecutablePath);

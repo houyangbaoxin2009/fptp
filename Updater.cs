@@ -201,6 +201,8 @@ namespace fptp
 				System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
 				{
 					FileName = tmpPath,
+					// 静默安装：更新流程不再让用户手动走安装向导
+					Arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES",
 					UseShellExecute = true
 				});
 				owner.Close();
