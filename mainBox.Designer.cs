@@ -36,6 +36,7 @@ partial class mainBox
 		btnSettings = new Button();
 		lblInfo = new Label();
 		btnAbout = new Button();
+		chkAnimeMode = new CheckBox();
 		groupBox1 = new GroupBox();
 		btnLayout = new Button();
 		groupBox2 = new GroupBox();
@@ -124,6 +125,7 @@ partial class mainBox
 		// 
 		// groupBox2
 		// 
+		groupBox2.Controls.Add(chkAnimeMode);
 		groupBox2.Controls.Add(btnAutoCrop);
 		groupBox2.Controls.Add(label1);
 		groupBox2.Controls.Add(TrackBar);
@@ -137,6 +139,17 @@ partial class mainBox
 		groupBox2.TabStop = false;
 		groupBox2.Text = "预处理";
 		groupBox2.Enter += groupBox2_Enter;
+		// 
+		// chkAnimeMode
+		// 
+		chkAnimeMode.AutoSize = true;
+		chkAnimeMode.Location = new Point(196, 101);
+		chkAnimeMode.Name = "chkAnimeMode";
+		chkAnimeMode.Size = new Size(95, 21);
+		chkAnimeMode.TabIndex = 8;
+		chkAnimeMode.Text = "动画模式";
+		chkAnimeMode.UseVisualStyleBackColor = true;
+		chkAnimeMode.CheckedChanged += chkAnimeMode_CheckedChanged;
 		// 
 		// btnAutoCrop
 		// 
@@ -347,6 +360,7 @@ partial class mainBox
 	private TrackBar TrackBar;
 	private Label label1;
 	private Button btnAutoCrop;
+	private CheckBox chkAnimeMode;
 	private Button btnUnload;
 	private Button btnSettings;
 	private Button btnPrint;

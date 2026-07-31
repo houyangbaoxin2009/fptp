@@ -42,6 +42,7 @@ namespace fptp
 			btnAutoCrop.Text = Lang.Get("main.crop");
 			btnBlackWhite.Text = Lang.Get("main.grayscale");
 			btnChangeBg.Text = Lang.Get("main.changeBg");
+			chkAnimeMode.Text = Lang.Get("main.animeMode");
 			label1.Text = Lang.Get("main.tolerance");
 			groupBox1.Text = Lang.Get("main.layoutGroup");
 			btnLayout.Text = Lang.Get("main.layout");
@@ -97,6 +98,7 @@ namespace fptp
 			_applyingSettings = true;
 			cmbBgColor.SelectedIndex = ColorIndexFromStored(settings.BackgroundColor);
 			TrackBar.Value = settings.Tolerance;
+			chkAnimeMode.Checked = settings.AnimeMode;
 			_applyingSettings = false;
 		}
 
@@ -260,7 +262,9 @@ namespace fptp
 			this.Cursor = Cursors.WaitCursor;
 
 			int tolerance = TrackBar.Value;
-			Bitmap newImage = Prepalg.ReplaceBackground(currentImage, targetColor, tolerance, this);
+			Bitmap newImage = settings.AnimeMode
+				? Prepalg.ReplaceBackgroundAnime(currentImage, targetColor, tolerance, this)
+				: Prepalg.ReplaceBackground(currentImage, targetColor, tolerance, this);
 
 			currentImage.Dispose();
 			currentImage = newImage;
@@ -543,6 +547,13 @@ namespace fptp
 		private void TrackBar_Scroll(object sender, EventArgs e)
 		{
 			if (!_applyingSettings) SaveToleranceSetting();
+		}
+
+		private void chkAnimeMode_CheckedChanged(object sender, EventArgs e)
+		{
+			if (_applyingSettings) return;
+			settings.AnimeMode = chkAnimeMode.Checked;
+			Assalg.SaveGenSettings(settings);
 		}
 
 		private void label1_Click(object sender, EventArgs e) { }

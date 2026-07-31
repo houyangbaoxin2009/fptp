@@ -143,7 +143,7 @@ namespace fptp
 			Console.WriteLine("  fptp.exe basic version");
 			Console.WriteLine("  fptp.exe prep crop -i in.jpg -o out.jpg -w 295 -h 413");
 			Console.WriteLine("  fptp.exe prep grayscale -i in.jpg -o out.jpg");
-			Console.WriteLine("  fptp.exe prep bgcolor -i in.jpg -o out.jpg -c white -t 40");
+			Console.WriteLine("  fptp.exe prep bgcolor -i in.jpg -o out.jpg -c white -t 40 -a");
 			Console.WriteLine("  fptp.exe ass save -i in.jpg -o out.jpg");
 			Console.WriteLine("  fptp.exe ass checkres -i in.jpg -w 295 -h 413");
 			Console.WriteLine("  fptp.exe ass settings");
@@ -203,8 +203,7 @@ namespace fptp
 
 		static int UnknownPrepCommand(string command)
 		{
-			Console.WriteLine(Lang.Get("cli.unknownCommand", "prep", command, "crop grayscale bgcolor"));
-			return 1;
+			Console.WriteLine(Lang.Get("cli.unknownCommand", "prep", command, "crop grayscale bgcolor"));			return 1;
 		}
 
 		static int RunPrepCrop(string[] args)
@@ -284,7 +283,7 @@ namespace fptp
 
 			if (string.IsNullOrEmpty(inputPath) || string.IsNullOrEmpty(outputPath))
 			{
-				Console.WriteLine("用法: fptp.exe prep bgcolor -i <input> -o <output> -c <color> -t <tolerance>");
+				Console.WriteLine("用法: fptp.exe prep bgcolor -i <input> -o <output> -c <color> -t <tolerance> [-a]");
 				return 1;
 			}
 
@@ -301,14 +300,19 @@ namespace fptp
 				return 1;
 			}
 
+			// 动画模式：连通域洪泛填充，保护眼白等被主体包围的相似色区域
+			bool anime = HasFlag(args, "-a", "--anime");
+
 			try
 			{
 				using (Bitmap source = new Bitmap(inputPath))
-				using (Bitmap result = Prepalg.ReplaceBackground(source, bgColor, tolerance))
+				using (Bitmap result = anime
+					? Prepalg.ReplaceBackgroundAnime(source, bgColor, tolerance)
+					: Prepalg.ReplaceBackground(source, bgColor, tolerance))
 				{
 					Assalg.SaveImage(result, outputPath);
 				}
-				Console.WriteLine(JsonSerializer.Serialize(new { success = true, output = outputPath }, JsonOptions));
+				Console.WriteLine(JsonSerializer.Serialize(new { success = true, output = outputPath, anime }, JsonOptions));
 				return 0;
 			}
 			catch (Exception ex)

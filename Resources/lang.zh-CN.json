@@ -4,6 +4,7 @@
   "main.crop": "智能裁剪",
   "main.grayscale": "变黑白",
   "main.changeBg": "修改底色",
+  "main.animeMode": "动画模式",
   "main.tolerance": "算法灵敏度",
   "main.layout": "排版",
   "main.save": "导出本地",

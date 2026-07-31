@@ -14,6 +14,9 @@ namespace fptp
 		public string BackgroundColor { get; set; } = "蓝色";
 		public int Tolerance { get; set; } = 60;
 
+		/// <summary>动画模式：换底色时用连通域洪泛填充，保护眼白等被主体包围的相似色区域</summary>
+		public bool AnimeMode { get; set; } = false;
+
 		/// <summary>排版预设索引：0=5寸 1=6寸 2=A4 3=A5 4=自定义</summary>
 		public int LayoutPreset { get; set; } = 0;
 		public int CustomLayoutW { get; set; } = 1500;
