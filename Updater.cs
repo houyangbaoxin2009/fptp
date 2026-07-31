@@ -13,7 +13,7 @@ namespace fptp
 	/// </summary>
 	public static class Updater
 	{
-		// GitCode API：获取仓库所有 Releases（数组，首个为最新）
+		// GitCode API：获取仓库所有 Releases（GitCode 升序、GitHub 降序，取版本最大者）
 		private const string GitCodeReleasesApi =
 			"https://api.gitcode.com/api/v5/repos/jiro2025/fptp/releases";
 
@@ -107,7 +107,7 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 从指定平台 API 获取最新 Release 的 tag 与首个安装包下载地址。
+		/// 从指定平台 API 获取版本号最大的 Release（GitCode 数组升序、GitHub 降序）。
 		/// </summary>
 		private static LatestRelease? TryFetch(string api)
 		{
@@ -127,33 +127,45 @@ namespace fptp
 						doc.RootElement.GetArrayLength() == 0)
 						return null;
 
-					JsonElement first = doc.RootElement[0];
-					string? tag = first.TryGetProperty("tag_name", out JsonElement tagEl)
-						? tagEl.GetString() : null;
-					string? body = first.TryGetProperty("body", out JsonElement bodyEl)
-						? bodyEl.GetString() : null;
-
-					string? download = null;
-					if (first.TryGetProperty("assets", out JsonElement assetsEl) &&
-						assetsEl.ValueKind == JsonValueKind.Array)
+					// 两平台返回顺序不同，遍历取版本号最大者
+					LatestRelease? best = null;
+					Version? bestVersion = null;
+					foreach (JsonElement release in doc.RootElement.EnumerateArray())
 					{
-						foreach (JsonElement asset in assetsEl.EnumerateArray())
+						string? tag = release.TryGetProperty("tag_name", out JsonElement tagEl)
+							? tagEl.GetString() : null;
+						if (string.IsNullOrEmpty(tag)) continue;
+
+						Version? ver = ParseTagVersion(tag!);
+						if (ver == null || (bestVersion != null && ver <= bestVersion))
+							continue;
+
+						string? body = release.TryGetProperty("body", out JsonElement bodyEl)
+							? bodyEl.GetString() : null;
+
+						string? download = null;
+						if (release.TryGetProperty("assets", out JsonElement assetsEl) &&
+							assetsEl.ValueKind == JsonValueKind.Array)
 						{
-							if (asset.TryGetProperty("browser_download_url", out JsonElement urlEl))
+							foreach (JsonElement asset in assetsEl.EnumerateArray())
 							{
-								string? url = urlEl.GetString();
-								if (!string.IsNullOrEmpty(url) &&
-									url!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+								if (asset.TryGetProperty("browser_download_url", out JsonElement urlEl))
 								{
-									download = url;
-									break;
+									string? url = urlEl.GetString();
+									if (!string.IsNullOrEmpty(url) &&
+										url!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+									{
+										download = url;
+										break;
+									}
 								}
 							}
 						}
-					}
 
-					if (string.IsNullOrEmpty(tag)) return null;
-					return new LatestRelease { TagName = tag, Body = body, DownloadUrl = download };
+						best = new LatestRelease { TagName = tag, Body = body, DownloadUrl = download };
+						bestVersion = ver;
+					}
+					return best;
 				}
 			}
 		}
