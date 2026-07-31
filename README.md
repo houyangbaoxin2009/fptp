@@ -9,7 +9,7 @@
 - **换底色** — 基于色键 + 容差的像素级背景替换算法，支持白/蓝/红底，容差可调
 - **排版输出** — 预设 5 寸（1500×1050）、6 寸（1800×1200）、A4、A5 相纸布局，支持自定义宽高，自动排列裁剪后的照片，张数根据照片尺寸动态计算，带虚线裁剪辅助线
 - **中英双语** — 设置中切换界面语言（简体中文 / English），即时生效；命令行可用 `--lang` 指定
-- **自动更新** — 默认开启，启动时静默检查 GitCode Releases，发现新版本自动提示下载安装；可在设置中关闭或于"关于"窗口手动检查
+- **自动更新** — 默认开启，启动时静默检查更新，发现新版本自动提示下载安装；按用户地区自动选择源（中国走 GitCode，国外走 GitHub，源失败自动回退）；可在设置中关闭或于"关于"窗口手动检查
 - **高质量保存** — 支持 JPEG / PNG / BMP / TIFF / GIF 五种格式，JPEG 质量可调（70-100）
 - **直接打印** — 一键打印当前图片，自动缩放居中，可选手打印机
 
@@ -70,7 +70,8 @@ fptp/
 ├── CustomSizeBox.cs        自定义排版尺寸对话框
 ├── Basic.cs                应用配置常量（版本、尺寸）和通用工具方法
 ├── Lang.cs                 多语言支持（语言包加载与查询）
-├── Updater.cs              自动更新（GitCode Releases）
+├── Updater.cs              自动更新（GitCode / GitHub 按地区选源）
+├── RegionDetector.cs       用户地区检测（IP 定位）
 ├── Prepalg.cs              预处理算法（智能裁剪 / 灰度转换 / 换底）
 ├── Assalg.cs               辅助算法（图片保存 / 颜色计算 / 分辨率检查）
 ├── Resources/lang.zh-CN.json   简体中文语言包
@@ -96,7 +97,7 @@ fptp/
 - **UI**: Windows Forms
 - **图像处理**: `System.Drawing`（Bitmap / Graphics / ColorMatrix / ImageAttributes）
 - **多语言**: 内嵌 JSON 语言包（`Resources/lang.*.json`），`Lang.Get(key)` 统一取词
-- **自动更新**: `HttpWebRequest` 请求 GitCode Releases API（`api.gitcode.com/api/v5`）
+- **自动更新**: `HttpWebRequest` 请求 GitCode / GitHub Releases API，按用户地区选源（`RegionDetector` IP 定位）
 - **DPI 基准**: 所有尺寸常量基于 300 DPI
 - **命名约定**: `Assalg` = 助理 + 算法；`Prepalg` = 预处理 + 算法
 
