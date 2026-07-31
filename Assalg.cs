@@ -14,12 +14,14 @@ namespace fptp
 	public static class Assalg
 	{
 		/// <summary>
-		/// 以最高质量保存图片到指定路径。
-		/// JPEG 格式自动设为 Quality=100，PNG/BMP 直接保存。
+		/// 以指定质量保存图片到指定路径。
+		/// 支持 JPEG/PNG/BMP/TIFF/GIF（根据扩展名判断格式）。
+		/// JPEG 应用质量参数，其余格式忽略质量直接保存。
 		/// </summary>
 		/// <param name="bmp">要保存的图片</param>
 		/// <param name="filePath">保存路径（根据扩展名判断格式）</param>
-		public static void SaveImage(Bitmap bmp, string filePath)
+		/// <param name="quality">JPEG 质量（1-100，默认 100）</param>
+		public static void SaveImage(Bitmap bmp, string filePath, int quality = 100)
 		{
 			if (bmp == null) return;
 
@@ -32,10 +34,19 @@ namespace fptp
 				return;
 			}
 
-			using (EncoderParameters encoderParams = new EncoderParameters(1))
+			bool isJpeg = codecInfo.MimeType == "image/jpeg";
+			if (isJpeg)
 			{
-				encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 100L);
-				bmp.Save(filePath, codecInfo, encoderParams);
+				int q = Math.Max(1, Math.Min(100, quality));
+				using (EncoderParameters encoderParams = new EncoderParameters(1))
+				{
+					encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, q);
+					bmp.Save(filePath, codecInfo, encoderParams);
+				}
+			}
+			else
+			{
+				bmp.Save(filePath, codecInfo, null);
 			}
 		}
 

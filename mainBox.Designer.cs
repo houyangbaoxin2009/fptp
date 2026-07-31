@@ -31,13 +31,13 @@ partial class mainBox
 		pictureBox1 = new PictureBox();
 		btnLoad = new Button();
 		btnBlackWhite = new Button();
-		btnLayout5 = new Button();
+		cmbLayout = new ComboBox();
 		btnSave = new Button();
 		btnSettings = new Button();
 		lblInfo = new Label();
 		btnAbout = new Button();
 		groupBox1 = new GroupBox();
-		btnLayout6 = new Button();
+		btnLayout = new Button();
 		groupBox2 = new GroupBox();
 		btnAutoCrop = new Button();
 		label1 = new Label();
@@ -47,6 +47,7 @@ partial class mainBox
 		groupBox3 = new GroupBox();
 		groupBox4 = new GroupBox();
 		btnUnload = new Button();
+		btnPrint = new Button();
 		((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
 		groupBox1.SuspendLayout();
 		groupBox2.SuspendLayout();
@@ -84,19 +85,16 @@ partial class mainBox
 		btnBlackWhite.UseVisualStyleBackColor = true;
 		btnBlackWhite.Click += BtnBlackWhite_Click;
 		// 
-		// btnLayout5
+		// cmbLayout
 		// 
-		btnLayout5.Location = new Point(6, 22);
-		btnLayout5.Name = "btnLayout5";
-		btnLayout5.Size = new Size(75, 29);
-		btnLayout5.TabIndex = 3;
-		btnLayout5.Text = "5寸排版";
-		btnLayout5.UseVisualStyleBackColor = true;
-		btnLayout5.Click += BtnLayout5_Click;
+		cmbLayout.DropDownStyle = ComboBoxStyle.DropDownList;
+		cmbLayout.Location = new Point(6, 25);
+		cmbLayout.Name = "cmbLayout";
+		cmbLayout.Size = new Size(200, 25);
+		cmbLayout.TabIndex = 3;
 		// 
-		//
 		// lblInfo
-		//
+		// 
 		lblInfo.AutoSize = true;
 		lblInfo.Location = new Point(387, 492);
 		lblInfo.Name = "lblInfo";
@@ -105,8 +103,8 @@ partial class mainBox
 		//
 		// groupBox1
 		// 
-		groupBox1.Controls.Add(btnLayout6);
-		groupBox1.Controls.Add(btnLayout5);
+		groupBox1.Controls.Add(btnLayout);
+		groupBox1.Controls.Add(cmbLayout);
 		groupBox1.Location = new Point(373, 226);
 		groupBox1.Name = "groupBox1";
 		groupBox1.Size = new Size(299, 103);
@@ -114,15 +112,15 @@ partial class mainBox
 		groupBox1.TabStop = false;
 		groupBox1.Text = "排版";
 		// 
-		// btnLayout6
+		// btnLayout
 		// 
-		btnLayout6.Location = new Point(87, 22);
-		btnLayout6.Name = "btnLayout6";
-		btnLayout6.Size = new Size(75, 29);
-		btnLayout6.TabIndex = 4;
-		btnLayout6.Text = "6寸排版";
-		btnLayout6.UseVisualStyleBackColor = true;
-		btnLayout6.Click += BtnLayout6_Click;
+		btnLayout.Location = new Point(212, 23);
+		btnLayout.Name = "btnLayout";
+		btnLayout.Size = new Size(78, 29);
+		btnLayout.TabIndex = 4;
+		btnLayout.Text = "排版";
+		btnLayout.UseVisualStyleBackColor = true;
+		btnLayout.Click += BtnLayout_Click;
 		// 
 		// groupBox2
 		// 
@@ -204,6 +202,7 @@ partial class mainBox
 		// 
 		// groupBox4
 		// 
+		groupBox4.Controls.Add(btnPrint);
 		groupBox4.Controls.Add(btnSettings);
 		groupBox4.Controls.Add(btnUnload);
 		groupBox4.Controls.Add(btnSave);
@@ -220,17 +219,27 @@ partial class mainBox
 		// 
 		btnSave.Location = new Point(6, 22);
 		btnSave.Name = "btnSave";
-		btnSave.Size = new Size(138, 29);
+		btnSave.Size = new Size(92, 29);
 		btnSave.TabIndex = 4;
 		btnSave.Text = "导出本地";
 		btnSave.UseVisualStyleBackColor = true;
 		btnSave.Click += BtnSave_Click;
 		// 
+		// btnPrint
+		// 
+		btnPrint.Location = new Point(104, 22);
+		btnPrint.Name = "btnPrint";
+		btnPrint.Size = new Size(92, 29);
+		btnPrint.TabIndex = 9;
+		btnPrint.Text = "打印";
+		btnPrint.UseVisualStyleBackColor = true;
+		btnPrint.Click += BtnPrint_Click;
+		// 
 		// btnUnload
 		// 
-		btnUnload.Location = new Point(150, 22);
+		btnUnload.Location = new Point(202, 22);
 		btnUnload.Name = "btnUnload";
-		btnUnload.Size = new Size(138, 29);
+		btnUnload.Size = new Size(92, 29);
 		btnUnload.TabIndex = 7;
 		btnUnload.Text = "卸载图片";
 		btnUnload.UseVisualStyleBackColor = true;
@@ -324,14 +333,14 @@ partial class mainBox
 	private PictureBox pictureBox1;
 	private Button btnLoad;
 	private Button btnBlackWhite;
-	private Button btnLayout5;
+	private ComboBox cmbLayout;
+	private Button btnLayout;
 	private Button btnSave;
 	private Label lblInfo;
 	private Button btnAbout;
 	private GroupBox groupBox1;
 	private GroupBox groupBox2;
 	private GroupBox groupBox3;
-	private Button btnLayout6;
 	private GroupBox groupBox4;
 	private Button btnChangeBg;
 	private ComboBox cmbBgColor;
@@ -340,6 +349,7 @@ partial class mainBox
 	private Button btnAutoCrop;
 	private Button btnUnload;
 	private Button btnSettings;
+	private Button btnPrint;
 	private GroupBox groupBox5;
 	private Button btnUndo;
 	private Button btnReload;

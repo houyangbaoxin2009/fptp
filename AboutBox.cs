@@ -15,12 +15,21 @@ partial class AboutBox : Form
 
 	private void AboutBox1_Load(object sender, EventArgs e)
 	{
-		Text = $"关于 {Basic.AppName}";
+		Text = Lang.Get("about.title", Basic.AppName);
 		labelProductName.Text = $"{Basic.AppName} v{Basic.AppVersion}";
 		labelVersion.Text = $".NET Framework 4.8 | Windows 7 SP1+";
 		labelCopyright.Text = Basic.AppCopyright;
 		labelCompany.Text = Basic.AppCompany;
 		labelLicense.Text = "Apache License, Version 2.0";
+		btnChangelog.Text = Lang.Get("about.changelog");
+		btnReadme.Text = Lang.Get("about.readme");
+		btnContributing.Text = Lang.Get("about.contributing");
+		btnApiDoc.Text = Lang.Get("about.api");
+		btnGitHub.Text = Lang.Get("about.github");
+		btnDonate.Text = Lang.Get("about.donate");
+		btnWebsite.Text = Lang.Get("about.website");
+		btnCheckUpdate.Text = Lang.Get("about.checkUpdate");
+		btnOk.Text = Lang.Get("about.ok");
 	}
 
 	private void OpenFile(string fileName)
@@ -45,11 +54,11 @@ partial class AboutBox : Form
 				}
 			}
 
-			MessageBox.Show(this, $"文件未找到：{fileName}\n请确保文档文件与程序在同一目录。", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+			MessageBox.Show(this, Lang.Get("about.fileNotFound", fileName), Lang.Get("msg.error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
 		}
 		catch (Exception ex)
 		{
-			MessageBox.Show(this, $"无法打开文件：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+			MessageBox.Show(this, Lang.Get("about.openFailed", ex.Message), Lang.Get("msg.error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
 		}
 	}
 
@@ -61,7 +70,7 @@ partial class AboutBox : Form
 		}
 		catch (Exception ex)
 		{
-			MessageBox.Show(this, $"无法打开链接：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+			MessageBox.Show(this, Lang.Get("about.urlFailed", ex.Message), Lang.Get("msg.error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
 		}
 	}
 
@@ -73,17 +82,17 @@ partial class AboutBox : Form
 	private void btnDonate_Click(object sender, EventArgs e)
 	{
 		string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
-		string imgPath = Path.Combine(exeDir, "Assets", "donate.jpg");
+		string imgPath = Path.Combine(exeDir, "Resources", "donate.jpg");
 		if (!File.Exists(imgPath))
 		{
-			MessageBox.Show(this, "未找到收款码图片。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+			MessageBox.Show(this, Lang.Get("about.noQrCode"), Lang.Get("msg.tip"), MessageBoxButtons.OK, MessageBoxIcon.Information);
 			return;
 		}
 
 		using (var img = Image.FromFile(imgPath))
 		using (var form = new Form())
 		{
-			form.Text = "给作者买一杯咖啡 ☕";
+			form.Text = Lang.Get("about.donateTitle");
 			form.FormBorderStyle = FormBorderStyle.FixedDialog;
 			form.MaximizeBox = false;
 			form.MinimizeBox = false;
@@ -121,4 +130,5 @@ partial class AboutBox : Form
 		}
 	}
 	private void btnWebsite_Click(object sender, EventArgs e) => OpenUrl(Basic.AppWebsite);
+	private void btnCheckUpdate_Click(object sender, EventArgs e) => Updater.CheckManual(this);
 }

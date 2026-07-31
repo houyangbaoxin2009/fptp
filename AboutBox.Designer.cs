@@ -30,6 +30,7 @@ partial class AboutBox
 		btnGitHub = new Button();
 		btnDonate = new Button();
 		btnWebsite = new Button();
+		btnCheckUpdate = new Button();
 		btnOk = new Button();
 		flowButtons.SuspendLayout();
 		SuspendLayout();
@@ -85,10 +86,11 @@ partial class AboutBox
 		flowButtons.Controls.Add(btnGitHub);
 		flowButtons.Controls.Add(btnDonate);
 		flowButtons.Controls.Add(btnWebsite);
+		flowButtons.Controls.Add(btnCheckUpdate);
 		flowButtons.FlowDirection = FlowDirection.LeftToRight;
 		flowButtons.Location = new Point(16, 164);
 		flowButtons.Name = "flowButtons";
-		flowButtons.Size = new Size(450, 120);
+		flowButtons.Size = new Size(450, 168);
 		flowButtons.TabIndex = 5;
 		flowButtons.WrapContents = true;
 		//
@@ -161,15 +163,25 @@ partial class AboutBox
 		btnWebsite.Text = "访问官网";
 		btnWebsite.UseVisualStyleBackColor = true;
 		btnWebsite.Click += btnWebsite_Click;
-		//
+		// 
+		// btnCheckUpdate
+		// 
+		btnCheckUpdate.Location = new Point(151, 79);
+		btnCheckUpdate.Name = "btnCheckUpdate";
+		btnCheckUpdate.Size = new Size(142, 32);
+		btnCheckUpdate.TabIndex = 7;
+		btnCheckUpdate.Text = "检查更新";
+		btnCheckUpdate.UseVisualStyleBackColor = true;
+		btnCheckUpdate.Click += btnCheckUpdate_Click;
+		// 
 		// btnOk
-		//
+		// 
 		btnOk.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
 		btnOk.DialogResult = DialogResult.Cancel;
-		btnOk.Location = new Point(370, 300);
+		btnOk.Location = new Point(370, 348);
 		btnOk.Name = "btnOk";
 		btnOk.Size = new Size(96, 30);
-		btnOk.TabIndex = 7;
+		btnOk.TabIndex = 8;
 		btnOk.Text = "确定(&O)";
 		//
 		// AboutBox
@@ -177,7 +189,7 @@ partial class AboutBox
 		AcceptButton = btnOk;
 		AutoScaleMode = AutoScaleMode.None;
 		CancelButton = btnOk;
-		ClientSize = new Size(482, 346);
+		ClientSize = new Size(482, 394);
 		Controls.Add(labelProductName);
 		Controls.Add(labelVersion);
 		Controls.Add(labelCopyright);
@@ -214,5 +226,6 @@ partial class AboutBox
 	private Button btnGitHub;
 	private Button btnDonate;
 	private Button btnWebsite;
+	private Button btnCheckUpdate;
 	private Button btnOk;
 }

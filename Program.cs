@@ -35,9 +35,19 @@ namespace fptp
 
 		/// <summary>
 		/// 命令行入口。子命令模式（不以 - 开头）或旧版参数兼容。
+		/// 支持 --lang zh-CN|en-US 指定输出语言。
 		/// </summary>
 		static int RunCommandMode(string[] args)
 		{
+			// ── 语言参数（全局，任意位置）──
+			string langCode = ParseArgValue(args, "--lang", "--lang") ?? "";
+			if (langCode != "" && langCode != "zh-CN" && langCode != "en-US")
+			{
+				Console.WriteLine("Error: unknown language. Available: zh-CN en-US");
+				return 1;
+			}
+			Lang.Load(langCode == "" ? "zh-CN" : langCode);
+
 			// ── 子命令模式 ──
 			if (args.Length > 0 && !args[0].StartsWith("-"))
 				return RunSubCommand(args);
@@ -55,7 +65,7 @@ namespace fptp
 
 			if (string.IsNullOrEmpty(inputPath) || string.IsNullOrEmpty(outputPath))
 			{
-				Console.WriteLine("Error: Missing input or output path.");
+				Console.WriteLine(Lang.Get("cli.missingPath"));
 				return 1;
 			}
 
@@ -121,14 +131,14 @@ namespace fptp
 
 		static void PrintUsage()
 		{
-			Console.WriteLine("用法: fptp.exe <模块> <命令> [参数]");
+			Console.WriteLine(Lang.Get("cli.usage"));
 			Console.WriteLine("");
-			Console.WriteLine("模块:");
-			Console.WriteLine("  basic   读取应用信息");
-			Console.WriteLine("  prep    图像预处理（裁剪 / 灰度 / 换底）");
-			Console.WriteLine("  ass     辅助功能（保存 / 检查 / 设置）");
+			Console.WriteLine(Lang.Get("cli.modules"));
+			Console.WriteLine(Lang.Get("cli.modBasic"));
+			Console.WriteLine(Lang.Get("cli.modPrep"));
+			Console.WriteLine(Lang.Get("cli.modAss"));
 			Console.WriteLine("");
-			Console.WriteLine("示例:");
+			Console.WriteLine(Lang.Get("cli.examples"));
 			Console.WriteLine("  fptp.exe basic info");
 			Console.WriteLine("  fptp.exe basic version");
 			Console.WriteLine("  fptp.exe prep crop -i in.jpg -o out.jpg -w 295 -h 413");
@@ -141,7 +151,7 @@ namespace fptp
 
 		static int UnknownModule(string module)
 		{
-			Console.WriteLine($"未知模块: {module}。可用模块: basic prep ass");
+			Console.WriteLine(Lang.Get("cli.unknownModule", module));
 			return 1;
 		}
 
@@ -173,7 +183,7 @@ namespace fptp
 					return 0;
 
 				default:
-					Console.WriteLine($"未知命令: basic {command}。可用命令: info version");
+					Console.WriteLine(Lang.Get("cli.unknownCommand", "basic", command, "info version"));
 					return 1;
 			}
 		}
@@ -193,7 +203,7 @@ namespace fptp
 
 		static int UnknownPrepCommand(string command)
 		{
-			Console.WriteLine($"未知命令: prep {command}。可用命令: crop grayscale bgcolor");
+			Console.WriteLine(Lang.Get("cli.unknownCommand", "prep", command, "crop grayscale bgcolor"));
 			return 1;
 		}
 
@@ -210,13 +220,13 @@ namespace fptp
 
 			if (!TryParseInt(ParseArgValue(args, "-w", "--width"), out int width) || width <= 0)
 			{
-				Console.WriteLine("Error: 缺少有效 -w/--width 参数");
+				Console.WriteLine(Lang.Get("cli.invalidWidth"));
 				return 1;
 			}
 
 			if (!TryParseInt(ParseArgValue(args, "-h", "--height"), out int height) || height <= 0)
 			{
-				Console.WriteLine("Error: 缺少有效 -h/--height 参数");
+				Console.WriteLine(Lang.Get("cli.invalidHeight"));
 				return 1;
 			}
 
@@ -225,7 +235,7 @@ namespace fptp
 				using (Bitmap source = new Bitmap(inputPath))
 				using (Bitmap result = Prepalg.SmartCrop(source, width, height))
 				{
-					if (result == null) { Console.WriteLine("Error: 裁剪失败"); return 1; }
+					if (result == null) { Console.WriteLine(Lang.Get("cli.cropFailed")); return 1; }
 					Assalg.SaveImage(result, outputPath);
 				}
 				Console.WriteLine(JsonSerializer.Serialize(new { success = true, output = outputPath, width, height }, JsonOptions));
@@ -281,13 +291,13 @@ namespace fptp
 			Color bgColor = Color.FromName(colorName);
 			if (!bgColor.IsKnownColor)
 			{
-				Console.WriteLine($"Error: 未知颜色 '{colorName}'。可用: white blue red 等");
+				Console.WriteLine(Lang.Get("cli.unknownColor", colorName));
 				return 1;
 			}
 
 			if (!TryParseInt(ParseArgValue(args, "-t", "--tolerance"), out int tolerance) || tolerance < 0 || tolerance > 150)
 			{
-				Console.WriteLine("Error: 缺少有效 -t/--tolerance 参数 (0-150)");
+				Console.WriteLine(Lang.Get("cli.invalidTolerance"));
 				return 1;
 			}
 
@@ -323,7 +333,7 @@ namespace fptp
 
 		static int UnknownAssCommand(string command)
 		{
-			Console.WriteLine($"未知命令: ass {command}。可用命令: save checkres settings");
+			Console.WriteLine(Lang.Get("cli.unknownCommand", "ass", command, "save checkres settings"));
 			return 1;
 		}
 
@@ -366,13 +376,13 @@ namespace fptp
 
 			if (!TryParseInt(ParseArgValue(args, "-w", "--width"), out int minW) || minW <= 0)
 			{
-				Console.WriteLine("Error: 缺少有效 -w/--width 参数");
+				Console.WriteLine(Lang.Get("cli.invalidWidth"));
 				return 1;
 			}
 
 			if (!TryParseInt(ParseArgValue(args, "-h", "--height"), out int minH) || minH <= 0)
 			{
-				Console.WriteLine("Error: 缺少有效 -h/--height 参数");
+				Console.WriteLine(Lang.Get("cli.invalidHeight"));
 				return 1;
 			}
 

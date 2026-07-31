@@ -12,11 +12,11 @@ namespace fptp
 	{
 		// ── 应用信息 ──
 		public const string AppName = "FPTP";
-		public const string AppVersion = "1.1.1.1";
+		public const string AppVersion = "1.2.0.0";
 		public const string AppCopyright = "Copyright © 2026 Jiro";
 		public const string AppCompany = "FranJ2";
-		public const string AppGitHub = "https://github.com/houyangbaoxin2009/fptp";
-		public const string AppWebsite = "https://github.com/houyangbaoxin2009/fptp.git";
+		public const string AppGitHub = "https://gitcode.com/jiro2025/fptp";
+		public const string AppWebsite = "https://gitcode.com/jiro2025/fptp";
 
 		// ── 证件照标准尺寸（像素 @300DPI） ──
 		public const int ONE_INCH_W = 295;   // 一寸 25mm x 35mm
@@ -25,6 +25,18 @@ namespace fptp
 		public const int TWO_INCH_H = 626;
 		public const int PASSPORT_W = 390;   // 小二寸（护照/签证）33mm x 48mm
 		public const int PASSPORT_H = 567;
+
+		// ── 相纸排版尺寸（像素 @300DPI） ──
+		// 预设索引：0=5寸 1=6寸 2=A4 3=A5 4=自定义
+		public const int LAYOUT_5INCH_W = 1500;
+		public const int LAYOUT_5INCH_H = 1050;
+		public const int LAYOUT_6INCH_W = 1800;
+		public const int LAYOUT_6INCH_H = 1200;
+		public const int LAYOUT_A4_W = 3508;
+		public const int LAYOUT_A4_H = 2480;
+		public const int LAYOUT_A5_W = 2480;
+		public const int LAYOUT_A5_H = 1748;
+		public const int LAYOUT_GAP = 40;
 
 		/// <summary>
 		/// 检查图片是否已加载，未加载时弹出警告。
@@ -36,7 +48,7 @@ namespace fptp
 		{
 			if (img == null)
 			{
-				MessageBox.Show(parent, "请先加载图片！", "操作提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				MessageBox.Show(parent, Lang.Get("msg.noImage"), Lang.Get("msg.notice"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return false;
 			}
 			return true;
