@@ -171,6 +171,16 @@ namespace fptp
 			}
 		}
 
+		/// <summary>校验主题包调色板：8 个键全部存在且颜色值可解析（不应用，仅校验）。</summary>
+		public static bool ValidatePalette(Dictionary<string, string> ass)
+		{
+			if (ass == null) return false;
+			for (int i = 0; i < PaletteKeys.Length; i++)
+				if (!ass.TryGetValue(PaletteKeys[i], out string hex) || !TryParseColor(hex, out _))
+					return false;
+			return true;
+		}
+
 		/// <summary>尝试将主题包调色板应用到当前颜色。8 个键全部有效才算成功。</summary>
 		private static bool TryApplyPalette(Dictionary<string, string> ass)
 		{
@@ -215,9 +225,11 @@ namespace fptp
 			return false;
 		}
 
-		/// <summary>将颜色格式化为 #RRGGBB 字符串（主题包导出用）。</summary>
+		/// <summary>将颜色格式化为 #RRGGBB 或 #AARRGGBB 字符串（主题包导出用，保留 alpha）。</summary>
 		private static string ToHex(Color c)
 		{
+			if (c.A < 255)
+				return $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
 			return $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 		}
 

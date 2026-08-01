@@ -524,6 +524,13 @@ namespace fptp
 							MessageBoxButtons.OK, MessageBoxIcon.Error);
 						return;
 					}
+					// 校验 8 个调色板键完整且颜色可解析，避免坏主题包写入设置文件
+					if (!Theme.ValidatePalette(dict))
+					{
+						MessageBox.Show(Lang.Get("msg.loadFailed", "theme pack must contain 8 valid color keys"), Lang.Get("msg.error"),
+							MessageBoxButtons.OK, MessageBoxIcon.Error);
+						return;
+					}
 
 					Theme.Register(info.Id, info.Name, dict);
 					Theme.Apply(this);
