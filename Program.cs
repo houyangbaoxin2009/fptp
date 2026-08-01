@@ -337,6 +337,7 @@ namespace fptp
 								case 1: pw = Basic.LAYOUT_6INCH_W; ph = Basic.LAYOUT_6INCH_H; break;
 								case 2: pw = Basic.LAYOUT_A4_W; ph = Basic.LAYOUT_A4_H; break;
 								case 3: pw = Basic.LAYOUT_A5_W; ph = Basic.LAYOUT_A5_H; break;
+								case 4: pw = gen.CustomLayoutW; ph = gen.CustomLayoutH; break;
 								default: pw = Basic.LAYOUT_5INCH_W; ph = Basic.LAYOUT_5INCH_H; break;
 							}
 							Bitmap layout = MakeLayoutForCli(cur, pw, ph, gen);
@@ -468,11 +469,17 @@ namespace fptp
 				return 1;
 			}
 
-			Color bgColor = Color.FromName(colorName);
-			if (!bgColor.IsKnownColor)
+			Color bgColor;
+			switch (colorName.ToLower())
 			{
-				Console.WriteLine(Lang.Get("cli.unknownColor", colorName));
-				return 1;
+				case "blue": bgColor = Color.FromArgb(65, 105, 225); break;
+				case "red": bgColor = Color.FromArgb(220, 20, 60); break;
+				case "transparent":
+				case "none": bgColor = Color.Transparent; break;
+				case "white": bgColor = Color.White; break;
+				default:
+					Console.WriteLine(Lang.Get("cli.unknownColor", colorName));
+					return 1;
 			}
 
 			if (!TryParseInt(ParseArgValue(args, "-t", "--tolerance"), out int tolerance) || tolerance < 0 || tolerance > 150)
