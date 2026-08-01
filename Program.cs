@@ -534,7 +534,9 @@ namespace fptp
 			try
 			{
 				Directory.CreateDirectory(publishDir);
-				// 1. 写入请求文件
+				// 1. 删除上一轮残留结果，避免 GUI 未响应时误返回旧图
+				try { if (File.Exists(resultFile)) File.Delete(resultFile); } catch { }
+				// 2. 写入请求文件
 				File.WriteAllText(requestFile, DateTime.Now.Ticks.ToString());
 
 				// 2. 轮询等待 GUI 响应（最多 10 秒）
