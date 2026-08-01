@@ -306,50 +306,58 @@ namespace fptp
 				string ext = Path.GetExtension(f).ToLower();
 				if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".bmp") continue;
 
-				using (Bitmap source = new Bitmap(f))
+				// 单张失败不中断整批（损坏/被占用图片跳过，其余继续）
+				try
 				{
-					Bitmap cur = (Bitmap)source.Clone();
-					try
+					using (Bitmap source = new Bitmap(f))
 					{
-						int targetW = gen.DefaultSize switch { 2 => Basic.TWO_INCH_W, 3 => Basic.PASSPORT_W, _ => Basic.ONE_INCH_W };
-						int targetH = gen.DefaultSize switch { 2 => Basic.TWO_INCH_H, 3 => Basic.PASSPORT_H, _ => Basic.ONE_INCH_H };
-						Bitmap cropped = Prepalg.SmartCrop(cur, targetW, targetH);
-						if (cropped != null) { cur.Dispose(); cur = cropped; }
-
-						Color bg = gen.BackgroundColor switch
+						Bitmap cur = (Bitmap)source.Clone();
+						try
 						{
-							"蓝色" => Color.FromArgb(65, 105, 225),
-							"红色" => Color.FromArgb(220, 20, 60),
-							"透明" => Color.Transparent,
-							_ => Color.White,
-						};
-						Bitmap bgDone = gen.AnimeMode
-							? Prepalg.ReplaceBackgroundAnime(cur, bg, gen.Tolerance)
-							: Prepalg.ReplaceBackground(cur, bg, gen.Tolerance);
-						if (bgDone != null) { cur.Dispose(); cur = bgDone; }
+							int targetW = gen.DefaultSize switch { 2 => Basic.TWO_INCH_W, 3 => Basic.PASSPORT_W, _ => Basic.ONE_INCH_W };
+							int targetH = gen.DefaultSize switch { 2 => Basic.TWO_INCH_H, 3 => Basic.PASSPORT_H, _ => Basic.ONE_INCH_H };
+							Bitmap cropped = Prepalg.SmartCrop(cur, targetW, targetH);
+							if (cropped != null) { cur.Dispose(); cur = cropped; }
 
-						int pw, ph;
-						switch (gen.LayoutPreset)
-						{
-							case 1: pw = Basic.LAYOUT_6INCH_W; ph = Basic.LAYOUT_6INCH_H; break;
-							case 2: pw = Basic.LAYOUT_A4_W; ph = Basic.LAYOUT_A4_H; break;
-							case 3: pw = Basic.LAYOUT_A5_W; ph = Basic.LAYOUT_A5_H; break;
-							default: pw = Basic.LAYOUT_5INCH_W; ph = Basic.LAYOUT_5INCH_H; break;
+							Color bg = gen.BackgroundColor switch
+							{
+								"蓝色" => Color.FromArgb(65, 105, 225),
+								"红色" => Color.FromArgb(220, 20, 60),
+								"透明" => Color.Transparent,
+								_ => Color.White,
+							};
+							Bitmap bgDone = gen.AnimeMode
+								? Prepalg.ReplaceBackgroundAnime(cur, bg, gen.Tolerance)
+								: Prepalg.ReplaceBackground(cur, bg, gen.Tolerance);
+							if (bgDone != null) { cur.Dispose(); cur = bgDone; }
+
+							int pw, ph;
+							switch (gen.LayoutPreset)
+							{
+								case 1: pw = Basic.LAYOUT_6INCH_W; ph = Basic.LAYOUT_6INCH_H; break;
+								case 2: pw = Basic.LAYOUT_A4_W; ph = Basic.LAYOUT_A4_H; break;
+								case 3: pw = Basic.LAYOUT_A5_W; ph = Basic.LAYOUT_A5_H; break;
+								default: pw = Basic.LAYOUT_5INCH_W; ph = Basic.LAYOUT_5INCH_H; break;
+							}
+							Bitmap layout = MakeLayoutForCli(cur, pw, ph, gen);
+							cur.Dispose();
+							cur = layout;
+
+							// 透明背景只能存 PNG
+							string outExt = (gen.BackgroundColor == "透明" || Assalg.HasAlpha(cur)) ? ".png" : ".jpg";
+							string outFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(f) + outExt);
+							Assalg.SaveImage(cur, outFile, gen.SaveQuality);
+							total++;
 						}
-						Bitmap layout = MakeLayoutForCli(cur, pw, ph, gen);
-						cur.Dispose();
-						cur = layout;
-
-						// 透明背景只能存 PNG
-						string outExt = gen.BackgroundColor == "透明" ? ".png" : ".jpg";
-						string outFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(f) + outExt);
-						Assalg.SaveImage(cur, outFile, gen.SaveQuality);
-						total++;
+						finally
+						{
+							cur.Dispose();
+						}
 					}
-					finally
-					{
-						cur.Dispose();
-					}
+				}
+				catch
+				{
+					// 跳过损坏/被占用文件，不中断整批
 				}
 			}
 			return total;
