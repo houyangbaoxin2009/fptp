@@ -478,7 +478,7 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 主题下拉切换：内置主题直接应用；自定义主题重载应用。即时预览，确定时由调用方保存。
+		/// 主题下拉切换：记忆选择到 AppSettings.ThemeId 并立即应用（内置按 id，自定义从主题包加载）。
 		/// </summary>
 		private void CmbTheme_SelectedIndexChanged(object sender, EventArgs e)
 		{
@@ -486,16 +486,9 @@ namespace fptp
 			if (cmbTheme.SelectedIndex < 0 || cmbTheme.SelectedIndex >= _themeList.Count) return;
 
 			ThemeCon con = _themeList[cmbTheme.SelectedIndex];
-			if (Theme.IsBuiltIn(con.Id))
-			{
-				// 内置主题：保存 ThemeId 并加载（auto 时清除主题包回跟随系统）
-				Theme.SetBuiltIn(con.Id);
-			}
-			else
-			{
-				// 自定义主题：已导入时 Ass 已在设置文件中，直接重载应用
-				Theme.Init();
-			}
+			// 记忆当前选择（内置 id 或自定义主题 id）
+			Theme.SetCurrent(con.Id);
+			Theme.Init();
 			Theme.Apply(this);
 		}
 

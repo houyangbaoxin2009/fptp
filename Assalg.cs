@@ -190,7 +190,9 @@ namespace fptp
 					// 新格式：顶层含 app/gen/lang（用 JsonDocument 精确判断，避免子串误匹配）
 					if (IsNewFormat(json))
 					{
-						var pkg = JsonSerializer.Deserialize<SettingsPackage>(json) ?? new SettingsPackage();
+						// 大小写不敏感：兼容旧版落盘的大写字段（如 ThemeId → themeId）
+						var pkg = JsonSerializer.Deserialize<SettingsPackage>(json,
+							new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new SettingsPackage();
 						SanitizePackage(pkg);
 						return pkg;
 					}
@@ -238,7 +240,7 @@ namespace fptp
 
 			pkg.App.Privacy ??= new PrivacySettings();
 			if (string.IsNullOrEmpty(pkg.App.Language)) pkg.App.Language = "zh-CN";
-			if (string.IsNullOrEmpty(pkg.App.ThemeId)) pkg.App.ThemeId = "auto";
+			if (string.IsNullOrEmpty(pkg.App.ThemeId)) pkg.App.ThemeId = "green";
 			if (pkg.App.TempImageMode != "memory" && pkg.App.TempImageMode != "disk")
 				pkg.App.TempImageMode = "memory";
 
@@ -301,9 +303,11 @@ namespace fptp
 				// 旧 app 设置：优先 exe 目录旧文件，其次当前 SettingsFile
 				string legacyApp = Path.Combine(exeDir, "setting.json");
 				if (File.Exists(SettingsFile))
-					pkg.App = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsFile)) ?? new AppSettings();
+					pkg.App = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsFile),
+						new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AppSettings();
 				else if (File.Exists(legacyApp))
-					pkg.App = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(legacyApp)) ?? new AppSettings();
+					pkg.App = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(legacyApp),
+						new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new AppSettings();
 			}
 			catch
 			{

@@ -27,8 +27,8 @@ namespace fptp
 		public static Color ButtonBg;
 		public static Color PreviewBg;
 
-		/// <summary>当前主题 id（auto=跟随系统，否则为主题包 id）。</summary>
-		public static string CurrentId { get; private set; } = "auto";
+		/// <summary>当前主题 id（green=默认护眼绿，auto=跟随系统，否则为主题包 id）。</summary>
+		public static string CurrentId { get; private set; } = "green";
 
 		/// <summary>当前主题显示名（如 跟随系统 / 深蓝）。</summary>
 		public static string CurrentName { get; private set; } = "";
@@ -69,31 +69,36 @@ namespace fptp
 		};
 
 		/// <summary>检测系统深浅色并装载调色板。
-		/// 优先级：1. 设置文件主题包（导入） 2. 内置主题（AppSettings.ThemeId，auto 跟随系统）。</summary>
+		/// 主题来源：按 AppSettings.ThemeId 选择——内置主题（含 auto 跟随系统）直接应用；
+		/// 自定义主题 id 从设置文件主题包加载；主题包缺失/无效回退默认护眼绿。</summary>
 		public static void Init()
 		{
 			DarkMode = DetectDarkMode();
 
-			// 1. 设置文件中的主题包
+			string id = Assalg.LoadAppSettings().ThemeId;
+			if (string.IsNullOrEmpty(id)) id = "green";
+
+			// 1. 内置主题（含 auto）：按 ThemeId 应用，主题包不劫持用户选择
+			foreach (BuiltInTheme t in BuiltInThemes)
+			{
+				if (t.Id == id)
+				{
+					ApplyBuiltIn(id);
+					return;
+				}
+			}
+
+			// 2. 自定义主题：从设置文件主题包加载
 			ThemePackage? pkg = Assalg.LoadThemePackage();
 			if (pkg != null && pkg.Ass != null && TryApplyPalette(pkg.Ass))
 			{
-				CurrentId = string.IsNullOrEmpty(pkg.Con.Id) ? "custom" : pkg.Con.Id;
+				CurrentId = string.IsNullOrEmpty(pkg.Con.Id) ? id : pkg.Con.Id;
 				CurrentName = string.IsNullOrEmpty(pkg.Con.Name) ? CurrentId : pkg.Con.Name;
 				return;
 			}
 
-			// 2. 内置主题（按 AppSettings.ThemeId）
-			ApplyBuiltIn(Assalg.LoadAppSettings().ThemeId);
-		}
-
-		/// <summary>应用指定内置主题（保存到 AppSettings.ThemeId 并加载调色板）。</summary>
-		public static void SetBuiltIn(string id)
-		{
-			var app = Assalg.LoadAppSettings();
-			app.ThemeId = string.IsNullOrEmpty(id) ? "auto" : id;
-			Assalg.SaveAppSettings(app);
-			ApplyBuiltIn(app.ThemeId);
+			// 3. 主题包缺失/无效 → 回退默认护眼绿
+			ApplyBuiltIn("green");
 		}
 
 		private static void ApplyBuiltIn(string id)
@@ -117,10 +122,12 @@ namespace fptp
 					return;
 				}
 			}
-			// 未知 id 回退 auto
-			CurrentId = "auto";
-			CurrentName = Lang.Get("settings.theme.auto");
-			LoadPalette();
+			// 未知 id 回退默认护眼绿
+			CurrentId = "green";
+			CurrentName = Lang.Get("settings.theme.green");
+			WindowBg = Color.FromArgb(240, 248, 242); PanelBg = Color.FromArgb(252, 255, 253); TextColor = Color.FromArgb(30, 62, 44);
+			SubText = Color.FromArgb(100, 130, 112); Accent = Color.FromArgb(46, 139, 87);
+			Border = Color.FromArgb(214, 232, 220); ButtonBg = Color.FromArgb(252, 255, 253); PreviewBg = Color.FromArgb(228, 240, 232);
 		}
 
 		/// <summary>强制指定深浅色（内置主题 auto 用）。</summary>
@@ -233,7 +240,7 @@ namespace fptp
 			return $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 		}
 
-		/// <summary>注册（导入）主题包并写入设置文件并立即应用。</summary>
+		/// <summary>注册（导入）主题包并写入设置文件并立即应用，同时记忆为当前选择主题。</summary>
 		public static void Register(string id, string name, Dictionary<string, string> palette)
 		{
 			Assalg.SaveThemePackage(new ThemePackage
@@ -241,7 +248,16 @@ namespace fptp
 				Con = new ThemeCon { Id = string.IsNullOrEmpty(id) ? "custom" : id, Name = string.IsNullOrEmpty(name) ? id : name },
 				Ass = palette
 			});
+			SetCurrent(string.IsNullOrEmpty(id) ? "custom" : id);
 			Init();
+		}
+
+		/// <summary>记忆当前选择主题到 AppSettings.ThemeId 并保存。</summary>
+		public static void SetCurrent(string id)
+		{
+			var app = Assalg.LoadAppSettings();
+			app.ThemeId = string.IsNullOrEmpty(id) ? "green" : id;
+			Assalg.SaveAppSettings(app);
 		}
 
 		/// <summary>导出当前调色板（主题包本体，key → 颜色值）。</summary>
