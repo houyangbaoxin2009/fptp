@@ -46,20 +46,28 @@ namespace fptp
 				cropY = (source.Height - cropH) / 2;
 			}
 
-			Bitmap result = new Bitmap(targetW, targetH);
-			using (Graphics g = Graphics.FromImage(result))
+			Bitmap result = null;
+			try
 			{
-				g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-				g.SmoothingMode = SmoothingMode.HighQuality;
-				g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-				g.CompositingQuality = CompositingQuality.HighQuality;
+				result = new Bitmap(targetW, targetH);
+				using (Graphics g = Graphics.FromImage(result))
+				{
+					g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+					g.SmoothingMode = SmoothingMode.HighQuality;
+					g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+					g.CompositingQuality = CompositingQuality.HighQuality;
 
-				g.DrawImage(source,
-							new Rectangle(0, 0, targetW, targetH),
-							new Rectangle(cropX, cropY, cropW, cropH),
-							GraphicsUnit.Pixel);
+					g.DrawImage(source,
+								new Rectangle(0, 0, targetW, targetH),
+								new Rectangle(cropX, cropY, cropW, cropH),
+								GraphicsUnit.Pixel);
+				}
 			}
-
+			catch
+			{
+				result?.Dispose();
+				throw;
+			}
 			return result;
 		}
 
@@ -71,27 +79,35 @@ namespace fptp
 		/// <returns>灰度图</returns>
 		public static Bitmap ToGrayscale(Bitmap source)
 		{
-			Bitmap bmp = new Bitmap(source.Width, source.Height);
-
-			using (Graphics g = Graphics.FromImage(bmp))
+			Bitmap bmp = null;
+			try
 			{
-				float[][] matrixItems = {
-					new float[] {0.299f, 0.299f, 0.299f, 0, 0},
-					new float[] {0.587f, 0.587f, 0.587f, 0, 0},
-					new float[] {0.114f, 0.114f, 0.114f, 0, 0},
-					new float[] {0,      0,      0,      1, 0},
-					new float[] {0,      0,      0,      0, 1}
-				};
+				bmp = new Bitmap(source.Width, source.Height);
 
-				ColorMatrix colorMatrix = new ColorMatrix(matrixItems);
-				using (ImageAttributes attributes = new ImageAttributes())
+				using (Graphics g = Graphics.FromImage(bmp))
 				{
-					attributes.SetColorMatrix(colorMatrix);
-					g.DrawImage(source, new Rectangle(0, 0, source.Width, source.Height),
-								0, 0, source.Width, source.Height, GraphicsUnit.Pixel, attributes);
+					float[][] matrixItems = {
+						new float[] {0.299f, 0.299f, 0.299f, 0, 0},
+						new float[] {0.587f, 0.587f, 0.587f, 0, 0},
+						new float[] {0.114f, 0.114f, 0.114f, 0, 0},
+						new float[] {0,      0,      0,      1, 0},
+						new float[] {0,      0,      0,      0, 1}
+					};
+
+					ColorMatrix colorMatrix = new ColorMatrix(matrixItems);
+					using (ImageAttributes attributes = new ImageAttributes())
+					{
+						attributes.SetColorMatrix(colorMatrix);
+						g.DrawImage(source, new Rectangle(0, 0, source.Width, source.Height),
+									0, 0, source.Width, source.Height, GraphicsUnit.Pixel, attributes);
+					}
 				}
 			}
-
+			catch
+			{
+				bmp?.Dispose();
+				throw;
+			}
 			return bmp;
 		}
 
@@ -176,18 +192,26 @@ namespace fptp
 			}
 
 			// 写回结果
-			Bitmap result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-			BitmapData outData = result.LockBits(new Rectangle(0, 0, width, height),
-				ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+			Bitmap result = null;
 			try
 			{
-				Marshal.Copy(outPixels, 0, outData.Scan0, outPixels.Length);
+				result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+				BitmapData outData = result.LockBits(new Rectangle(0, 0, width, height),
+					ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+				try
+				{
+					Marshal.Copy(outPixels, 0, outData.Scan0, outPixels.Length);
+				}
+				finally
+				{
+					result.UnlockBits(outData);
+				}
 			}
-			finally
+			catch
 			{
-				result.UnlockBits(outData);
+				result?.Dispose();
+				throw;
 			}
-
 			return result;
 		}
 
@@ -245,11 +269,14 @@ namespace fptp
 
 			// 生成结果：背景像素替换为新色，其余保留原色；
 			// 贴着背景的前景像素做边缘羽化，消除抗锯齿白边
-			Bitmap result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-			BitmapData outData = result.LockBits(new Rectangle(0, 0, width, height),
-				ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+			Bitmap result = null;
+			BitmapData outData = null;
 			try
 			{
+				result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+				outData = result.LockBits(new Rectangle(0, 0, width, height),
+					ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
 				int newArgb = newColor.ToArgb();
 				bool transparent = newColor.A == 0;
 				int[] outPixels = new int[width * height];
@@ -309,9 +336,17 @@ namespace fptp
 				}
 				Marshal.Copy(outPixels, 0, outData.Scan0, outPixels.Length);
 			}
+			catch
+			{
+				if (outData != null && result != null)
+					result.UnlockBits(outData);
+				result?.Dispose();
+				throw;
+			}
 			finally
 			{
-				result.UnlockBits(outData);
+				if (outData != null && result != null)
+					result.UnlockBits(outData);
 			}
 
 			return result;
