@@ -284,6 +284,25 @@ namespace fptp
 			SavePackage(pkg);
 		}
 
+		// ── 主题包读写 ──
+
+		/// <summary>读取设置文件中的主题包，无则返回 null（调用方回退内置主题）。</summary>
+		public static ThemePackage? LoadThemePackage()
+		{
+			var pkg = LoadPackage();
+			if (pkg.Theme != null && pkg.Theme.Ass != null && pkg.Theme.Ass.Count > 0)
+				return pkg.Theme;
+			return null;
+		}
+
+		/// <summary>将主题包写入设置文件。</summary>
+		public static void SaveThemePackage(ThemePackage theme)
+		{
+			var pkg = LoadPackage();
+			pkg.Theme = theme;
+			SavePackage(pkg);
+		}
+
 		// ── 快捷键读写（key 段）──
 
 		public static KeySettings LoadKeySettings()

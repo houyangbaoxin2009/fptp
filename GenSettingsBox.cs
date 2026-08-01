@@ -14,6 +14,12 @@ namespace fptp
 		/// <summary>当前可用语言列表（对应 cmbLang 下拉顺序）。</summary>
 		private List<LangCon> _langList = new List<LangCon>();
 
+		/// <summary>当前可用主题列表（对应 cmbTheme 下拉顺序）。</summary>
+		private List<ThemeCon> _themeList = new List<ThemeCon>();
+
+		/// <summary>防止加载时误触发主题切换的守卫。</summary>
+		private bool _applyingUi;
+
 		public GenSettingsBox(GenSettings current)
 		{
 			InitializeComponent();
@@ -23,6 +29,7 @@ namespace fptp
 
 		private void SettingsBox_Load(object sender, EventArgs e)
 		{
+			Theme.Apply(this);
 			ApplyLang();
 			ApplyToUI();
 		}
@@ -39,6 +46,9 @@ namespace fptp
 			groupLang.Text = Lang.Get("settings.language");
 			btnLangImport.Text = Lang.Get("settings.lang.import");
 			btnLangExport.Text = Lang.Get("settings.lang.export");
+			groupTheme.Text = Lang.Get("settings.theme");
+			btnThemeImport.Text = Lang.Get("settings.theme.import");
+			btnThemeExport.Text = Lang.Get("settings.theme.export");
 			groupUpdate.Text = Lang.Get("settings.autoUpdate");
 			chkAutoUpdate.Text = Lang.Get("settings.autoUpdateDesc");
 			groupKey.Text = Lang.Get("settings.key");
@@ -57,9 +67,33 @@ namespace fptp
 			btnCancel.Text = Lang.Get("settings.cancel");
 
 			ReloadLanguages();
+			ReloadThemes();
 			ReloadSizePresets();
 			ReloadLayoutPresets();
 			ReloadGuideLine();
+		}
+
+		/// <summary>
+		/// 重填主题下拉：内置"跟随系统" + 设置文件中已导入的主题。
+		/// </summary>
+		private void ReloadThemes()
+		{
+			_applyingUi = true;
+			try
+			{
+				int sel = cmbTheme.SelectedIndex >= 0 && cmbTheme.SelectedIndex < _themeList.Count
+					? cmbTheme.SelectedIndex
+					: _themeList.FindIndex(x => x.Id == Theme.CurrentId);
+				_themeList = Theme.AvailableThemes();
+				cmbTheme.Items.Clear();
+				foreach (ThemeCon theme in _themeList)
+					cmbTheme.Items.Add(theme.Name);
+				cmbTheme.SelectedIndex = sel >= 0 ? sel : 0;
+			}
+			finally
+			{
+				_applyingUi = false;
+			}
 		}
 
 		/// <summary>
@@ -238,13 +272,6 @@ namespace fptp
 					}
 					Result = pkg.Gen;
 					AppResult = pkg.App;
-					// 设置包内含语言包则注册并切换到该语言
-					if (pkg.Lang != null && pkg.Lang.Ass != null && pkg.Lang.Ass.Count > 0)
-					{
-						Lang.Register(pkg.Lang.Con.Id, pkg.Lang.Con.Name, pkg.Lang.Ass);
-						Lang.Load(pkg.Lang.Con.Id);
-						AppResult.Language = pkg.Lang.Con.Id;
-					}
 					ApplyLang();
 					ApplyToUI();
 				}
@@ -301,17 +328,8 @@ namespace fptp
 							CustomLayoutH = Result.CustomLayoutH,
 							GuideLineStyle = cmbGuideLine.SelectedIndex >= 0 ? cmbGuideLine.SelectedIndex : 0,
 							SaveQuality = trackBarQuality.Value
-						},
-						// 语言包随设置包导出
-						Lang = new LangPackage
-						{
-							Con = new LangCon
-							{
-								Id = Lang.CurrentId,
-								Name = Lang.CurrentDisplayName
-							},
-							Ass = Lang.ExportTable()
 						}
+						// 语言包/主题包独立导入导出，不随设置包导出
 					};
 					File.WriteAllText(sfd.FileName, pkg.ToJson());
 				}
@@ -398,6 +416,124 @@ namespace fptp
 						MessageBoxButtons.OK, MessageBoxIcon.Error);
 				}
 			}
+		}
+
+		/// <summary>
+		/// 主题下拉切换：应用到整个对话框即时预览。确定时由调用方保存并刷新主窗体。
+		/// </summary>
+		private void CmbTheme_SelectedIndexChanged(object sender, EventArgs e)
+		{
+			if (_applyingUi) return;
+			if (cmbTheme.SelectedIndex < 0 || cmbTheme.SelectedIndex >= _themeList.Count) return;
+
+			ThemeCon con = _themeList[cmbTheme.SelectedIndex];
+			if (con.Id == "auto")
+			{
+				// 恢复跟随系统：清除主题包后按系统深浅色加载
+				Assalg.SaveThemePackage(new ThemePackage()); // 空包，LoadThemePackage 返回 null
+				Theme.Init();
+			}
+			// 自定义主题：已导入时 Ass 已在设置文件中，直接重载应用
+			else
+			{
+				Theme.Init();
+			}
+			Theme.Apply(this);
+		}
+
+		/// <summary>
+		/// 导入主题包：文件名须为 theme.{id}.{name}.json（id 为主题 id，name 为显示名），
+		/// 内容为调色板本体（ass 结构，8 个键）。导入后注册到设置文件并立即应用。
+		/// </summary>
+		private void BtnThemeImport_Click(object sender, EventArgs e)
+		{
+			using (OpenFileDialog ofd = new OpenFileDialog())
+			{
+				ofd.Filter = "主题包|theme.*.json|JSON 文件|*.json";
+				ofd.Title = Lang.Get("settings.theme.import");
+				if (ofd.ShowDialog(this) != DialogResult.OK) return;
+
+				try
+				{
+					// 从文件名提取主题 id 和显示名：theme.dark-blue.深蓝.json
+					string fileName = Path.GetFileName(ofd.FileName);
+					ThemeCon? info = ExtractThemeInfo(fileName);
+					if (info == null)
+					{
+						MessageBox.Show(Lang.Get("msg.themeFileInvalid", fileName), Lang.Get("msg.error"),
+							MessageBoxButtons.OK, MessageBoxIcon.Error);
+						return;
+					}
+
+					string json = File.ReadAllText(ofd.FileName);
+					var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+					if (dict == null || dict.Count == 0)
+					{
+						MessageBox.Show(Lang.Get("msg.loadFailed", "empty theme pack"), Lang.Get("msg.error"),
+							MessageBoxButtons.OK, MessageBoxIcon.Error);
+						return;
+					}
+
+					Theme.Register(info.Id, info.Name, dict);
+					Theme.Apply(this);
+					ReloadThemes();
+					MessageBox.Show(Lang.Get("msg.themeImported", info.Name), Lang.Get("msg.done"),
+						MessageBoxButtons.OK, MessageBoxIcon.Information);
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show(Lang.Get("msg.loadFailed", ex.Message), Lang.Get("msg.error"),
+						MessageBoxButtons.OK, MessageBoxIcon.Error);
+				}
+			}
+		}
+
+		/// <summary>
+		/// 导出主题包：文件名 theme.{id}.{name}.json，内容为当前调色板本体（ass 结构，便于用户自行修改）。
+		/// </summary>
+		private void BtnThemeExport_Click(object sender, EventArgs e)
+		{
+			using (SaveFileDialog sfd = new SaveFileDialog())
+			{
+				sfd.Filter = "JSON 文件|*.json";
+				sfd.Title = Lang.Get("settings.theme.export");
+				sfd.FileName = $"theme.{Theme.CurrentId}.{Theme.CurrentName}.json";
+				if (sfd.ShowDialog(this) != DialogResult.OK) return;
+
+				try
+				{
+					string json = JsonSerializer.Serialize(Theme.ExportTable(),
+						new JsonSerializerOptions { WriteIndented = true });
+					File.WriteAllText(sfd.FileName, json);
+					MessageBox.Show(Lang.Get("msg.themeExported", sfd.FileName), Lang.Get("msg.done"),
+						MessageBoxButtons.OK, MessageBoxIcon.Information);
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show(Lang.Get("msg.saveFailed", ex.Message), Lang.Get("msg.error"),
+						MessageBoxButtons.OK, MessageBoxIcon.Error);
+				}
+			}
+		}
+
+		/// <summary>
+		/// 从文件名提取主题信息：theme.dark-blue.深蓝.json → {id=dark-blue, name=深蓝}。
+		/// 格式不符返回 null。
+		/// </summary>
+		private static ThemeCon? ExtractThemeInfo(string fileName)
+		{
+			if (string.IsNullOrEmpty(fileName)) return null;
+			const string prefix = "theme.";
+			if (!fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return null;
+			if (!fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) return null;
+			string middle = fileName.Substring(prefix.Length, fileName.Length - prefix.Length - ".json".Length);
+			// middle = id.name，按第一个点分割，剩余部分作为显示名（显示名允许含点）
+			int dot = middle.IndexOf('.');
+			string id = dot >= 0 ? middle.Substring(0, dot) : middle;
+			string name = dot >= 0 ? middle.Substring(dot + 1) : "";
+			if (string.IsNullOrEmpty(id)) return null;
+			if (string.IsNullOrEmpty(name)) name = id;
+			return new ThemeCon { Id = id, Name = name };
 		}
 
 		/// <summary>

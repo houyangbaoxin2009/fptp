@@ -33,6 +33,10 @@ partial class GenSettingsBox
 		cmbLang = new ComboBox();
 		btnLangImport = new Button();
 		btnLangExport = new Button();
+		groupTheme = new GroupBox();
+		cmbTheme = new ComboBox();
+		btnThemeImport = new Button();
+		btnThemeExport = new Button();
 		groupUpdate = new GroupBox();
 		chkAutoUpdate = new CheckBox();
 		groupKey = new GroupBox();
@@ -54,6 +58,7 @@ partial class GenSettingsBox
 		((System.ComponentModel.ISupportInitialize)trackBarQuality).BeginInit();
 		groupPrivacy.SuspendLayout();
 		groupLang.SuspendLayout();
+		groupTheme.SuspendLayout();
 		groupUpdate.SuspendLayout();
 		groupKey.SuspendLayout();
 		groupExport.SuspendLayout();
@@ -199,10 +204,51 @@ partial class GenSettingsBox
 		btnLangExport.UseVisualStyleBackColor = true;
 		btnLangExport.Click += BtnLangExport_Click;
 		//
+		// groupTheme
+		//
+		groupTheme.Controls.Add(btnThemeExport);
+		groupTheme.Controls.Add(btnThemeImport);
+		groupTheme.Controls.Add(cmbTheme);
+		groupTheme.Location = new Point(12, 275);
+		groupTheme.Name = "groupTheme";
+		groupTheme.Size = new Size(300, 85);
+		groupTheme.TabIndex = 20;
+		groupTheme.TabStop = false;
+		groupTheme.Text = "界面主题";
+		//
+		// cmbTheme
+		//
+		cmbTheme.DropDownStyle = ComboBoxStyle.DropDownList;
+		cmbTheme.Location = new Point(10, 20);
+		cmbTheme.Name = "cmbTheme";
+		cmbTheme.Size = new Size(280, 25);
+		cmbTheme.TabIndex = 0;
+		cmbTheme.SelectedIndexChanged += CmbTheme_SelectedIndexChanged;
+		//
+		// btnThemeImport
+		//
+		btnThemeImport.Location = new Point(10, 51);
+		btnThemeImport.Name = "btnThemeImport";
+		btnThemeImport.Size = new Size(135, 30);
+		btnThemeImport.TabIndex = 1;
+		btnThemeImport.Text = "导入主题包";
+		btnThemeImport.UseVisualStyleBackColor = true;
+		btnThemeImport.Click += BtnThemeImport_Click;
+		//
+		// btnThemeExport
+		//
+		btnThemeExport.Location = new Point(155, 51);
+		btnThemeExport.Name = "btnThemeExport";
+		btnThemeExport.Size = new Size(135, 30);
+		btnThemeExport.TabIndex = 2;
+		btnThemeExport.Text = "导出主题包";
+		btnThemeExport.UseVisualStyleBackColor = true;
+		btnThemeExport.Click += BtnThemeExport_Click;
+		//
 		// groupUpdate
 		//
 		groupUpdate.Controls.Add(chkAutoUpdate);
-		groupUpdate.Location = new Point(12, 275);
+		groupUpdate.Location = new Point(12, 366);
 		groupUpdate.Name = "groupUpdate";
 		groupUpdate.Size = new Size(300, 50);
 		groupUpdate.TabIndex = 16;
@@ -221,7 +267,7 @@ partial class GenSettingsBox
 		// groupKey
 		//
 		groupKey.Controls.Add(btnKeySettings);
-		groupKey.Location = new Point(12, 331);
+		groupKey.Location = new Point(12, 422);
 		groupKey.Name = "groupKey";
 		groupKey.Size = new Size(300, 60);
 		groupKey.TabIndex = 19;
@@ -245,7 +291,7 @@ partial class GenSettingsBox
 		groupExport.Controls.Add(trackBarQuality);
 		groupExport.Controls.Add(label1);
 		groupExport.Controls.Add(cmbSaveFormat);
-		groupExport.Location = new Point(12, 397);
+		groupExport.Location = new Point(12, 488);
 		groupExport.Name = "groupExport";
 		groupExport.Size = new Size(300, 95);
 		groupExport.TabIndex = 18;
@@ -291,7 +337,7 @@ partial class GenSettingsBox
 		groupLayout.Controls.Add(txtCustomW);
 		groupLayout.Controls.Add(cmbLayoutPreset);
 		groupLayout.Controls.Add(label5);
-		groupLayout.Location = new Point(12, 498);
+		groupLayout.Location = new Point(12, 589);
 		groupLayout.Name = "groupLayout";
 		groupLayout.Size = new Size(300, 155);
 		groupLayout.TabIndex = 17;
@@ -368,7 +414,7 @@ partial class GenSettingsBox
 		//
 		// btnReset
 		//
-		btnReset.Location = new Point(12, 663);
+		btnReset.Location = new Point(12, 754);
 		btnReset.Name = "btnReset";
 		btnReset.Size = new Size(96, 29);
 		btnReset.TabIndex = 12;
@@ -378,7 +424,7 @@ partial class GenSettingsBox
 		//
 		// btnImport
 		//
-		btnImport.Location = new Point(114, 663);
+		btnImport.Location = new Point(114, 754);
 		btnImport.Name = "btnImport";
 		btnImport.Size = new Size(96, 29);
 		btnImport.TabIndex = 13;
@@ -388,7 +434,7 @@ partial class GenSettingsBox
 		//
 		// btnExport
 		//
-		btnExport.Location = new Point(216, 663);
+		btnExport.Location = new Point(216, 754);
 		btnExport.Name = "btnExport";
 		btnExport.Size = new Size(96, 29);
 		btnExport.TabIndex = 14;
@@ -398,7 +444,7 @@ partial class GenSettingsBox
 		//
 		// btnOk
 		//
-		btnOk.Location = new Point(110, 703);
+		btnOk.Location = new Point(110, 794);
 		btnOk.Name = "btnOk";
 		btnOk.Size = new Size(85, 30);
 		btnOk.TabIndex = 9;
@@ -409,7 +455,7 @@ partial class GenSettingsBox
 		// btnCancel
 		//
 		btnCancel.DialogResult = DialogResult.Cancel;
-		btnCancel.Location = new Point(210, 703);
+		btnCancel.Location = new Point(210, 794);
 		btnCancel.Name = "btnCancel";
 		btnCancel.Size = new Size(85, 30);
 		btnCancel.TabIndex = 10;
@@ -426,6 +472,7 @@ partial class GenSettingsBox
 		Controls.Add(groupExport);
 		Controls.Add(groupUpdate);
 		Controls.Add(groupKey);
+		Controls.Add(groupTheme);
 		Controls.Add(groupLang);
 		Controls.Add(groupPrivacy);
 		Controls.Add(btnCancel);
@@ -444,7 +491,7 @@ partial class GenSettingsBox
 		AutoScaleDimensions = new SizeF(7F, 17F);
 		AutoScaleMode = AutoScaleMode.Font;
 		CancelButton = btnCancel;
-		ClientSize = new Size(324, 761);
+		ClientSize = new Size(324, 852);
 		FormBorderStyle = FormBorderStyle.FixedDialog;
 		MaximizeBox = false;
 		MinimizeBox = false;
@@ -458,6 +505,7 @@ partial class GenSettingsBox
 		((System.ComponentModel.ISupportInitialize)trackBarQuality).EndInit();
 		groupPrivacy.ResumeLayout(false);
 		groupLang.ResumeLayout(false);
+		groupTheme.ResumeLayout(false);
 		groupUpdate.ResumeLayout(false);
 		groupKey.ResumeLayout(false);
 		groupExport.ResumeLayout(false);
@@ -488,6 +536,10 @@ partial class GenSettingsBox
 	private ComboBox cmbLang;
 	private Button btnLangImport;
 	private Button btnLangExport;
+	private GroupBox groupTheme;
+	private ComboBox cmbTheme;
+	private Button btnThemeImport;
+	private Button btnThemeExport;
 	private GroupBox groupUpdate;
 	private CheckBox chkAutoUpdate;
 	private GroupBox groupKey;

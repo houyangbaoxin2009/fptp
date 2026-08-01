@@ -30,6 +30,31 @@ namespace fptp
 	}
 
 	/// <summary>
+	/// 主题信息：id 为主题 id（如 dark-blue），name 为显示名（如 深蓝）。
+	/// </summary>
+	public class ThemeCon
+	{
+		[JsonPropertyName("id")]
+		public string Id { get; set; } = "dark";
+
+		[JsonPropertyName("name")]
+		public string Name { get; set; } = "深色";
+	}
+
+	/// <summary>
+	/// 主题包条目：con 为主题信息（id + 显示名），ass 为主题本体（调色板，key → 颜色值）。
+	/// 调色板键：windowBg panelBg textColor subText accent border buttonBg previewBg。
+	/// </summary>
+	public class ThemePackage
+	{
+		[JsonPropertyName("con")]
+		public ThemeCon Con { get; set; } = new ThemeCon();
+
+		[JsonPropertyName("ass")]
+		public Dictionary<string, string> Ass { get; set; } = new Dictionary<string, string>();
+	}
+
+	/// <summary>
 	/// 隐藏设置：安装程序写入、应用读取的不可见参数。
 	/// 不在设置面板显示，不参与导入导出。
 	/// </summary>
@@ -114,6 +139,9 @@ namespace fptp
 
 		[JsonPropertyName("lang")]
 		public LangPackage Lang { get; set; } = new();
+
+		[JsonPropertyName("theme")]
+		public ThemePackage Theme { get; set; } = new();
 
 		[JsonPropertyName("high")]
 		public HighSettings High { get; set; } = new();

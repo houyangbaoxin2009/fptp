@@ -46,6 +46,7 @@ namespace fptp
 			settings = Assalg.LoadGenSettings();
 			appSettings = Assalg.LoadAppSettings();
 			Lang.Load(appSettings.Language);
+			Theme.Init();
 			BindKeyActions();
 		}
 
@@ -658,6 +659,8 @@ namespace fptp
 					ApplySettings();
 					Lang.Load(appSettings.Language);
 					ApplyLang();
+					// 主题可能在设置面板中导入/切换，关闭后重刷整个窗体
+					Theme.Apply(this);
 					lblInfo.Text = Lang.Get("msg.settingsSaved");
 				}
 			}
