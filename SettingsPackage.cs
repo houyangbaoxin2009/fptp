@@ -65,7 +65,6 @@ namespace fptp
 			["save"] = "Ctrl+S",          // 导出
 			["print"] = "Ctrl+P",         // 打印
 			["batch"] = "Ctrl+Shift+B",   // 文件夹批处理
-			["oneClick"] = "F9",          // 一键处理
 		};
 
 		/// <summary>将 Keys 组合键格式化为字符串（如 Ctrl+Shift+C）。</summary>

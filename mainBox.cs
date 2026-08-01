@@ -35,7 +35,6 @@ namespace fptp
 			["save"] = () => { },
 			["print"] = () => { },
 			["batch"] = () => { },
-			["oneClick"] = () => { },
 		};
 
 		public mainBox()
@@ -66,7 +65,6 @@ namespace fptp
 			keyActions["save"] = () => BtnSave_Click(this, EventArgs.Empty);
 			keyActions["print"] = () => BtnPrint_Click(this, EventArgs.Empty);
 			keyActions["batch"] = () => BtnBatch_Click(this, EventArgs.Empty);
-			keyActions["oneClick"] = () => BtnOneClick_Click(this, EventArgs.Empty);
 		}
 
 		/// <summary>
@@ -105,7 +103,6 @@ namespace fptp
 			chkAnimeMode.Text = Lang.Get("main.animeMode");
 			label1.Text = Lang.Get("main.tolerance");
 			btnLayout.Text = Lang.Get("main.layout");
-			btnOneClick.Text = Lang.Get("main.oneClick");
 			btnSave.Text = Lang.Get("main.save");
 			btnPrint.Text = Lang.Get("main.print");
 			btnUnload.Text = Lang.Get("main.unload");
@@ -795,116 +792,6 @@ namespace fptp
 			{
 				dlg.ShowDialog(this);
 			}
-		}
-
-		// ── 一键完整流程：智能裁剪 → 换底色 → 排版 ──
-
-		private void BtnOneClick_Click(object sender, EventArgs e)
-		{
-			if (!Basic.CheckImage(currentImage, this)) return;
-
-			settings = Assalg.LoadGenSettings();
-
-			PushUndo();
-			this.Cursor = Cursors.WaitCursor;
-			Application.DoEvents();
-
-			try
-			{
-				Bitmap work = (Bitmap)currentImage.Clone();
-
-				// 1. 智能裁剪（按默认尺寸）
-				int targetW = settings.DefaultSize switch
-				{
-					2 => Basic.TWO_INCH_W,
-					3 => Basic.PASSPORT_W,
-					_ => Basic.ONE_INCH_W,
-				};
-				int targetH = settings.DefaultSize switch
-				{
-					2 => Basic.TWO_INCH_H,
-					3 => Basic.PASSPORT_H,
-					_ => Basic.ONE_INCH_H,
-				};
-				Bitmap cropped = Prepalg.SmartCrop(work, targetW, targetH);
-				if (cropped != null) { work.Dispose(); work = cropped; }
-
-				// 2. 换底色
-				Color targetColor = cmbBgColor.SelectedIndex switch
-				{
-					0 => Color.FromArgb(65, 105, 225),
-					1 => Color.FromArgb(220, 20, 60),
-					_ => Color.White,
-				};
-				Bitmap bg = settings.AnimeMode
-					? Prepalg.ReplaceBackgroundAnime(work, targetColor, TrackBar.Value, this)
-					: Prepalg.ReplaceBackground(work, targetColor, TrackBar.Value, this);
-				if (bg != null) { work.Dispose(); work = bg; }
-
-				// 3. 排版
-				int preset = cmbLayout.SelectedIndex >= 0 ? cmbLayout.SelectedIndex : settings.LayoutPreset;
-				int paperW, paperH;
-				switch (preset)
-				{
-					case 1: paperW = Basic.LAYOUT_6INCH_W; paperH = Basic.LAYOUT_6INCH_H; break;
-					case 2: paperW = Basic.LAYOUT_A4_W; paperH = Basic.LAYOUT_A4_H; break;
-					case 3: paperW = Basic.LAYOUT_A5_W; paperH = Basic.LAYOUT_A5_H; break;
-					default: paperW = Basic.LAYOUT_5INCH_W; paperH = Basic.LAYOUT_5INCH_H; break;
-				}
-				Bitmap layout = MakeLayout(work, paperW, paperH);
-				work.Dispose();
-				work = layout;
-
-				currentImage.Dispose();
-				currentImage = work;
-				pictureBox1.Image = currentImage;
-				pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
-
-				lblInfo.Text = Lang.Get("msg.oneClickDone");
-				ExportStage("一键处理", currentImage);
-			}
-			finally
-			{
-				this.Cursor = Cursors.Default;
-			}
-		}
-
-		/// <summary>在相纸上居中排列照片（供一键流程与批处理复用）。</summary>
-		private Bitmap MakeLayout(Bitmap photo, int paperWidth, int paperHeight)
-		{
-			int gap = Basic.LAYOUT_GAP;
-			int cols = Math.Max(1, (paperWidth + gap) / (photo.Width + gap));
-			int rows = Math.Max(1, (paperHeight + gap) / (photo.Height + gap));
-			int contentW = cols * photo.Width + (cols - 1) * gap;
-			int contentH = rows * photo.Height + (rows - 1) * gap;
-			int startX = (paperWidth - contentW) / 2;
-			int startY = (paperHeight - contentH) / 2;
-
-			Bitmap paper = new Bitmap(paperWidth, paperHeight);
-			using (Graphics g = Graphics.FromImage(paper))
-			{
-				g.Clear(Color.White);
-				g.SmoothingMode = SmoothingMode.HighQuality;
-				g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-				for (int r = 0; r < rows; r++)
-				{
-					for (int c = 0; c < cols; c++)
-					{
-						int x = startX + c * (photo.Width + gap);
-						int y = startY + r * (photo.Height + gap);
-						g.DrawImage(photo, x, y, photo.Width, photo.Height);
-						if (settings.GuideLineStyle != 2)
-						{
-							using (Pen pen = new Pen(Color.LightGray, 1))
-							{
-								pen.DashStyle = settings.GuideLineStyle == 1 ? DashStyle.Solid : DashStyle.Dash;
-								g.DrawRectangle(pen, x, y, photo.Width, photo.Height);
-							}
-						}
-					}
-				}
-			}
-			return paper;
 		}
 
 		protected override void OnFormClosing(FormClosingEventArgs e)

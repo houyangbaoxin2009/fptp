@@ -14,7 +14,7 @@ namespace fptp
 		{
 			"reload", "undo", "settings", "about",
 			"load", "unload", "crop", "grayscale", "changeBg",
-			"layout", "save", "print", "batch", "oneClick",
+			"layout", "save", "print", "batch",
 		};
 
 		private readonly Dictionary<string, string> current;
