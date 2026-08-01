@@ -15,6 +15,17 @@ namespace fptp
 		private readonly GenSettings settings;
 		private readonly BackgroundWorker worker;
 
+		// 后台任务参数快照（在 UI 线程 BtnStart_Click 中收集，避免后台线程读控件）
+		private string _inputDir;
+		private string _outputDir;
+		private Color _bgColor;
+		private int _tolerance;
+		private int _layoutPreset;
+		private bool _doCrop;
+		private bool _doGray;
+		private bool _doBg;
+		private bool _doLayout;
+
 		public BatchBox(GenSettings settings)
 		{
 			InitializeComponent();
@@ -233,6 +244,23 @@ namespace fptp
 				return;
 			}
 
+			// UI 线程快照参数，后台线程不再直接读控件
+			_inputDir = txtInput.Text;
+			_outputDir = txtOutput.Text;
+			_bgColor = cmbBgColor.SelectedIndex switch
+			{
+				0 => Color.FromArgb(65, 105, 225),
+				1 => Color.FromArgb(220, 20, 60),
+				3 => Color.Transparent,
+				_ => Color.White,
+			};
+			_tolerance = trkTolerance.Value;
+			_doCrop = chkCrop.Checked;
+			_doGray = chkGrayscale.Checked;
+			_doBg = chkChangeBg.Checked;
+			_doLayout = chkLayout.Checked;
+			_layoutPreset = cmbLayout.SelectedIndex;
+
 			SetBusy(true);
 			worker.RunWorkerAsync();
 		}
@@ -249,8 +277,8 @@ namespace fptp
 
 		private void Worker_DoWork(object sender, DoWorkEventArgs e)
 		{
-			string inputDir = txtInput.Text;
-			string outputDir = txtOutput.Text;
+			string inputDir = _inputDir;
+			string outputDir = _outputDir;
 			Directory.CreateDirectory(outputDir);
 
 			string[] files = Directory.GetFiles(inputDir, "*.*", SearchOption.TopDirectoryOnly);
@@ -268,20 +296,13 @@ namespace fptp
 				return;
 			}
 
-			// 从 UI 控件快照参数（后台线程不直接读控件）
-			Color bgColor = cmbBgColor.SelectedIndex switch
-			{
-				0 => Color.FromArgb(65, 105, 225),
-				1 => Color.FromArgb(220, 20, 60),
-				3 => Color.Transparent,
-				_ => Color.White,
-			};
-			int tolerance = trkTolerance.Value;
-			bool doCrop = chkCrop.Checked;
-			bool doGray = chkGrayscale.Checked;
-			bool doBg = chkChangeBg.Checked;
-			bool doLayout = chkLayout.Checked;
-			int layoutPreset = cmbLayout.SelectedIndex;
+			Color bgColor = _bgColor;
+			int tolerance = _tolerance;
+			bool doCrop = _doCrop;
+			bool doGray = _doGray;
+			bool doBg = _doBg;
+			bool doLayout = _doLayout;
+			int layoutPreset = _layoutPreset;
 
 			int done = 0;
 			foreach (string file in images)
@@ -339,8 +360,14 @@ namespace fptp
 						if (next != null) { cur.Dispose(); cur = next; }
 					}
 
-					// 透明背景只能存 PNG
-					string outExt = bgColor.A == 0 ? ".png" : ".jpg";
+					// 勾选了换底且目标为透明时才强制 PNG，否则按图片实际 alpha 决定
+					string outExt;
+					if (doBg && bgColor.A == 0)
+						outExt = ".png";
+					else if (Assalg.HasAlpha(cur))
+						outExt = ".png";
+					else
+						outExt = ".jpg";
 					string outFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(file) + outExt);
 					Assalg.SaveImage(cur, outFile, settings.SaveQuality);
 				}
@@ -393,6 +420,13 @@ namespace fptp
 		private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
 		{
 			SetBusy(false);
+			if (e.Error != null)
+			{
+				MessageBox.Show(this, e.Error.Message, Lang.Get("msg.error"),
+					MessageBoxButtons.OK, MessageBoxIcon.Error);
+				lblProgress.Text = "";
+				return;
+			}
 			if (e.Cancelled)
 			{
 				lblProgress.Text = Lang.Get("batch.cancelled");
