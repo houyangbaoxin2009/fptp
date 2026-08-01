@@ -12,7 +12,7 @@ namespace fptp
 	{
 		// ── 应用信息 ──
 		public const string AppName = "FPTP";
-		public const string AppVersion = "1.4.2.14";
+		public const string AppVersion = "1.4.2.15";
 		public const string AppCopyright = "Copyright © 2026 Jiro";
 		public const string AppCompany = "FranJ2";
 		public const string AppGitHub = "https://gitcode.com/jiro2025/fptp";

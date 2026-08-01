@@ -212,6 +212,8 @@ partial class AboutBox : Form
 				Size = new Size(dispW, dispH),
 			};
 			form.Controls.Add(pb);
+			// 关闭时释放克隆位图，避免每次打赏弹窗泄漏一张图
+			form.FormClosed += (_, _) => pb.Image?.Dispose();
 
 			// Escape 关闭
 			form.KeyDown += (_, args) =>
