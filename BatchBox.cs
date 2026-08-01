@@ -5,7 +5,6 @@ using System.Drawing;
 using System.IO;
 using System.Threading;
 using System.Windows.Forms;
-
 namespace fptp
 {
 	/// <summary>
@@ -53,6 +52,7 @@ namespace fptp
 			chkLayout.Text = Lang.Get("main.layout");
 			lblBg.Text = Lang.Get("batch.bg") + ":";
 			lblTolerance.Text = Lang.Get("main.tolerance");
+			btnImportBat.Text = Lang.Get("batch.importBat");
 			btnStart.Text = Lang.Get("batch.start");
 			btnCancel.Text = Lang.Get("settings.cancel");
 		}
@@ -103,6 +103,120 @@ namespace fptp
 			lblValue.Text = trkTolerance.Value.ToString();
 		}
 
+		/// <summary>
+		/// 导入批处理文件（.bat）：解析其中 fptp.exe prep batch 命令参数并填充界面。
+		/// 支持 -i/-o 目录、-c 颜色、-t 容差、-l 排版、-a 动画模式。
+		/// </summary>
+		private void BtnImportBat_Click(object sender, EventArgs e)
+		{
+			using (OpenFileDialog dlg = new OpenFileDialog())
+			{
+				dlg.Filter = "批处理文件 (*.bat)|*.bat|所有文件 (*.*)|*.*";
+				dlg.Title = Lang.Get("batch.importBat");
+				if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+				try
+				{
+					ApplyBatParameters(File.ReadAllText(dlg.FileName));
+					lblProgress.Text = Lang.Get("batch.importOk");
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show(this, Lang.Get("batch.importFailed", ex.Message), Lang.Get("msg.error"),
+						MessageBoxButtons.OK, MessageBoxIcon.Error);
+				}
+			}
+		}
+
+		/// <summary>解析 bat 内容中的 fptp.exe prep batch 命令行参数并填充到控件。</summary>
+		private void ApplyBatParameters(string batContent)
+		{
+			// 定位 prep batch 段，按空格/引号拆分参数
+			int idx = batContent.IndexOf("batch", StringComparison.OrdinalIgnoreCase);
+			if (idx < 0)
+			{
+				MessageBox.Show(this, Lang.Get("batch.importNoCmd"), Lang.Get("msg.tip"),
+					MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				return;
+			}
+
+			string tail = batContent.Substring(idx + 5);
+			string[] parts = SplitArgs(tail);
+
+			for (int i = 0; i < parts.Length; i++)
+			{
+				switch (parts[i].ToLowerInvariant())
+				{
+					case "-i":
+					case "--input":
+						if (i + 1 < parts.Length) txtInput.Text = parts[++i].Trim('"');
+						break;
+					case "-o":
+					case "--output":
+						if (i + 1 < parts.Length) txtOutput.Text = parts[++i].Trim('"');
+						break;
+					case "-c":
+					case "--color":
+						if (i + 1 < parts.Length) cmbBgColor.SelectedIndex = ColorIndexFromName(parts[++i]);
+						break;
+					case "-t":
+					case "--tolerance":
+						if (i + 1 < parts.Length && int.TryParse(parts[i + 1], out int t) && t >= 0 && t <= 150)
+						{
+							trkTolerance.Value = t;
+							lblValue.Text = t.ToString();
+							i++;
+						}
+						break;
+					case "-l":
+					case "--layout":
+						if (i + 1 < parts.Length && int.TryParse(parts[i + 1], out int l) &&
+							l >= 0 && l < cmbLayout.Items.Count)
+						{
+							cmbLayout.SelectedIndex = l;
+							i++;
+						}
+						break;
+					case "-a":
+					case "--anime":
+						// 批处理窗口无动画模式选项，忽略
+						break;
+				}
+			}
+		}
+
+		/// <summary>将 CLI 颜色名映射为底色下拉索引（0蓝 1红 2白 3透明）。</summary>
+		private static int ColorIndexFromName(string name)
+		{
+			switch (name.ToLowerInvariant())
+			{
+				case "blue": return 0;
+				case "red": return 1;
+				case "transparent":
+				case "none": return 3;
+				default: return 2;
+			}
+		}
+
+		/// <summary>按空白拆分命令行参数，保留引号内的空格。</summary>
+		private static string[] SplitArgs(string line)
+		{
+			List<string> parts = new List<string>();
+			System.Text.StringBuilder cur = new System.Text.StringBuilder();
+			bool inQuote = false;
+			foreach (char ch in line)
+			{
+				if (ch == '"') { inQuote = !inQuote; continue; }
+				if (ch == ' ' && !inQuote)
+				{
+					if (cur.Length > 0) { parts.Add(cur.ToString()); cur.Clear(); }
+				}
+				else cur.Append(ch);
+			}
+			if (cur.Length > 0) parts.Add(cur.ToString());
+			return parts.ToArray();
+		}
+
 		private void BtnStart_Click(object sender, EventArgs e)
 		{
 			if (string.IsNullOrEmpty(txtInput.Text) || !Directory.Exists(txtInput.Text))
@@ -128,6 +242,7 @@ namespace fptp
 			btnCancel.Enabled = !busy;
 			btnInput.Enabled = !busy;
 			btnOutput.Enabled = !busy;
+			btnImportBat.Enabled = !busy;
 			progressBar.Value = 0;
 		}
 

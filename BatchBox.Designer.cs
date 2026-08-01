@@ -39,6 +39,7 @@ partial class BatchBox
 		cmbLayout = new ComboBox();
 		progressBar = new ProgressBar();
 		lblProgress = new Label();
+		btnImportBat = new Button();
 		btnStart = new Button();
 		btnCancel = new Button();
 		((System.ComponentModel.ISupportInitialize)trkTolerance).BeginInit();
@@ -191,12 +192,22 @@ partial class BatchBox
 		lblProgress.Size = new Size(0, 17);
 		lblProgress.TabIndex = 15;
 		// 
+		// btnImportBat
+		// 
+		btnImportBat.Location = new Point(16, 290);
+		btnImportBat.Name = "btnImportBat";
+		btnImportBat.Size = new Size(140, 34);
+		btnImportBat.TabIndex = 16;
+		btnImportBat.Text = "导入批处理文件…";
+		btnImportBat.UseVisualStyleBackColor = true;
+		btnImportBat.Click += BtnImportBat_Click;
+		// 
 		// btnStart
 		// 
 		btnStart.Location = new Point(356, 290);
 		btnStart.Name = "btnStart";
 		btnStart.Size = new Size(90, 34);
-		btnStart.TabIndex = 16;
+		btnStart.TabIndex = 17;
 		btnStart.Text = "开始处理";
 		btnStart.UseVisualStyleBackColor = true;
 		btnStart.Click += BtnStart_Click;
@@ -207,7 +218,7 @@ partial class BatchBox
 		btnCancel.Location = new Point(452, 290);
 		btnCancel.Name = "btnCancel";
 		btnCancel.Size = new Size(80, 34);
-		btnCancel.TabIndex = 17;
+		btnCancel.TabIndex = 18;
 		btnCancel.Text = "取消";
 		btnCancel.UseVisualStyleBackColor = true;
 		// 
@@ -219,6 +230,7 @@ partial class BatchBox
 		ClientSize = new Size(548, 340);
 		Controls.Add(btnCancel);
 		Controls.Add(btnStart);
+		Controls.Add(btnImportBat);
 		Controls.Add(lblProgress);
 		Controls.Add(progressBar);
 		Controls.Add(cmbLayout);
@@ -266,6 +278,7 @@ partial class BatchBox
 	private ComboBox cmbLayout;
 	private ProgressBar progressBar;
 	private Label lblProgress;
+	private Button btnImportBat;
 	private Button btnStart;
 	private Button btnCancel;
 }
