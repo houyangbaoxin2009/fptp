@@ -40,6 +40,8 @@ FPTP 是一款完全免费开源的 Windows 桌面证件照工具：导入生活
 - **预设系统** — 保存 / 套用 / 删除当前全部参数，一键切换常用配置
 - **快捷键** — 全局快捷键操作：Ctrl+R 重新开始、Ctrl+Z 撤回、Ctrl+, 设置、Ctrl+O 加载、Ctrl+S 导出等，可在设置中自定义
 - **配置自由修改** — 所有设置（尺寸 / 底色 / 容差 / 输出质量 / 排版布局 / 语言 / 更新策略 / **快捷键**）统一存为 `setting.json` 纯文本，可直接编辑文件改配置，改完即生效；语言包支持独立导入导出
+- **主题系统** — 内置 5 套主题（跟随系统 / 浅色 / 深色 / 护眼绿 / 深空蓝）一键切换，支持导入 / 导出自定义主题包（`theme.*.json`），随换随用
+- **隐私保护** — 处理中的图片可选"仅内存"（不写盘）或"硬盘（publish 目录）"；外部应用可通过 `fptp.exe ass working` 获取 GUI 当前处理中的图片
 - **命令行批处理 / 完全自动化** — 支持 `-i -o -s` 参数批量转换，可脚本化循环处理成百上千张照片，无人值守一次跑完，适合证件照批量制作与工作流集成
 - **高质量保存** — JPEG / PNG / BMP / TIFF / GIF 五种格式，JPEG 质量可调（70-100）；透明背景自动存为 PNG
 - **中英双语** — 界面语言即时切换，命令行可用 `--lang` 指定
@@ -88,6 +90,7 @@ FPTP 是一款完全免费开源的 Windows 桌面证件照工具：导入生活
 | `ass` | `save` | 图片格式转换保存 |
 | `ass` | `checkres` | 分辨率检查（`-w` 最小宽 / `-h` 最小高） |
 | `ass` | `settings` | 导出当前设置 JSON |
+| `ass` | `working` | 获取 GUI 当前处理中的图片（`-o` 输出路径） |
 
 所有命令支持全局参数 `--lang zh-CN|en-US` 指定输出语言。
 
@@ -100,6 +103,7 @@ fptp.exe prep grayscale -i in.jpg -o out.jpg
 fptp.exe prep bgcolor -i in.jpg -o out.jpg -c blue -t 40 -a
 fptp.exe prep bgcolor -i in.jpg -o out.jpg -c transparent -t 30
 fptp.exe ass checkres -i in.jpg -w 295 -h 413
+fptp.exe ass working -o out.jpg
 ```
 
 **批处理**（处理文件夹内全部 jpg/png/bmp，自动裁剪 + 换底 + 排版，输出 JSON 结果）：
@@ -179,7 +183,8 @@ fptp/
 - **最低系统**: Windows 7 SP1（需 .NET Framework 4.8；Win10/11 已内置）
 - **UI**: Windows Forms
 - **图像处理**: `System.Drawing`（Bitmap / Graphics / ColorMatrix / ImageAttributes）
-- **多语言**: 内嵌 JSON 语言包（`Resources/lang.*.json`），`Lang.Get(key)` 统一取词
+- **多语言**: 优先加载 `lang\` 目录语言包文件（可直接编辑），回退内嵌 JSON 语言包（`Resources/lang.*.json`），`Lang.Get(key)` 统一取词
+- **目录结构**: 编译后系统库 → `lib\`、语言包 → `lang\`、图片 → `img\`、文档 → `doc\`、主题包 → `theme\`
 - **自动更新**: `HttpWebRequest` 请求 GitCode / GitHub Releases API，按用户地区选源（`RegionDetector` IP 定位）
 - **DPI 基准**: 所有尺寸常量基于 300 DPI
 - **命名约定**: `Assalg` = 助理 + 算法；`Prepalg` = 预处理 + 算法
