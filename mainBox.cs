@@ -288,11 +288,20 @@ namespace fptp
 
 			if (!string.IsNullOrEmpty(filePath))
 			{
+				Bitmap tempImage = null;
 				try
 				{
-					var tempImage = new Bitmap(filePath);
-					currentImage = (Bitmap)tempImage.Clone();
+					tempImage = new Bitmap(filePath);
+					var newCurrent = (Bitmap)tempImage.Clone();
+
+					// 全部成功后才释放旧图，避免失败时清空当前图
+					pictureBox1.Image?.Dispose();
+					sourceImage?.Dispose();
+					currentImage?.Dispose();
+
+					currentImage = newCurrent;
 					sourceImage = tempImage;
+					tempImage = null;
 
 					int minSide = Math.Min(sourceImage.Width, sourceImage.Height);
 
@@ -327,6 +336,7 @@ namespace fptp
 				}
 				catch (Exception ex)
 				{
+					tempImage?.Dispose();
 					MessageBox.Show(Lang.Get("msg.loadFailed", ex.Message));
 				}
 			}
