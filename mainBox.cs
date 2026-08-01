@@ -18,6 +18,7 @@ namespace fptp
 		private bool _applyingSettings;
 		private readonly Stack<Bitmap> undoStack = new Stack<Bitmap>();
 		private const int MaxUndoSteps = 20;
+		private System.Windows.Forms.Timer workingTimer;
 
 		/// <summary>快捷键动作映射：动作名 → 实际执行方法。</summary>
 		private readonly Dictionary<string, Action> keyActions = new Dictionary<string, Action>
@@ -369,6 +370,7 @@ namespace fptp
 			currentImage.Dispose();
 			currentImage = croppedImage;
 
+			ReleaseLayoutPaper();
 			pictureBox1.Image = currentImage;
 			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 
@@ -389,14 +391,20 @@ namespace fptp
 
 			PushUndo();
 			this.Cursor = Cursors.WaitCursor;
+			try
+			{
+				Bitmap bwImage = Prepalg.ToGrayscale(currentImage);
+				currentImage.Dispose();
+				currentImage = bwImage;
+			}
+			finally
+			{
+				this.Cursor = Cursors.Default;
+			}
 
-			Bitmap bwImage = Prepalg.ToGrayscale(currentImage);
-
-			currentImage.Dispose();
-			currentImage = bwImage;
+			ReleaseLayoutPaper();
 			pictureBox1.Image = currentImage;
 
-			this.Cursor = Cursors.Default;
 			lblInfo.Text = Lang.Get("msg.bwDone");
 
 			ExportStage("黑白", currentImage);
@@ -421,17 +429,24 @@ namespace fptp
 			lblInfo.Text = Lang.Get("msg.bgWorking");
 			Application.DoEvents();
 			this.Cursor = Cursors.WaitCursor;
+			try
+			{
+				int tolerance = TrackBar.Value;
+				Bitmap newImage = settings.AnimeMode
+					? Prepalg.ReplaceBackgroundAnime(currentImage, targetColor, tolerance, this)
+					: Prepalg.ReplaceBackground(currentImage, targetColor, tolerance, this);
 
-			int tolerance = TrackBar.Value;
-			Bitmap newImage = settings.AnimeMode
-				? Prepalg.ReplaceBackgroundAnime(currentImage, targetColor, tolerance, this)
-				: Prepalg.ReplaceBackground(currentImage, targetColor, tolerance, this);
+				currentImage.Dispose();
+				currentImage = newImage;
+			}
+			finally
+			{
+				this.Cursor = Cursors.Default;
+			}
 
-			currentImage.Dispose();
-			currentImage = newImage;
+			ReleaseLayoutPaper();
 			pictureBox1.Image = currentImage;
 
-			this.Cursor = Cursors.Default;
 			lblInfo.Text = Lang.Get("msg.bgDone");
 
 			ExportStage("换底色", currentImage);
@@ -553,6 +568,19 @@ namespace fptp
 			lblInfo.Text = Lang.Get("msg.layoutDone", layoutName, cols, rows, cols * rows);
 
 			ExportStage("排版", layoutPaper);
+		}
+
+		/// <summary>
+		/// 释放排版纸：当画布上显示的是排版结果（非当前编辑图）时释放，
+		/// 避免后续操作覆盖 pictureBox1.Image 时泄漏排版纸位图。
+		/// </summary>
+		private void ReleaseLayoutPaper()
+		{
+			if (pictureBox1.Image != null && pictureBox1.Image != currentImage)
+			{
+				pictureBox1.Image.Dispose();
+				pictureBox1.Image = null;
+			}
 		}
 
 		private void BtnSave_Click(object sender, EventArgs e)
@@ -719,7 +747,7 @@ namespace fptp
 			ApplySettings();
 
 			// 监听外部 ass working 请求：每 500ms 检查一次请求文件
-			System.Windows.Forms.Timer workingTimer = new System.Windows.Forms.Timer { Interval = 500 };
+			workingTimer = new System.Windows.Forms.Timer { Interval = 500 };
 			workingTimer.Tick += TimerWorking_Tick;
 			workingTimer.Start();
 
@@ -779,6 +807,7 @@ namespace fptp
 			currentImage.Dispose();
 			currentImage = undoStack.Pop();
 
+			ReleaseLayoutPaper();
 			pictureBox1.Image = currentImage;
 			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 			btnUndo.Enabled = undoStack.Count > 0;
@@ -794,6 +823,7 @@ namespace fptp
 
 			currentImage?.Dispose();
 			currentImage = (Bitmap)sourceImage.Clone();
+			ReleaseLayoutPaper();
 			pictureBox1.Image = currentImage;
 			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 
@@ -815,7 +845,20 @@ namespace fptp
 
 		protected override void OnFormClosing(FormClosingEventArgs e)
 		{
+			if (workingTimer != null)
+			{
+				workingTimer.Stop();
+				workingTimer.Tick -= TimerWorking_Tick;
+				workingTimer.Dispose();
+				workingTimer = null;
+			}
+
 			ClearUndo();
+			ReleaseLayoutPaper();
+			currentImage?.Dispose();
+			sourceImage?.Dispose();
+			currentImage = null;
+			sourceImage = null;
 			base.OnFormClosing(e);
 		}
 
@@ -863,7 +906,11 @@ namespace fptp
 					Assalg.SaveImage(currentImage, Path.Combine(PublishDir, "working.png"));
 				File.Delete(requestFile);
 			}
-			catch { }
+			catch
+			{
+				// 失败也删除请求文件，避免每 500ms 无限重试
+				try { if (File.Exists(requestFile)) File.Delete(requestFile); } catch { }
+			}
 		}
 
 		private void groupBox2_Enter(object sender, EventArgs e)
