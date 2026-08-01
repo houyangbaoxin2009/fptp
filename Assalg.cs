@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -182,15 +183,80 @@ namespace fptp
 					string json = File.ReadAllText(SettingsFile);
 					// 新格式：顶层含 app/gen/lang
 					if (json.Contains("\"app\"") || json.Contains("\"gen\"") || json.Contains("\"lang\""))
-						return JsonSerializer.Deserialize<SettingsPackage>(json) ?? new SettingsPackage();
+					{
+						var pkg = JsonSerializer.Deserialize<SettingsPackage>(json) ?? new SettingsPackage();
+						SanitizePackage(pkg);
+						return pkg;
+					}
 					// 旧格式：整个文件是 AppSettings
-					return MigrateLegacySettings();
+					return SanitizePackage(MigrateLegacySettings());
 				}
 			}
 			catch
 			{
 			}
-			return MigrateLegacySettings();
+			return SanitizePackage(MigrateLegacySettings());
+		}
+
+		/// <summary>
+		/// 校验并修正设置包中所有数值/枚举字段，防止手改 setting.json 写入非法值导致窗体加载崩溃。
+		/// 非法的索引 clamp 到合法范围、null 回退默认值。
+		/// </summary>
+		private static SettingsPackage SanitizePackage(SettingsPackage pkg)
+		{
+			pkg.App ??= new AppSettings();
+			pkg.Gen ??= new GenSettings();
+			pkg.Key ??= new KeySettings();
+			pkg.High ??= new HighSettings();
+			pkg.Lang ??= new LangPackage();
+			pkg.Theme ??= new ThemePackage();
+
+			pkg.App.Privacy ??= new PrivacySettings();
+			if (string.IsNullOrEmpty(pkg.App.Language)) pkg.App.Language = "zh-CN";
+			if (string.IsNullOrEmpty(pkg.App.ThemeId)) pkg.App.ThemeId = "auto";
+			if (pkg.App.TempImageMode != "memory" && pkg.App.TempImageMode != "disk")
+				pkg.App.TempImageMode = "memory";
+
+			pkg.Key.Actions ??= new Dictionary<string, string>();
+
+			SanitizeGen(pkg.Gen);
+			return pkg;
+		}
+
+		private static void SanitizeGen(GenSettings g)
+		{
+			if (string.IsNullOrEmpty(g.SaveFormat))
+				g.SaveFormat = "jpg";
+			else
+				g.SaveFormat = g.SaveFormat.ToLowerInvariant();
+			g.SaveQuality = Math.Max(70, Math.Min(100, g.SaveQuality));
+			g.GuideLineStyle = Math.Max(0, Math.Min(2, g.GuideLineStyle));
+			g.DefaultSize = Math.Max(1, Math.Min(3, g.DefaultSize));
+			if (string.IsNullOrEmpty(g.BackgroundColor) ||
+				(g.BackgroundColor != "白色" && g.BackgroundColor != "蓝色" && g.BackgroundColor != "红色" && g.BackgroundColor != "透明"))
+				g.BackgroundColor = "蓝色";
+			g.Tolerance = Math.Max(0, Math.Min(100, g.Tolerance));
+			g.LayoutPreset = Math.Max(0, Math.Min(4, g.LayoutPreset));
+			g.CustomLayoutW = Math.Max(100, Math.Min(10000, g.CustomLayoutW));
+			g.CustomLayoutH = Math.Max(100, Math.Min(10000, g.CustomLayoutH));
+			g.CurrentPreset = Math.Max(-1, Math.Min(g.Presets.Count - 1, g.CurrentPreset));
+
+			g.Presets ??= new List<PresetProfile>();
+			foreach (PresetProfile p in g.Presets)
+			{
+				if (p == null) continue;
+				if (string.IsNullOrEmpty(p.Name)) p.Name = "";
+				p.DefaultSize = Math.Max(1, Math.Min(3, p.DefaultSize));
+				if (string.IsNullOrEmpty(p.BackgroundColor) ||
+					(p.BackgroundColor != "白色" && p.BackgroundColor != "蓝色" && p.BackgroundColor != "红色" && p.BackgroundColor != "透明"))
+					p.BackgroundColor = "蓝色";
+				p.Tolerance = Math.Max(0, Math.Min(100, p.Tolerance));
+				p.LayoutPreset = Math.Max(0, Math.Min(4, p.LayoutPreset));
+				if (string.IsNullOrEmpty(p.SaveFormat))
+					p.SaveFormat = "jpg";
+				p.SaveQuality = Math.Max(70, Math.Min(100, p.SaveQuality));
+			}
+			g.CurrentPreset = Math.Max(-1, Math.Min(g.Presets.Count - 1, g.CurrentPreset));
 		}
 
 		/// <summary>
