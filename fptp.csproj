@@ -7,6 +7,7 @@
     <LangVersion>latest</LangVersion>
     <PackageId>$(AssemblyName)</PackageId>
     <ApplicationIcon>FPTP.ico</ApplicationIcon>
+    <Version>1.4.2.20</Version>
 
     <!-- 排除 publish 文件夹，不在 VS 中显示 -->
     <DefaultItemExcludes>$(DefaultItemExcludes);publish\**</DefaultItemExcludes>
