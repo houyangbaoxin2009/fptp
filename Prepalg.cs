@@ -148,7 +148,7 @@ namespace fptp
 				else if (diff < tolerance + feather)
 				{
 					// 边缘羽化：按距离线性混合原色与新背景色
-					double t = (double)(diff - tolerance) / feather;
+					double t = (double)(tolerance + feather - diff) / feather;
 					int pr = (p >> 16) & 0xFF, pg = (p >> 8) & 0xFF, pb = p & 0xFF;
 					if (transparent)
 					{
@@ -285,7 +285,7 @@ namespace fptp
 							   Math.Abs((p & 0xFF) - sb2);
 					if (diff < tolerance + feather)
 					{
-						double t = (double)Math.Max(0, diff - tolerance) / feather;
+						double t = Math.Max(0, Math.Min(1, (double)(tolerance + feather - diff) / feather));
 						int pr = (p >> 16) & 0xFF, pg = (p >> 8) & 0xFF, pb = p & 0xFF;
 						if (transparent)
 						{
