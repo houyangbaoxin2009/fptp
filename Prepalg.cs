@@ -336,6 +336,7 @@ namespace fptp
 			// 局部函数：入队与采样色接近且未标记的像素
 			void TryEnqueue(int x, int y)
 			{
+				if (x < 0 || x >= width || y < 0 || y >= height) return;
 				int idx = y * width + x;
 				if (mark[idx] != 0) return;
 				int p = srcPixels[idx];
@@ -346,10 +347,11 @@ namespace fptp
 					queue.Enqueue(idx);
 			}
 
-			// 播种：四个角区域
-			for (int y = 0; y < margin; y++)
+			// 播种：四个角区域（margin 不越过图片边界，防小图越界）
+			int seedMax = Math.Min(margin, Math.Min(width, height));
+			for (int y = 0; y < seedMax; y++)
 			{
-				for (int x = 0; x < margin; x++)
+				for (int x = 0; x < seedMax; x++)
 				{
 					TryEnqueue(x, y);
 					TryEnqueue(width - 1 - x, y);
