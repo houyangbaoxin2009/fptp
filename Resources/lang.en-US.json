@@ -161,6 +161,7 @@
   "msg.themeImported": "Theme pack imported and applied: {0}.",
   "msg.themeExported": "Theme pack exported to: {0}",
   "about.title": "About {0}",
+  "about.stable": "Stable",
   "about.changelog": "Changelog",
   "about.readme": "README",
   "about.contributing": "Contributing",

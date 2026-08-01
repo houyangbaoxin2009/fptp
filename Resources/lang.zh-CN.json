@@ -161,6 +161,7 @@
   "msg.themeImported": "主题包已导入并应用：{0}。",
   "msg.themeExported": "主题包已导出到：{0}",
   "about.title": "关于 {0}",
+  "about.stable": "成熟版本",
   "about.changelog": "更新日志",
   "about.readme": "README",
   "about.contributing": "贡献指南",

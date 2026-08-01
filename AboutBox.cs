@@ -18,7 +18,7 @@ partial class AboutBox : Form
 	private void AboutBox1_Load(object sender, EventArgs e)
 	{
 		Text = Lang.Get("about.title", Basic.AppName);
-		labelProductName.Text = $"{Basic.AppName} v{Basic.AppVersion}";
+		labelProductName.Text = $"{Basic.AppName} v{Basic.AppVersion} · {Lang.Get("about.stable")}";
 		labelVersion.Text = $".NET Framework 4.8 | Windows 7 SP1+";
 		labelCopyright.Text = Basic.AppCopyright;
 		labelCompany.Text = Basic.AppCompany;
