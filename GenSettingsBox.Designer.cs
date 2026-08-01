@@ -114,7 +114,7 @@ partial class GenSettingsBox
 		// cmbBgColor
 		//
 		cmbBgColor.DropDownStyle = ComboBoxStyle.DropDownList;
-		cmbBgColor.Items.AddRange(new object[] { "白色", "蓝色", "红色", "透明" });
+		cmbBgColor.Items.AddRange(new object[] { "蓝色", "红色", "白色", "透明" });
 		cmbBgColor.Location = new Point(110, 50);
 		cmbBgColor.Name = "cmbBgColor";
 		cmbBgColor.Size = new Size(121, 25);
