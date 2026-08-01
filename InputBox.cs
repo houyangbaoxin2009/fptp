@@ -24,8 +24,6 @@ namespace fptp
 			StartPosition = FormStartPosition.CenterParent;
 			ShowInTaskbar = false;
 			ClientSize = new Size(320, 110);
-			AcceptButton = btnOk;
-			CancelButton = btnCancel;
 
 			var lbl = new Label
 			{
@@ -53,6 +51,9 @@ namespace fptp
 				Size = new Size(72, 28),
 				Text = Lang.Get("settings.cancel"),
 			};
+			// 控件创建后才能赋值，否则回车/Esc 无效
+			AcceptButton = btnOk;
+			CancelButton = btnCancel;
 
 			Controls.Add(lbl);
 			Controls.Add(txtValue);
