@@ -29,6 +29,13 @@ namespace fptp
 
 			string ext = Path.GetExtension(filePath).ToLower();
 
+			// 无扩展名或未知扩展名：直接按默认 PNG 编码保存（避免空串命中第一个编码器误存 BMP）
+			if (ext == "")
+			{
+				bmp.Save(filePath, ImageFormat.Png);
+				return;
+			}
+
 			ImageCodecInfo codecInfo = GetEncoderInfo(ext);
 			if (codecInfo == null)
 			{
@@ -174,15 +181,14 @@ namespace fptp
 		/// 读取完整设置包。文件不存在或损坏时返回默认包。
 		/// 兼容旧格式（setting.json 为纯 app、gen_setting.json 为纯 gen）自动迁移。
 		/// </summary>
-		private static SettingsPackage LoadPackage()
-		{
+		private static SettingsPackage LoadPackage()		{
 			try
 			{
 				if (File.Exists(SettingsFile))
 				{
 					string json = File.ReadAllText(SettingsFile);
-					// 新格式：顶层含 app/gen/lang
-					if (json.Contains("\"app\"") || json.Contains("\"gen\"") || json.Contains("\"lang\""))
+					// 新格式：顶层含 app/gen/lang（用 JsonDocument 精确判断，避免子串误匹配）
+					if (IsNewFormat(json))
 					{
 						var pkg = JsonSerializer.Deserialize<SettingsPackage>(json) ?? new SettingsPackage();
 						SanitizePackage(pkg);
@@ -196,6 +202,25 @@ namespace fptp
 			{
 			}
 			return SanitizePackage(MigrateLegacySettings());
+		}
+
+		/// <summary>判断 JSON 是否为统一设置包格式（顶层含 app/gen 等对象 key）。</summary>
+		private static bool IsNewFormat(string json)
+		{
+			try
+			{
+				using (var doc = JsonDocument.Parse(json))
+				{
+					if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
+					foreach (JsonProperty prop in doc.RootElement.EnumerateObject())
+					{
+						if (prop.Name == "app" || prop.Name == "gen" || prop.Name == "lang")
+							return true;
+					}
+				}
+			}
+			catch { }
+			return false;
 		}
 
 		/// <summary>
