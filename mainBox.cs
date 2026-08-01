@@ -78,6 +78,7 @@ namespace fptp
 			if (combo != "")
 			{
 				var keys = Assalg.LoadKeySettings();
+				if (keys.Actions == null) keys.Actions = new Dictionary<string, string>();
 				foreach (var kv in keys.Actions)
 				{
 					if (kv.Value == combo && keyActions.TryGetValue(kv.Key, out Action? act))
