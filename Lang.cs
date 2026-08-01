@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 
@@ -57,15 +58,24 @@ namespace fptp
 			TryLoadEmbedded("zh-CN");
 		}
 
-		/// <summary>从 exe\lang\ 目录加载语言包文件（lang.{code}.json）。</summary>
+		/// <summary>从 exe\lang\ 目录加载语言包文件（lang.{code}.json 或 lang.{code}.{name}.json）。</summary>
 		private static bool TryLoadFile(string code)
 		{
 			try
 			{
 				string dir = Path.Combine(
 					Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath) ?? ".", "lang");
+				if (!Directory.Exists(dir)) return false;
+
+				// 兼容导出文件名 lang.{id}.{name}.json 与标准 lang.{id}.json
 				string path = Path.Combine(dir, $"lang.{code}.json");
-				if (!File.Exists(path)) return false;
+				if (!File.Exists(path))
+				{
+					string prefix = $"lang.{code}.";
+					path = Directory.GetFiles(dir, "*.json")
+						.FirstOrDefault(f => Path.GetFileName(f).StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+					if (path == null) return false;
+				}
 
 				var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
 				if (dict == null || dict.Count == 0) return false;
