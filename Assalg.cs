@@ -85,8 +85,8 @@ namespace fptp
 				bmp.UnlockBits(data);
 			}
 
-			// 抽样检查：全图扫描成本高，按 1/8 步长抽样足够可靠
-			for (int i = 0; i < pixels.Length; i += 8)
+			// 全量扫描 alpha 通道，避免抽样漏掉零星透明像素导致透明图被存成 JPG
+			for (int i = 0; i < pixels.Length; i++)
 			{
 				if (((pixels[i] >> 24) & 0xFF) < 255)
 					return true;
