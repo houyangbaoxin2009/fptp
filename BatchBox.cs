@@ -117,8 +117,8 @@ namespace fptp
 
 				try
 				{
-					ApplyBatParameters(File.ReadAllText(dlg.FileName));
-					lblProgress.Text = Lang.Get("batch.importOk");
+					if (ApplyBatParameters(File.ReadAllText(dlg.FileName)))
+						lblProgress.Text = Lang.Get("batch.importOk");
 				}
 				catch (Exception ex)
 				{
@@ -128,16 +128,16 @@ namespace fptp
 			}
 		}
 
-		/// <summary>解析 bat 内容中的 fptp.exe prep batch 命令行参数并填充到控件。</summary>
-		private void ApplyBatParameters(string batContent)
+		/// <summary>解析 bat 内容中的 fptp.exe prep batch 命令行参数并填充到控件，返回是否成功。</summary>
+		private bool ApplyBatParameters(string batContent)
 		{
 			// 定位 prep batch 段，按空格/引号拆分参数
 			int idx = batContent.IndexOf("batch", StringComparison.OrdinalIgnoreCase);
 			if (idx < 0)
 			{
-				MessageBox.Show(this, Lang.Get("batch.importNoCmd"), Lang.Get("msg.tip"),
-					MessageBoxButtons.OK, MessageBoxIcon.Warning);
-				return;
+				MessageBox.Show(this, Lang.Get("batch.importNoCmd"), Lang.Get("msg.error"),
+					MessageBoxButtons.OK, MessageBoxIcon.Error);
+				return false;
 			}
 
 			string tail = batContent.Substring(idx + 5);
@@ -183,6 +183,7 @@ namespace fptp
 						break;
 				}
 			}
+			return true;
 		}
 
 		/// <summary>将 CLI 颜色名映射为底色下拉索引（0蓝 1红 2白 3透明）。</summary>
