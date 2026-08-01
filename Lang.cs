@@ -38,7 +38,7 @@ namespace fptp
 
 			// 1. 设置文件中的语言包（con.id 匹配目标语言）
 			LangPackage? pkg = Assalg.LoadLangPackage();
-			if (pkg != null && pkg.Con.Id == target && pkg.Ass != null && pkg.Ass.Count > 0)
+			if (pkg != null && pkg.Con != null && pkg.Con.Id == target && pkg.Ass != null && pkg.Ass.Count > 0)
 			{
 				_table = new Dictionary<string, string>(pkg.Ass);
 				Current = target;
@@ -154,7 +154,7 @@ namespace fptp
 				new LangCon { Id = "en-US", Name = Get("settings.lang.en") }
 			};
 			LangPackage? pkg = Assalg.LoadLangPackage();
-			if (pkg != null && !string.IsNullOrEmpty(pkg.Con.Id) &&
+			if (pkg != null && pkg.Con != null && !string.IsNullOrEmpty(pkg.Con.Id) &&
 				!pkg.Con.Id.Equals("zh-CN", StringComparison.OrdinalIgnoreCase) &&
 				!pkg.Con.Id.Equals("en-US", StringComparison.OrdinalIgnoreCase))
 			{

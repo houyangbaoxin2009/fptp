@@ -216,8 +216,10 @@ namespace fptp
 					if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
 					foreach (JsonProperty prop in doc.RootElement.EnumerateObject())
 					{
-						if (prop.Name == "app" || prop.Name == "gen" || prop.Name == "lang")
-							return true;
+					if (prop.Name.Equals("app", StringComparison.OrdinalIgnoreCase) ||
+						prop.Name.Equals("gen", StringComparison.OrdinalIgnoreCase) ||
+						prop.Name.Equals("lang", StringComparison.OrdinalIgnoreCase))
+						return true;
 					}
 				}
 			}
@@ -250,6 +252,9 @@ namespace fptp
 			return pkg;
 		}
 
+		/// <summary>校验并修正 GenSettings 数值/枚举字段（供 CLI 预设文件加载复用）。</summary>
+		internal static void SanitizeGenSettings(GenSettings g) => SanitizeGen(g);
+
 		private static void SanitizeGen(GenSettings g)
 		{
 			if (string.IsNullOrEmpty(g.SaveFormat))
@@ -266,9 +271,9 @@ namespace fptp
 			g.LayoutPreset = Math.Max(0, Math.Min(4, g.LayoutPreset));
 			g.CustomLayoutW = Math.Max(100, Math.Min(10000, g.CustomLayoutW));
 			g.CustomLayoutH = Math.Max(100, Math.Min(10000, g.CustomLayoutH));
+			g.Presets ??= new List<PresetProfile>();
 			g.CurrentPreset = Math.Max(-1, Math.Min(g.Presets.Count - 1, g.CurrentPreset));
 
-			g.Presets ??= new List<PresetProfile>();
 			foreach (PresetProfile p in g.Presets)
 			{
 				if (p == null) continue;

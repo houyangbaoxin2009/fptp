@@ -56,6 +56,18 @@ namespace fptp
 		/// <summary>点击行进入录制：按下新组合键时写入该行。</summary>
 		protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 		{
+			bool hasModifier = (keyData & (Keys.Control | Keys.Alt | Keys.Shift)) != 0;
+
+			// 纯导航键（方向键/翻页/Tab 等，无修饰键）不录制，放行给 DataGridView 用于移动选中行
+			if (!hasModifier)
+			{
+				Keys key = keyData & Keys.KeyCode;
+				if (key == Keys.Up || key == Keys.Down || key == Keys.Left || key == Keys.Right ||
+					key == Keys.PageUp || key == Keys.PageDown || key == Keys.Home || key == Keys.End ||
+					key == Keys.Tab || key == Keys.Escape || key == Keys.Enter)
+					return base.ProcessCmdKey(ref msg, keyData);
+			}
+
 			string combo = KeySettings.FormatKeys(keyData);
 			if (combo != "" && dgvKeys.SelectedRows.Count > 0)
 			{

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -40,8 +41,25 @@ namespace fptp
 		/// </summary>
 		static int RunCommandMode(string[] args)
 		{
-			// ── 语言参数（全局，任意位置）──
-			string langCode = ParseArgValue(args, "--lang", "--lang") ?? "";
+			// ── 语言参数（全局，任意位置）── 先剔除 --lang 及其值，避免干扰后续分支判断
+			string langCode = "";
+			var filtered = new List<string>();
+			for (int i = 0; i < args.Length; i++)
+			{
+				if (string.Equals(args[i], "--lang", StringComparison.OrdinalIgnoreCase))
+				{
+					// 下一个 token 是值（非 - 开头）则跳过；否则视为缺值
+					if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+					{
+						langCode = args[i + 1];
+						i++;
+					}
+					continue;
+				}
+				filtered.Add(args[i]);
+			}
+			args = filtered.ToArray();
+
 			if (langCode != "" && langCode != "zh-CN" && langCode != "en-US")
 			{
 				Console.WriteLine("Error: unknown language. Available: zh-CN en-US");
@@ -67,6 +85,12 @@ namespace fptp
 			if (string.IsNullOrEmpty(inputPath) || string.IsNullOrEmpty(outputPath))
 			{
 				Console.WriteLine(Lang.Get("cli.missingPath"));
+				return 1;
+			}
+
+			if (sizeType != "1" && sizeType != "2")
+			{
+				Console.WriteLine("Error: invalid size. Available: 1 (one inch) 2 (two inch)");
 				return 1;
 			}
 
@@ -243,6 +267,7 @@ namespace fptp
 				try
 				{
 					gen = JsonSerializer.Deserialize<GenSettings>(File.ReadAllText(presetFile)) ?? gen;
+					Assalg.SanitizeGenSettings(gen);   // 预设文件可能手改出非法值，统一钳制
 				}
 				catch (Exception ex)
 				{
@@ -260,19 +285,26 @@ namespace fptp
 			string colorName = ParseArgValue(args, "-c", "--color") ?? "";
 			if (!string.IsNullOrEmpty(colorName))
 			{
-				Color c = Color.FromName(colorName);
-				if (!c.IsKnownColor)
+				// 白名单与 bgcolor 命令一致：white/blue/red/transparent/none，避免系统色名（如 Control）被误判为合法
+				switch (colorName.ToLower())
 				{
-					Console.WriteLine(Lang.Get("cli.unknownColor", colorName));
-					return 1;
+					case "white":
+					case "blue":
+					case "red":
+					case "transparent":
+					case "none":
+						gen.BackgroundColor = MapColorToStored(colorName);
+						break;
+					default:
+						Console.WriteLine(Lang.Get("cli.unknownColor", colorName));
+						return 1;
 				}
-				gen.BackgroundColor = MapColorToStored(colorName);
 			}
 
 			try
 			{
 				int total = BatchProcess(inputDir, outputDir, gen);
-				Console.WriteLine(JsonSerializer.Serialize(new { success = true, processed = total, input = inputDir, output = outputDir }, JsonOptions));
+				Console.WriteLine(JsonSerializer.Serialize(new { success = total > 0, processed = total, input = inputDir, output = outputDir }, JsonOptions));
 				return total > 0 ? 0 : 1;
 			}
 			catch (Exception ex)
@@ -672,7 +704,7 @@ namespace fptp
 			try
 			{
 				GenSettings settings = Assalg.LoadGenSettings();
-				Console.WriteLine(JsonSerializer.Serialize(settings, JsonOptions));
+				Console.WriteLine(JsonSerializer.Serialize(new { success = true, settings }, JsonOptions));
 				return 0;
 			}
 			catch (Exception ex)
@@ -688,7 +720,9 @@ namespace fptp
 
 		private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
 		{
-			WriteIndented = true
+			WriteIndented = true,
+			// 统一 camelCase 输出：GenSettings 等 PascalCase 属性转小写，与匿名对象字段风格一致
+			PropertyNamingPolicy = JsonNamingPolicy.CamelCase
 		};
 
 		/// <summary>检查参数列表中是否存在指定 flag。</summary>
@@ -711,9 +745,10 @@ namespace fptp
 				if (string.Equals(args[i], shortName, StringComparison.OrdinalIgnoreCase) ||
 					string.Equals(args[i], longName, StringComparison.OrdinalIgnoreCase))
 				{
-					if (i + 1 < args.Length)
-						return args[i + 1];
-					return null;
+					// 缺值（下一个是 flag 或已越界）返回 null，避免把 -o 等 flag 当值吞掉
+					if (i + 1 >= args.Length || args[i + 1].StartsWith("-"))
+						return null;
+					return args[i + 1];
 				}
 			}
 			return null;

@@ -24,6 +24,8 @@ namespace fptp
 		public static Bitmap SmartCrop(Bitmap source, int targetW, int targetH)
 		{
 			if (source == null) return null;
+			// 非法目标尺寸：避免除零与 new Bitmap(0,0) 异常
+			if (targetW <= 0 || targetH <= 0) return null;
 
 			double srcRatio = (double)source.Width / source.Height;
 			double dstRatio = (double)targetW / targetH;
@@ -275,7 +277,7 @@ namespace fptp
 			// 生成结果：背景像素替换为新色，其余保留原色；
 			// 贴着背景的前景像素做边缘羽化，消除抗锯齿白边
 			Bitmap result = null;
-			BitmapData outData = null;
+			BitmapData? outData = null;
 			try
 			{
 				result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
@@ -343,9 +345,8 @@ namespace fptp
 			}
 			catch
 			{
-				if (outData != null && result != null)
-					result.UnlockBits(outData);
 				result?.Dispose();
+				outData = null;   // 位图已释放，阻止 finally 对已释放位图二次 UnlockBits
 				throw;
 			}
 			finally

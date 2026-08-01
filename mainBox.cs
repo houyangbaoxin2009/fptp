@@ -311,6 +311,7 @@ namespace fptp
 					{
 						MessageBox.Show(Lang.Get("msg.loadedBad"),
 										Lang.Get("msg.badImage"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+						pictureBox1.Image = null;   // 旧图已在上面释放，必须清空引用避免碰已释放对象
 						currentImage.Dispose();
 						sourceImage.Dispose();
 						currentImage = null;
@@ -887,9 +888,16 @@ namespace fptp
 			if (!appSettings.Privacy.AllowExternalAccess) return;
 			// 内存模式不落盘：处理中的图片只保留在内存（currentImage），外部应用通过 ass working 拉取
 			if (appSettings.TempImageMode != "disk") return;
-			EnsurePublishDir();
-			string path = Path.Combine(PublishDir, $"{name}.jpg");
-			Assalg.SaveImage(image, path);
+			try
+			{
+				EnsurePublishDir();
+				string path = Path.Combine(PublishDir, $"{name}.jpg");
+				Assalg.SaveImage(image, path);
+			}
+			catch
+			{
+				// 阶段导出失败不影响主流程（图片仍在内存中可继续操作）
+			}
 		}
 
 		/// <summary>

@@ -92,8 +92,8 @@ namespace fptp
 			ThemePackage? pkg = Assalg.LoadThemePackage();
 			if (pkg != null && pkg.Ass != null && TryApplyPalette(pkg.Ass))
 			{
-				CurrentId = string.IsNullOrEmpty(pkg.Con.Id) ? id : pkg.Con.Id;
-				CurrentName = string.IsNullOrEmpty(pkg.Con.Name) ? CurrentId : pkg.Con.Name;
+				CurrentId = pkg.Con == null || string.IsNullOrEmpty(pkg.Con.Id) ? id : pkg.Con.Id;
+				CurrentName = pkg.Con == null || string.IsNullOrEmpty(pkg.Con.Name) ? CurrentId : pkg.Con.Name;
 				return;
 			}
 
@@ -284,7 +284,7 @@ namespace fptp
 				list.Add(new ThemeCon { Id = t.Id, Name = Lang.Get(t.NameKey) });
 
 			ThemePackage? pkg = Assalg.LoadThemePackage();
-			if (pkg != null && !string.IsNullOrEmpty(pkg.Con.Id) && !list.Exists(x => x.Id == pkg.Con.Id))
+			if (pkg != null && pkg.Con != null && !string.IsNullOrEmpty(pkg.Con.Id) && !list.Exists(x => x.Id == pkg.Con.Id))
 			{
 				list.Add(new ThemeCon
 				{

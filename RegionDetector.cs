@@ -18,6 +18,7 @@ namespace fptp
 		};
 
 		private static bool? _isChina;
+		private static readonly object _lock = new object();
 
 		/// <summary>
 		/// 是否中国用户（进程内缓存，只检测一次）。全部服务失败时默认中国（国内用户为主）。
@@ -25,7 +26,11 @@ namespace fptp
 		public static bool IsChina()
 		{
 			if (_isChina.HasValue) return _isChina.Value;
-			_isChina = Detect() ?? true;
+			lock (_lock)
+			{
+				if (_isChina.HasValue) return _isChina.Value;
+				_isChina = Detect() ?? true;
+			}
 			return _isChina.Value;
 		}
 
@@ -57,6 +62,7 @@ namespace fptp
 			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
 			request.Method = "GET";
 			request.Timeout = 3000;
+			request.ReadWriteTimeout = 3000;   // 响应体读取同样限时，防 ReadToEnd 卡死
 			request.UserAgent = "FPTP-Updater/1.0";
 
 			using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())

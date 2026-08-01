@@ -96,9 +96,10 @@ namespace fptp
 			string primary = RegionDetector.IsChina() ? GitCodeReleasesApi : GitHubReleasesApi;
 			string fallback = primary == GitCodeReleasesApi ? GitHubReleasesApi : GitCodeReleasesApi;
 
+			// 主源异常或返回空都要回退另一平台
 			try
 			{
-				return TryFetch(primary);
+				return TryFetch(primary) ?? TryFetch(fallback);
 			}
 			catch
 			{
@@ -114,6 +115,7 @@ namespace fptp
 			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(api);
 			request.Method = "GET";
 			request.Timeout = 10000;
+			request.ReadWriteTimeout = 10000;   // 防响应体读取卡死（默认 5 分钟）
 			request.UserAgent = "FPTP-Updater/1.0";
 
 			using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
@@ -149,15 +151,18 @@ namespace fptp
 						{
 							foreach (JsonElement asset in assetsEl.EnumerateArray())
 							{
-								if (asset.TryGetProperty("browser_download_url", out JsonElement urlEl))
+								// GitCode 资产可能用 url 字段而非 GitHub 的 browser_download_url，两字段都兼容
+								string? url = null;
+								if (asset.TryGetProperty("browser_download_url", out JsonElement bUrl))
+									url = bUrl.GetString();
+								if (string.IsNullOrEmpty(url) && asset.TryGetProperty("url", out JsonElement aUrl))
+									url = aUrl.GetString();
+
+								if (!string.IsNullOrEmpty(url) &&
+									url!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
 								{
-									string? url = urlEl.GetString();
-									if (!string.IsNullOrEmpty(url) &&
-										url!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-									{
-										download = url;
-										break;
-									}
+									download = url;
+									break;
 								}
 							}
 						}
@@ -203,7 +208,9 @@ namespace fptp
 			try
 			{
 				owner.Cursor = Cursors.WaitCursor;
-				string tmpPath = Path.Combine(Path.GetTempPath(), InstallerName);
+				// 唯一临时名，避免与同时运行的其他实例/残留冲突
+				string tmpPath = Path.Combine(Path.GetTempPath(),
+					$"{Path.GetFileNameWithoutExtension(InstallerName)}-{Guid.NewGuid():N}.exe");
 				DownloadFile(latest.DownloadUrl!, tmpPath);
 				owner.Cursor = Cursors.Default;
 
@@ -228,15 +235,49 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 下载文件到本地路径。
+		/// 下载文件到本地路径。HttpWebRequest 流式下载：支持超时，完成后校验
+		/// 文件是有效 PE（MZ 头）而非错误页/空文件。
 		/// </summary>
 		private static void DownloadFile(string url, string savePath)
 		{
-			using (WebClient client = new WebClient())
+			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+			request.Method = "GET";
+			request.Timeout = 15000;
+			request.ReadWriteTimeout = 60000;   // 下载 60 秒无数据传输即超时，避免界面假死
+			request.UserAgent = "FPTP-Updater/1.0";
+
+			using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+			using (Stream src = response.GetResponseStream())
+			using (FileStream dst = new FileStream(savePath, FileMode.Create, FileAccess.Write))
 			{
-				client.Headers.Add("User-Agent", "FPTP-Updater/1.0");
-				client.DownloadFile(url, savePath);
+				byte[] buffer = new byte[81920];
+				int read;
+				while ((read = src.Read(buffer, 0, buffer.Length)) > 0)
+					dst.Write(buffer, 0, read);
 			}
+
+			// 校验：必须存在、非空、带 MZ 头（PE 可执行文件），否则视为下载失败
+			FileInfo fi = new FileInfo(savePath);
+			if (fi.Length < 1024 * 1024)
+			{
+				TryDelete(savePath);
+				throw new IOException("downloaded file is too small to be a valid installer");
+			}
+			using (FileStream fs = new FileStream(savePath, FileMode.Open, FileAccess.Read))
+			{
+				byte[] header = new byte[2];
+				if (fs.Read(header, 0, 2) != 2 ||
+					header[0] != (byte)'M' || header[1] != (byte)'Z')
+				{
+					TryDelete(savePath);
+					throw new IOException("downloaded file is not a valid executable");
+				}
+			}
+		}
+
+		private static void TryDelete(string path)
+		{
+			try { if (File.Exists(path)) File.Delete(path); } catch { }
 		}
 	}
 }
