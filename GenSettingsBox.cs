@@ -166,7 +166,7 @@ namespace fptp
 
 		private void ApplyToUI()
 		{
-			int fmtIdx = cmbSaveFormat.Items.IndexOf(Result.SaveFormat.ToUpperInvariant());
+			int fmtIdx = cmbSaveFormat.Items.IndexOf((Result.SaveFormat ?? "jpg").ToUpperInvariant());
 			cmbSaveFormat.SelectedIndex = fmtIdx >= 0 ? fmtIdx : 0;
 			int sizeIdx = Result.DefaultSize switch
 			{
@@ -341,8 +341,8 @@ namespace fptp
 							},
 							Tolerance = trackBar.Value,
 							LayoutPreset = cmbLayoutPreset.SelectedIndex >= 0 ? cmbLayoutPreset.SelectedIndex : 0,
-							CustomLayoutW = Result.CustomLayoutW,
-							CustomLayoutH = Result.CustomLayoutH,
+							CustomLayoutW = ParseCustomSize(txtCustomW.Text, Result.CustomLayoutW),
+							CustomLayoutH = ParseCustomSize(txtCustomH.Text, Result.CustomLayoutH),
 							GuideLineStyle = cmbGuideLine.SelectedIndex >= 0 ? cmbGuideLine.SelectedIndex : 0,
 							SaveQuality = trackBarQuality.Value
 						}
@@ -356,6 +356,14 @@ namespace fptp
 						MessageBoxButtons.OK, MessageBoxIcon.Error);
 				}
 			}
+		}
+
+		/// <summary>解析自定义尺寸文本框：非法值回退默认，100-10000 范围校验。</summary>
+		private static int ParseCustomSize(string text, int fallback)
+		{
+			if (int.TryParse(text?.Trim(), out int v) && v >= 100 && v <= 10000)
+				return v;
+			return fallback;
 		}
 
 		/// <summary>软件目录（exe 所在目录）。</summary>
