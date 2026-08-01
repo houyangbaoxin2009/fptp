@@ -141,7 +141,12 @@ namespace fptp
 				source.UnlockBits(srcData);
 			}
 
-			Color sampleColor = source.GetPixel(0, 0);
+			// 采样背景色：四角取最接近色，避免单角被主体占据导致误采样
+			Color sampleColor = MostCommonCorner(
+				source.GetPixel(0, 0),
+				source.GetPixel(width - 1, 0),
+				source.GetPixel(0, height - 1),
+				source.GetPixel(width - 1, height - 1));
 			int sr = sampleColor.R, sg = sampleColor.G, sb = sampleColor.B;
 			int newArgb = newColor.ToArgb();
 			bool transparent = newColor.A == 0;
