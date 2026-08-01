@@ -2,7 +2,7 @@
 ; 编译：ISCC.exe setup.iss
 
 #define MyAppName "FPTP"
-#define MyAppVersion "1.4.1.3"
+#define MyAppVersion "1.4.1.4"
 #define MyAppPublisher "FranJ2"
 #define MyAppURL "https://github.com/houyangbaoxin2009/fptp"
 #define MyAppExeName "fptp.exe"
@@ -53,13 +53,17 @@ Name: "addtopath"; Description: "添加到 PATH（可在 cmd 中直接使用 fpt
 [Files]
 Source: "bin\Release\net48\publish\fptp.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\publish\fptp.exe.config"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\Release\net48\publish\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\Release\net48\publish\lib\*.dll"; DestDir: "{app}\lib"; Flags: ignoreversion
+Source: "bin\Release\net48\publish\lang\*.json"; DestDir: "{app}\lang"; Flags: ignoreversion
+Source: "bin\Release\net48\publish\img\*"; DestDir: "{app}\img"; Flags: ignoreversion recursesubdirs
 Source: "bin\Release\net48\publish\fptp.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "bin\Release\net48\publish\register-path.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "bin\Release\net48\publish\*.md"; DestDir: "{app}"; Flags: ignoreversion; Check: ShouldInstallDocs
-Source: "bin\Release\net48\publish\*.pdf"; DestDir: "{app}"; Flags: ignoreversion; Check: ShouldInstallDocs
-Source: "bin\Release\net48\publish\Resources\*"; DestDir: "{app}\Resources"; Flags: ignoreversion recursesubdirs
+Source: "bin\Release\net48\publish\doc\*.md"; DestDir: "{app}\doc"; Flags: ignoreversion; Check: ShouldInstallDocs
+Source: "bin\Release\net48\publish\doc\*.pdf"; DestDir: "{app}\doc"; Flags: ignoreversion; Check: ShouldInstallDocs
 Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+
+[Dirs]
+Name: "{app}\theme"; Flags: uninsneveruninstall
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

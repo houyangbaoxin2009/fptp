@@ -43,6 +43,8 @@ namespace fptp
 			label4.Text = Lang.Get("settings.defaultTolerance");
 			groupPrivacy.Text = Lang.Get("settings.privacy");
 			chkAllowExternal.Text = Lang.Get("settings.allowExternal");
+			labelTemp.Text = Lang.Get("settings.tempLocation");
+			ReloadTempMode();
 			groupLang.Text = Lang.Get("settings.language");
 			btnLangImport.Text = Lang.Get("settings.lang.import");
 			btnLangExport.Text = Lang.Get("settings.lang.export");
@@ -111,6 +113,17 @@ namespace fptp
 			cmbLang.SelectedIndex = sel >= 0 ? sel : 0;
 		}
 
+		/// <summary>重填临时文件位置下拉（内存/硬盘）。</summary>
+		private void ReloadTempMode()
+		{
+			string[] keys = { "settings.temp.memory", "settings.temp.disk" };
+			cmbTempMode.Items.Clear();
+			foreach (string key in keys)
+				cmbTempMode.Items.Add(Lang.Get(key));
+			int sel = AppResult.TempImageMode == "disk" ? 1 : 0;
+			cmbTempMode.SelectedIndex = sel;
+		}
+
 		/// <summary>重填默认尺寸下拉（翻译文本）。</summary>
 		private void ReloadSizePresets()
 		{
@@ -167,6 +180,7 @@ namespace fptp
 			lblToleranceVal.Text = Result.Tolerance.ToString();
 
 			chkAllowExternal.Checked = AppResult.Privacy.AllowExternalAccess;
+			ReloadTempMode();
 			ReloadLanguages();
 			chkAutoUpdate.Checked = AppResult.AutoUpdate;
 
@@ -177,6 +191,7 @@ namespace fptp
 			trackBarQuality.Value = Math.Max(70, Math.Min(100, Result.SaveQuality));
 			lblQualityVal.Text = trackBarQuality.Value.ToString();
 			ReloadGuideLine();
+			ReloadThemes();
 		}
 
 		/// <summary>
@@ -231,6 +246,7 @@ namespace fptp
 			Result.SaveQuality = trackBarQuality.Value;
 
 			AppResult.Privacy.AllowExternalAccess = chkAllowExternal.Checked;
+			AppResult.TempImageMode = cmbTempMode.SelectedIndex == 1 ? "disk" : "memory";
 			AppResult.Language = cmbLang.SelectedIndex >= 0 && cmbLang.SelectedIndex < _langList.Count
 				? _langList[cmbLang.SelectedIndex].Id : "zh-CN";
 			AppResult.AutoUpdate = chkAutoUpdate.Checked;
@@ -302,6 +318,7 @@ namespace fptp
 							{
 								AllowExternalAccess = chkAllowExternal.Checked
 							},
+							TempImageMode = cmbTempMode.SelectedIndex == 1 ? "disk" : "memory",
 							Language = cmbLang.SelectedIndex >= 0 && cmbLang.SelectedIndex < _langList.Count
 								? _langList[cmbLang.SelectedIndex].Id : "zh-CN",
 							AutoUpdate = chkAutoUpdate.Checked
@@ -341,6 +358,38 @@ namespace fptp
 			}
 		}
 
+		/// <summary>软件目录（exe 所在目录）。</summary>
+		private static string ExeDir =>
+			Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath) ?? ".";
+
+		/// <summary>主题包目录（theme）。</summary>
+		private static string ThemeDir
+		{
+			get
+			{
+				string dir = Path.Combine(ExeDir, "theme");
+				if (!Directory.Exists(dir))
+				{
+					try { Directory.CreateDirectory(dir); } catch { }
+				}
+				return dir;
+			}
+		}
+
+		/// <summary>语言包目录（lang）。</summary>
+		private static string LangDir
+		{
+			get
+			{
+				string dir = Path.Combine(ExeDir, "lang");
+				if (!Directory.Exists(dir))
+				{
+					try { Directory.CreateDirectory(dir); } catch { }
+				}
+				return dir;
+			}
+		}
+
 		/// <summary>
 		/// 导入语言包：文件名须为 lang.{id}.{name}.json（id 为语言 id，name 为显示名），
 		/// 内容为语言包本体（ass 结构）。导入后注册到设置文件并立即切换语言。
@@ -351,6 +400,7 @@ namespace fptp
 			{
 				ofd.Filter = "语言包|lang.*.json|JSON 文件|*.json";
 				ofd.Title = Lang.Get("settings.lang.import");
+				ofd.InitialDirectory = LangDir;
 				if (ofd.ShowDialog(this) != DialogResult.OK) return;
 
 				try
@@ -399,6 +449,7 @@ namespace fptp
 			{
 				sfd.Filter = "JSON 文件|*.json";
 				sfd.Title = Lang.Get("settings.lang.export");
+				sfd.InitialDirectory = LangDir;
 				sfd.FileName = $"lang.{Lang.CurrentId}.{Lang.CurrentDisplayName}.json";
 				if (sfd.ShowDialog(this) != DialogResult.OK) return;
 
@@ -419,7 +470,7 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 主题下拉切换：应用到整个对话框即时预览。确定时由调用方保存并刷新主窗体。
+		/// 主题下拉切换：内置主题直接应用；自定义主题重载应用。即时预览，确定时由调用方保存。
 		/// </summary>
 		private void CmbTheme_SelectedIndexChanged(object sender, EventArgs e)
 		{
@@ -427,15 +478,14 @@ namespace fptp
 			if (cmbTheme.SelectedIndex < 0 || cmbTheme.SelectedIndex >= _themeList.Count) return;
 
 			ThemeCon con = _themeList[cmbTheme.SelectedIndex];
-			if (con.Id == "auto")
+			if (Theme.IsBuiltIn(con.Id))
 			{
-				// 恢复跟随系统：清除主题包后按系统深浅色加载
-				Assalg.SaveThemePackage(new ThemePackage()); // 空包，LoadThemePackage 返回 null
-				Theme.Init();
+				// 内置主题：保存 ThemeId 并加载（auto 时清除主题包回跟随系统）
+				Theme.SetBuiltIn(con.Id);
 			}
-			// 自定义主题：已导入时 Ass 已在设置文件中，直接重载应用
 			else
 			{
+				// 自定义主题：已导入时 Ass 已在设置文件中，直接重载应用
 				Theme.Init();
 			}
 			Theme.Apply(this);
@@ -451,6 +501,7 @@ namespace fptp
 			{
 				ofd.Filter = "主题包|theme.*.json|JSON 文件|*.json";
 				ofd.Title = Lang.Get("settings.theme.import");
+				ofd.InitialDirectory = ThemeDir;
 				if (ofd.ShowDialog(this) != DialogResult.OK) return;
 
 				try
@@ -497,6 +548,7 @@ namespace fptp
 			{
 				sfd.Filter = "JSON 文件|*.json";
 				sfd.Title = Lang.Get("settings.theme.export");
+				sfd.InitialDirectory = ThemeDir;
 				sfd.FileName = $"theme.{Theme.CurrentId}.{Theme.CurrentName}.json";
 				if (sfd.ShowDialog(this) != DialogResult.OK) return;
 

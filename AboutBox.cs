@@ -55,6 +55,7 @@ partial class AboutBox : Form
 			string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
 			string[] candidates =
 			{
+				Path.Combine(exeDir, "doc", fileName),
 				Path.Combine(exeDir, fileName),
 				Path.Combine(exeDir, "..", "..", "..", fileName),
 				Path.Combine(exeDir, "..", "..", "..", "..", fileName),
@@ -174,7 +175,7 @@ partial class AboutBox : Form
 	private void btnDonate_Click(object sender, EventArgs e)
 	{
 		string exeDir = Path.GetDirectoryName(Application.ExecutablePath);
-		string imgPath = Path.Combine(exeDir, "Resources", "donate.jpg");
+		string imgPath = Path.Combine(exeDir, "img", "donate.jpg");
 		if (!File.Exists(imgPath))
 		{
 			MessageBox.Show(this, Lang.Get("about.noQrCode"), Lang.Get("msg.tip"), MessageBoxButtons.OK, MessageBoxIcon.Information);

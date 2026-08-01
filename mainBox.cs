@@ -707,6 +707,12 @@ namespace fptp
 			Theme.Apply(this);
 			ApplyLang();
 			ApplySettings();
+
+			// 监听外部 ass working 请求：每 500ms 检查一次请求文件
+			System.Windows.Forms.Timer workingTimer = new System.Windows.Forms.Timer { Interval = 500 };
+			workingTimer.Tick += TimerWorking_Tick;
+			workingTimer.Start();
+
 			if (appSettings.AutoUpdate)
 				Updater.CheckSilent(this);
 		}
@@ -825,9 +831,29 @@ namespace fptp
 		{
 			if (image == null) return;
 			if (!appSettings.Privacy.AllowExternalAccess) return;
+			// 内存模式不落盘：处理中的图片只保留在内存（currentImage），外部应用通过 ass working 拉取
+			if (appSettings.TempImageMode != "disk") return;
 			EnsurePublishDir();
 			string path = Path.Combine(PublishDir, $"{name}.jpg");
 			Assalg.SaveImage(image, path);
+		}
+
+		/// <summary>
+		/// 响应外部 ass working 请求：检测到 publish\working.request 文件时，
+		/// 将当前内存图片导出为 publish\working.png 并删除请求文件。
+		/// </summary>
+		private void TimerWorking_Tick(object sender, EventArgs e)
+		{
+			string requestFile = Path.Combine(PublishDir, "working.request");
+			if (!File.Exists(requestFile)) return;
+			try
+			{
+				EnsurePublishDir();
+				if (currentImage != null)
+					Assalg.SaveImage(currentImage, Path.Combine(PublishDir, "working.png"));
+				File.Delete(requestFile);
+			}
+			catch { }
 		}
 
 		private void groupBox2_Enter(object sender, EventArgs e)

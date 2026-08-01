@@ -39,7 +39,37 @@ namespace fptp
 			"windowBg", "panelBg", "textColor", "subText", "accent", "border", "buttonBg", "previewBg"
 		};
 
-		/// <summary>检测系统深浅色并装载调色板。优先设置文件主题包，否则内置。</summary>
+		/// <summary>内置主题定义：id → (显示名键, 调色板)。auto 特殊：跟随系统。</summary>
+		private struct BuiltInTheme
+		{
+			public string Id;
+			public string NameKey;
+			public Color[] Palette; // null 表示跟随系统（auto）
+		}
+
+		private static readonly BuiltInTheme[] BuiltInThemes =
+		{
+			new BuiltInTheme { Id = "auto", NameKey = "settings.theme.auto", Palette = null },
+			new BuiltInTheme { Id = "light", NameKey = "settings.theme.light", Palette = new Color[] {
+				Color.FromArgb(245, 246, 250), Color.White, Color.FromArgb(31, 37, 51),
+				Color.FromArgb(107, 114, 128), Color.FromArgb(65, 105, 225),
+				Color.FromArgb(225, 228, 235), Color.White, Color.FromArgb(232, 235, 242) } },
+			new BuiltInTheme { Id = "dark", NameKey = "settings.theme.dark", Palette = new Color[] {
+				Color.FromArgb(32, 32, 36), Color.FromArgb(45, 45, 51), Color.FromArgb(232, 232, 235),
+				Color.FromArgb(160, 160, 168), Color.FromArgb(94, 140, 255),
+				Color.FromArgb(70, 70, 78), Color.FromArgb(58, 58, 66), Color.FromArgb(24, 24, 28) } },
+			new BuiltInTheme { Id = "green", NameKey = "settings.theme.green", Palette = new Color[] {
+				Color.FromArgb(240, 248, 242), Color.FromArgb(252, 255, 253), Color.FromArgb(30, 62, 44),
+				Color.FromArgb(100, 130, 112), Color.FromArgb(46, 139, 87),
+				Color.FromArgb(214, 232, 220), Color.FromArgb(252, 255, 253), Color.FromArgb(228, 240, 232) } },
+			new BuiltInTheme { Id = "blue", NameKey = "settings.theme.blue", Palette = new Color[] {
+				Color.FromArgb(26, 34, 52), Color.FromArgb(38, 48, 72), Color.FromArgb(226, 232, 246),
+				Color.FromArgb(148, 163, 194), Color.FromArgb(99, 158, 255),
+				Color.FromArgb(58, 70, 102), Color.FromArgb(46, 58, 88), Color.FromArgb(20, 26, 42) } },
+		};
+
+		/// <summary>检测系统深浅色并装载调色板。
+		/// 优先级：1. 设置文件主题包（导入） 2. 内置主题（AppSettings.ThemeId，auto 跟随系统）。</summary>
 		public static void Init()
 		{
 			DarkMode = DetectDarkMode();
@@ -53,13 +83,47 @@ namespace fptp
 				return;
 			}
 
-			// 2. 内置（跟随系统）
+			// 2. 内置主题（按 AppSettings.ThemeId）
+			ApplyBuiltIn(Assalg.LoadAppSettings().ThemeId);
+		}
+
+		/// <summary>应用指定内置主题（保存到 AppSettings.ThemeId 并加载调色板）。</summary>
+		public static void SetBuiltIn(string id)
+		{
+			var app = Assalg.LoadAppSettings();
+			app.ThemeId = string.IsNullOrEmpty(id) ? "auto" : id;
+			Assalg.SaveAppSettings(app);
+			ApplyBuiltIn(app.ThemeId);
+		}
+
+		private static void ApplyBuiltIn(string id)
+		{
+			foreach (BuiltInTheme t in BuiltInThemes)
+			{
+				if (t.Id == id)
+				{
+					CurrentId = t.Id;
+					CurrentName = Lang.Get(t.NameKey);
+					if (t.Palette == null)
+					{
+						LoadPalette(); // auto：跟随系统深浅色
+					}
+					else
+					{
+						WindowBg = t.Palette[0]; PanelBg = t.Palette[1]; TextColor = t.Palette[2];
+						SubText = t.Palette[3]; Accent = t.Palette[4]; Border = t.Palette[5];
+						ButtonBg = t.Palette[6]; PreviewBg = t.Palette[7];
+					}
+					return;
+				}
+			}
+			// 未知 id 回退 auto
 			CurrentId = "auto";
 			CurrentName = Lang.Get("settings.theme.auto");
 			LoadPalette();
 		}
 
-		/// <summary>强制指定深浅色（内置主题用）。</summary>
+		/// <summary>强制指定深浅色（内置主题 auto 用）。</summary>
 		public static void SetDark(bool dark)
 		{
 			DarkMode = dark;
@@ -184,15 +248,15 @@ namespace fptp
 			};
 		}
 
-		/// <summary>可用主题列表：内置"跟随系统" + 设置文件中已导入的主题。</summary>
+		/// <summary>可用主题列表：内置主题（跟随系统/浅色/深色/护眼绿/深空蓝）+ 设置文件中已导入的主题。</summary>
 		public static List<ThemeCon> AvailableThemes()
 		{
-			var list = new List<ThemeCon>
-			{
-				new ThemeCon { Id = "auto", Name = Lang.Get("settings.theme.auto") }
-			};
+			var list = new List<ThemeCon>();
+			foreach (BuiltInTheme t in BuiltInThemes)
+				list.Add(new ThemeCon { Id = t.Id, Name = Lang.Get(t.NameKey) });
+
 			ThemePackage? pkg = Assalg.LoadThemePackage();
-			if (pkg != null && !string.IsNullOrEmpty(pkg.Con.Id))
+			if (pkg != null && !string.IsNullOrEmpty(pkg.Con.Id) && !list.Exists(x => x.Id == pkg.Con.Id))
 			{
 				list.Add(new ThemeCon
 				{
@@ -201,6 +265,14 @@ namespace fptp
 				});
 			}
 			return list;
+		}
+
+		/// <summary>是否为内置主题 id。</summary>
+		public static bool IsBuiltIn(string id)
+		{
+			foreach (BuiltInTheme t in BuiltInThemes)
+				if (t.Id == id) return true;
+			return false;
 		}
 
 		/// <summary>递归应用主题到整个控件树。仅启动/切换时调用。</summary>

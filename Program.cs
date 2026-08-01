@@ -150,6 +150,7 @@ namespace fptp
 			Console.WriteLine("  fptp.exe ass save -i in.jpg -o out.jpg");
 			Console.WriteLine("  fptp.exe ass checkres -i in.jpg -w 295 -h 413");
 			Console.WriteLine("  fptp.exe ass settings");
+			Console.WriteLine("  fptp.exe ass working -o out.jpg");
 		}
 
 		static int UnknownModule(string module)
@@ -506,14 +507,74 @@ namespace fptp
 				"save" => RunAssSave(args),
 				"checkres" => RunAssCheckRes(args),
 				"settings" => RunAssSettings(args),
+				"working" => RunAssWorking(args),
 				_ => UnknownAssCommand(command)
 			};
 		}
 
 		static int UnknownAssCommand(string command)
 		{
-			Console.WriteLine(Lang.Get("cli.unknownCommand", "ass", command, "save checkres settings"));
+			Console.WriteLine(Lang.Get("cli.unknownCommand", "ass", command, "save checkres settings working"));
 			return 1;
+		}
+
+		/// <summary>
+		/// ass working：获取 GUI 正在处理中的图片（内存临时文件）。
+		/// 向正在运行的 GUI 发送请求，GUI 把当前图片导出到 publish\working.png 后返回其路径。
+		/// 用法：fptp.exe ass working [-o <out>]
+		/// </summary>
+		static int RunAssWorking(string[] args)
+		{
+			string outputPath = ParseArgValue(args, "-o", "--output") ?? "";
+			string exeDir = Path.GetDirectoryName(Application.ExecutablePath) ?? ".";
+			string publishDir = Path.Combine(exeDir, "publish");
+			string requestFile = Path.Combine(publishDir, "working.request");
+			string resultFile = Path.Combine(publishDir, "working.png");
+
+			try
+			{
+				Directory.CreateDirectory(publishDir);
+				// 1. 写入请求文件
+				File.WriteAllText(requestFile, DateTime.Now.Ticks.ToString());
+
+				// 2. 轮询等待 GUI 响应（最多 10 秒）
+				DateTime deadline = DateTime.Now.AddSeconds(10);
+				bool ok = false;
+				while (DateTime.Now < deadline)
+				{
+					if (File.Exists(resultFile))
+					{
+						ok = true;
+						break;
+					}
+					System.Threading.Thread.Sleep(200);
+				}
+
+				// 3. 清理请求文件（无论成败）
+				try { if (File.Exists(requestFile)) File.Delete(requestFile); } catch { }
+
+				if (!ok)
+				{
+					Console.WriteLine("Error: GUI 未运行或当前没有处理中的图片");
+					return 1;
+				}
+
+				if (!string.IsNullOrEmpty(outputPath))
+				{
+					File.Copy(resultFile, outputPath, true);
+					Console.WriteLine(JsonSerializer.Serialize(new { success = true, output = outputPath }, JsonOptions));
+				}
+				else
+				{
+					Console.WriteLine(JsonSerializer.Serialize(new { success = true, output = resultFile }, JsonOptions));
+				}
+				return 0;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("Error: " + ex.Message);
+				return 1;
+			}
 		}
 
 		static int RunAssSave(string[] args)

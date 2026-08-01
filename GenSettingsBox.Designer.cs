@@ -29,6 +29,8 @@ partial class GenSettingsBox
 		btnCancel = new Button();
 		groupPrivacy = new GroupBox();
 		chkAllowExternal = new CheckBox();
+		labelTemp = new Label();
+		cmbTempMode = new ComboBox();
 		groupLang = new GroupBox();
 		cmbLang = new ComboBox();
 		btnLangImport = new Button();
@@ -147,10 +149,12 @@ partial class GenSettingsBox
 		//
 		// groupPrivacy
 		//
+		groupPrivacy.Controls.Add(cmbTempMode);
+		groupPrivacy.Controls.Add(labelTemp);
 		groupPrivacy.Controls.Add(chkAllowExternal);
 		groupPrivacy.Location = new Point(12, 128);
 		groupPrivacy.Name = "groupPrivacy";
-		groupPrivacy.Size = new Size(300, 50);
+		groupPrivacy.Size = new Size(300, 80);
 		groupPrivacy.TabIndex = 11;
 		groupPrivacy.TabStop = false;
 		groupPrivacy.Text = "隐私";
@@ -164,12 +168,29 @@ partial class GenSettingsBox
 		chkAllowExternal.Text = "允许外部访问数据";
 		chkAllowExternal.UseVisualStyleBackColor = true;
 		//
+		// labelTemp
+		//
+		labelTemp.AutoSize = true;
+		labelTemp.Location = new Point(10, 55);
+		labelTemp.Name = "labelTemp";
+		labelTemp.Size = new Size(68, 17);
+		labelTemp.TabIndex = 1;
+		labelTemp.Text = "临时文件";
+		//
+		// cmbTempMode
+		//
+		cmbTempMode.DropDownStyle = ComboBoxStyle.DropDownList;
+		cmbTempMode.Location = new Point(110, 51);
+		cmbTempMode.Name = "cmbTempMode";
+		cmbTempMode.Size = new Size(180, 25);
+		cmbTempMode.TabIndex = 2;
+		//
 		// groupLang
 		//
 		groupLang.Controls.Add(btnLangExport);
 		groupLang.Controls.Add(btnLangImport);
 		groupLang.Controls.Add(cmbLang);
-		groupLang.Location = new Point(12, 184);
+		groupLang.Location = new Point(12, 214);
 		groupLang.Name = "groupLang";
 		groupLang.Size = new Size(300, 85);
 		groupLang.TabIndex = 15;
@@ -209,7 +230,7 @@ partial class GenSettingsBox
 		groupTheme.Controls.Add(btnThemeExport);
 		groupTheme.Controls.Add(btnThemeImport);
 		groupTheme.Controls.Add(cmbTheme);
-		groupTheme.Location = new Point(12, 275);
+		groupTheme.Location = new Point(12, 305);
 		groupTheme.Name = "groupTheme";
 		groupTheme.Size = new Size(300, 85);
 		groupTheme.TabIndex = 20;
@@ -248,7 +269,7 @@ partial class GenSettingsBox
 		// groupUpdate
 		//
 		groupUpdate.Controls.Add(chkAutoUpdate);
-		groupUpdate.Location = new Point(12, 366);
+		groupUpdate.Location = new Point(12, 396);
 		groupUpdate.Name = "groupUpdate";
 		groupUpdate.Size = new Size(300, 50);
 		groupUpdate.TabIndex = 16;
@@ -267,7 +288,7 @@ partial class GenSettingsBox
 		// groupKey
 		//
 		groupKey.Controls.Add(btnKeySettings);
-		groupKey.Location = new Point(12, 422);
+		groupKey.Location = new Point(12, 452);
 		groupKey.Name = "groupKey";
 		groupKey.Size = new Size(300, 60);
 		groupKey.TabIndex = 19;
@@ -291,7 +312,7 @@ partial class GenSettingsBox
 		groupExport.Controls.Add(trackBarQuality);
 		groupExport.Controls.Add(label1);
 		groupExport.Controls.Add(cmbSaveFormat);
-		groupExport.Location = new Point(12, 488);
+		groupExport.Location = new Point(12, 518);
 		groupExport.Name = "groupExport";
 		groupExport.Size = new Size(300, 95);
 		groupExport.TabIndex = 18;
@@ -337,7 +358,7 @@ partial class GenSettingsBox
 		groupLayout.Controls.Add(txtCustomW);
 		groupLayout.Controls.Add(cmbLayoutPreset);
 		groupLayout.Controls.Add(label5);
-		groupLayout.Location = new Point(12, 589);
+		groupLayout.Location = new Point(12, 619);
 		groupLayout.Name = "groupLayout";
 		groupLayout.Size = new Size(300, 155);
 		groupLayout.TabIndex = 17;
@@ -414,7 +435,7 @@ partial class GenSettingsBox
 		//
 		// btnReset
 		//
-		btnReset.Location = new Point(12, 754);
+		btnReset.Location = new Point(12, 784);
 		btnReset.Name = "btnReset";
 		btnReset.Size = new Size(96, 29);
 		btnReset.TabIndex = 12;
@@ -424,7 +445,7 @@ partial class GenSettingsBox
 		//
 		// btnImport
 		//
-		btnImport.Location = new Point(114, 754);
+		btnImport.Location = new Point(114, 784);
 		btnImport.Name = "btnImport";
 		btnImport.Size = new Size(96, 29);
 		btnImport.TabIndex = 13;
@@ -434,7 +455,7 @@ partial class GenSettingsBox
 		//
 		// btnExport
 		//
-		btnExport.Location = new Point(216, 754);
+		btnExport.Location = new Point(216, 784);
 		btnExport.Name = "btnExport";
 		btnExport.Size = new Size(96, 29);
 		btnExport.TabIndex = 14;
@@ -444,7 +465,7 @@ partial class GenSettingsBox
 		//
 		// btnOk
 		//
-		btnOk.Location = new Point(110, 794);
+		btnOk.Location = new Point(110, 824);
 		btnOk.Name = "btnOk";
 		btnOk.Size = new Size(85, 30);
 		btnOk.TabIndex = 9;
@@ -455,7 +476,7 @@ partial class GenSettingsBox
 		// btnCancel
 		//
 		btnCancel.DialogResult = DialogResult.Cancel;
-		btnCancel.Location = new Point(210, 794);
+		btnCancel.Location = new Point(210, 824);
 		btnCancel.Name = "btnCancel";
 		btnCancel.Size = new Size(85, 30);
 		btnCancel.TabIndex = 10;
@@ -491,7 +512,7 @@ partial class GenSettingsBox
 		AutoScaleDimensions = new SizeF(7F, 17F);
 		AutoScaleMode = AutoScaleMode.Font;
 		CancelButton = btnCancel;
-		ClientSize = new Size(324, 852);
+		ClientSize = new Size(324, 882);
 		FormBorderStyle = FormBorderStyle.FixedDialog;
 		MaximizeBox = false;
 		MinimizeBox = false;
@@ -529,6 +550,8 @@ partial class GenSettingsBox
 	private Button btnCancel;
 	private GroupBox groupPrivacy;
 	private CheckBox chkAllowExternal;
+	private Label labelTemp;
+	private ComboBox cmbTempMode;
 	private Button btnReset;
 	private Button btnImport;
 	private Button btnExport;

@@ -25,7 +25,11 @@ namespace fptp
 		public static readonly string[] BuiltInLangs = { "zh-CN", "en-US" };
 
 		/// <summary>
-		/// 加载指定语言的翻译表。优先使用设置文件中的语言包，否则回退内置资源，最终回退中文。
+		/// 加载指定语言的翻译表。优先级：
+		/// 1. 设置文件中的语言包（Assalg.LoadLangPackage，用户导入/翻译）
+		/// 2. exe\lang\ 目录语言包文件（可编辑，编译后随软件分发）
+		/// 3. 程序集内嵌 JSON 语言包（内置 zh-CN / en-US）
+		/// 4. 最终回退内置中文
 		/// </summary>
 		public static void Load(string code)
 		{
@@ -41,12 +45,40 @@ namespace fptp
 				return;
 			}
 
-			// 2. 内置嵌入资源
+			// 2. exe\lang\ 目录语言包文件
+			if (TryLoadFile(target))
+				return;
+
+			// 3. 内置嵌入资源
 			if (TryLoadEmbedded(target))
 				return;
 
-			// 3. 最终回退内置中文
+			// 4. 最终回退内置中文
 			TryLoadEmbedded("zh-CN");
+		}
+
+		/// <summary>从 exe\lang\ 目录加载语言包文件（lang.{code}.json）。</summary>
+		private static bool TryLoadFile(string code)
+		{
+			try
+			{
+				string dir = Path.Combine(
+					Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath) ?? ".", "lang");
+				string path = Path.Combine(dir, $"lang.{code}.json");
+				if (!File.Exists(path)) return false;
+
+				var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
+				if (dict == null || dict.Count == 0) return false;
+				_table = dict;
+				Current = code;
+				string nameKey = code == "zh-CN" ? "settings.lang.zh" : "settings.lang.en";
+				CurrentName = _table.TryGetValue(nameKey, out string name) ? name : code;
+				return true;
+			}
+			catch
+			{
+				return false;
+			}
 		}
 
 		/// <summary>从程序集嵌入资源加载语言包。</summary>
