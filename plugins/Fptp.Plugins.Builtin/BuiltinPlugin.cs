@@ -15,16 +15,20 @@ namespace Fptp.Plugins.Builtin
     public sealed class BuiltinPlugin : IFilterPlugin
     {
         private readonly GrayscaleFilter _grayscale = new GrayscaleFilter();
+        private readonly LassoTool _lasso = new LassoTool();
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.1.0";
-        public string MinHostVersion => "2.0.1.0";
+        public string Version => "2.0.2.0";
+        public string MinHostVersion => "2.0.2.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[] { _grayscale };
 
         public void Initialize(IHostContext host)
         {
+            // 工具模组自身初始化（接收宿主；无 UI 宿主下仍可被脚本/CLI 激活）
+            _lasso.Initialize(host);
+
             // UI 服务由壳提供；CLI 等无 UI 宿主下为 null，模组跳过 UI 注册
             if (host.Ui == null) return;
 
@@ -39,6 +43,11 @@ namespace Fptp.Plugins.Builtin
             host.Ui.RegisterCommand(new GrayscaleCommand(host));
             host.Ui.AddMenu(new MenuContribution("图像/灰度", "builtin.grayscale", null, 10));
             host.Ui.AddToolbar(new ToolbarContribution("builtin.grayscale", null, 10));
+
+            // "选择"菜单 → 套索选框工具（切换激活/取消）
+            host.Ui.RegisterCommand(new LassoToolCommand(host, _lasso));
+            host.Ui.AddMenu(new MenuContribution("选择/套索选框", "builtin.lasso", "L", 20));
+            host.Ui.AddToolbar(new ToolbarContribution("builtin.lasso", null, 20));
 
             // 历史面板：展示当前文档撤销栈，点击跳转
             host.Ui.AddPanel(new PanelContribution("builtin.history", "历史",
@@ -72,6 +81,31 @@ namespace Fptp.Plugins.Builtin
                     doc.History.JumpTo(idx, doc);
             };
             return panel;
+        }
+    }
+
+    /// <summary>套索工具切换命令：激活/取消激活当前工具（壳只路由，状态由工具自持）。</summary>
+    internal sealed class LassoToolCommand : ICommand
+    {
+        private readonly IHostContext _host;
+        private readonly LassoTool _tool;
+
+        public LassoToolCommand(IHostContext host, LassoTool tool)
+        {
+            _host = host;
+            _tool = tool;
+        }
+
+        public string Id => "builtin.lasso";
+        public string DisplayName => "套索选框";
+
+        public bool CanExecute(object parameter)
+            => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
+
+        public void Execute(object parameter)
+        {
+            // 激活中 → 取消；否则激活。模组经 Ui 服务告知壳，壳只做路由。
+            _host.Ui?.ActivateTool(_tool.Active ? null : _tool);
         }
     }
 

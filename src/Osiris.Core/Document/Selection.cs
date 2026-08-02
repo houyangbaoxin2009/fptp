@@ -58,6 +58,15 @@ namespace Osiris.Core.Document
             SelectedCount = 0;
         }
 
+        /// <summary>外部直接改蒙版后重算选中数（选区编辑命令写入后调用）。</summary>
+        public void RefreshCount()
+        {
+            int count = 0;
+            for (int i = 0; i < _mask.Length; i++)
+                if (_mask[i] != 0) count++;
+            SelectedCount = count;
+        }
+
         /// <summary>整幅全选。</summary>
         public void SelectAll()
         {
