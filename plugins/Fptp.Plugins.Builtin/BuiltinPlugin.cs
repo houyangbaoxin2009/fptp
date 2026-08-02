@@ -21,8 +21,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.4.0";
-        public string MinHostVersion => "2.0.4.0";
+        public string Version => "2.0.5.0";
+        public string MinHostVersion => "2.0.5.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
         {
@@ -170,6 +170,13 @@ namespace Fptp.Plugins.Builtin
 
             // 合并参数：命令覆盖值优先，缺省用滤镜 Defaults
             var p = MergeParameters(_filter.Defaults, _overrides);
+            // 有参数描述且 UI 宿主可用 → 弹参数对话框；取消则中止
+            if (_filter.Parameters.Count > 0 && _host.Ui != null)
+            {
+                var user = _host.Ui.PromptFilterParameters(_filter.Parameters, p);
+                if (user == null) return;
+                p = user;
+            }
             var result = _filter.Apply(layer.Pixels, p, _host.Progress, _host.Cancellation);
             var cmd = new PixelEditCommand(_displayName, layer,
                 0, 0, layer.Pixels.Width, layer.Pixels.Height, result.Data);
@@ -267,6 +274,13 @@ namespace Fptp.Plugins.Builtin
             var layer = doc.Layers[0];
 
             var p = FptpFilterCommand.MergeParameters(_filter.Defaults, _overrides);
+            // 有参数描述且 UI 宿主可用 → 弹参数对话框；取消则中止
+            if (_filter.Parameters.Count > 0 && _host.Ui != null)
+            {
+                var user = _host.Ui.PromptFilterParameters(_filter.Parameters, p);
+                if (user == null) return;
+                p = user;
+            }
             var result = _filter.Apply(layer.Pixels, p, _host.Progress, _host.Cancellation);
 
             var resultDoc = new OsirisDocument(result.Width, result.Height);
@@ -283,6 +297,8 @@ namespace Fptp.Plugins.Builtin
         public string Id => "fptp.builtin.grayscale";
         public string DisplayName => "灰度";
         public FilterParameters Defaults => new FilterParameters();
+        public IReadOnlyList<FilterParameterDescriptor> Parameters =>
+            System.Array.Empty<FilterParameterDescriptor>();
 
         public PixelSurface Apply(PixelSurface input, FilterParameters p, IProgress progress, System.Threading.CancellationToken ct)
         {

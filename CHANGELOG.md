@@ -5,6 +5,19 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
+## [2.0.5.0] - 2026-08-02
+
+### 新增
+- **滤镜参数对话框**：`FilterParameterDescriptor` 声明式参数描述（Int/Choice/Color 三种控件类型），壳按描述自动生成对话框，模组零 WinForms 依赖
+  - 换底色：目标颜色下拉（蓝/红/白/透明，带色块预览）+ 容差数值框（0~150）
+  - 智能裁切：证件照尺寸预设下拉（1寸 295×413 / 小2寸 390×567 / 2寸 413×579 / 3寸 649×1000）
+  - 灰度无参数，直接执行
+- `IFilterProcessor.Parameters`：滤镜暴露参数描述；`IUiService.PromptFilterParameters`：壳实现参数对话框（确认返回参数、取消返回 null 中止执行）
+- `SmartCropFilter.SizePreset` 参数键：尺寸预设（int[]{宽,高}）优先于 Width/Height，CLI/脚本传参不受影响
+
+### 变更
+- 版本号提升至 2.0.5.0（全部项目与内置模组同步）
+
 ## [2.0.4.0] - 2026-08-02
 
 ### 修复

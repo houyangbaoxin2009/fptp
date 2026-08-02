@@ -134,5 +134,12 @@ namespace Osiris.Core.Ui
         /// 壳负责替换文档、重订阅历史并重绘画布。
         /// </summary>
         void LoadDocument(Document.OsirisDocument doc, string title);
+        /// <summary>
+        /// 弹出滤镜参数对话框（按声明式描述自动生成控件），返回用户确认的参数覆盖值。
+        /// 用户在对话框确认后返回合并后的 FilterParameters（含全部描述键）；取消返回 null。
+        /// </summary>
+        Plugins.FilterParameters PromptFilterParameters(
+            IReadOnlyList<Filters.FilterParameterDescriptor> descriptors,
+            Plugins.FilterParameters current);
     }
 }

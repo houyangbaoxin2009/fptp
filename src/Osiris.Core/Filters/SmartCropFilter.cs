@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Osiris.Core.Imaging;
 using Osiris.Core.Plugins;
@@ -15,6 +16,8 @@ namespace Osiris.Core.Filters
     {
         public const string ParamWidth = "Width";
         public const string ParamHeight = "Height";
+        /// <summary>尺寸预设键：值 int[]{宽,高}，优先于 Width/Height。</summary>
+        public const string ParamPreset = "SizePreset";
 
         public string Id => "fptp.builtin.smartCrop";
         public string DisplayName => "智能裁切";
@@ -25,10 +28,38 @@ namespace Osiris.Core.Filters
             [ParamHeight] = 413
         };
 
+        /// <summary>参数描述：尺寸预设下拉（1寸/小2寸/2寸/3寸），壳据此生成对话框。</summary>
+        public IReadOnlyList<FilterParameterDescriptor> Parameters => new[]
+        {
+            new FilterParameterDescriptor
+            {
+                Key = ParamPreset, Label = "证件照尺寸", Kind = FilterParameterKind.Choice,
+                Choices = new[] { "1寸 295×413", "小2寸 390×567", "2寸 413×579", "3寸 649×1000" },
+                ChoiceValues = new object[]
+                {
+                    new[] { 295, 413 },
+                    new[] { 390, 567 },
+                    new[] { 413, 579 },
+                    new[] { 649, 1000 }
+                }
+            }
+        };
+
         public PixelSurface Apply(PixelSurface input, FilterParameters p, IProgress progress, CancellationToken ct)
         {
-            int targetW = p.Get(ParamWidth, 295);
-            int targetH = p.Get(ParamHeight, 413);
+            // 尺寸预设优先（对话框选择），否则用 Width/Height（CLI/脚本传参）
+            int targetW, targetH;
+            var preset = p != null ? p.Get<int[]>(ParamPreset, null) : null;
+            if (preset != null && preset.Length == 2 && preset[0] > 0 && preset[1] > 0)
+            {
+                targetW = preset[0];
+                targetH = preset[1];
+            }
+            else
+            {
+                targetW = p.Get(ParamWidth, 295);
+                targetH = p.Get(ParamHeight, 413);
+            }
             if (targetW <= 0 || targetH <= 0) throw new ArgumentOutOfRangeException(nameof(p), "目标尺寸必须为正");
 
             // 中心裁切：比较宽高比决定裁左右还是裁上下

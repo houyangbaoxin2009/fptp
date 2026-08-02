@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Windows.Forms;
+using Osiris.Core.Filters;
 using Osiris.Core.Ui;
 
 namespace Osiris.App.Workbench
@@ -54,6 +56,162 @@ namespace Osiris.App.Workbench
         public void LoadDocument(Osiris.Core.Document.OsirisDocument doc, string title)
         {
             _form.LoadDocument(doc, title);
+        }
+
+        /// <summary>按声明式参数描述自动生成对话框（Int=数值框，Choice/Color=下拉+色块）。</summary>
+        public Osiris.Core.Plugins.FilterParameters PromptFilterParameters(
+            IReadOnlyList<FilterParameterDescriptor> descriptors,
+            Osiris.Core.Plugins.FilterParameters current)
+        {
+            if (descriptors == null || descriptors.Count == 0) return current;
+
+            using (var dlg = new Form())
+            {
+                dlg.Text = "滤镜参数";
+                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dlg.MaximizeBox = false;
+                dlg.MinimizeBox = false;
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.Font = new Font("Microsoft YaHei UI", 9F);
+
+                int row = 0;
+                int labelX = 16, ctrlX = 130, ctrlW = 200, rowH = 34, padTop = 16;
+                var editors = new Dictionary<FilterParameterDescriptor, Control>();
+
+                foreach (var d in descriptors)
+                {
+                    var lbl = new Label { Text = d.Label, AutoSize = true, Location = new Point(labelX, padTop + row * rowH + 6) };
+                    dlg.Controls.Add(lbl);
+
+                    switch (d.Kind)
+                    {
+                        case FilterParameterKind.Int:
+                        {
+                            var nud = new NumericUpDown
+                            {
+                                Location = new Point(ctrlX, padTop + row * rowH),
+                                Width = ctrlW,
+                                Minimum = d.Min,
+                                Maximum = d.Max
+                            };
+                            nud.Value = Clamp(current.Get(d.Key, d.Min), d.Min, d.Max);
+                            dlg.Controls.Add(nud);
+                            editors[d] = nud;
+                            break;
+                        }
+                        case FilterParameterKind.Color:
+                        {
+                            var combo = new ComboBox
+                            {
+                                Location = new Point(ctrlX, padTop + row * rowH),
+                                Width = ctrlW - 34,
+                                DropDownStyle = ComboBoxStyle.DropDownList
+                            };
+                            var preview = new Panel
+                            {
+                                Location = new Point(ctrlX + ctrlW - 28, padTop + row * rowH + 2),
+                                Size = new Size(24, 24),
+                                BorderStyle = BorderStyle.FixedSingle
+                            };
+                            FillColorCombo(combo, preview, d, current);
+                            combo.SelectedIndexChanged += (s, e) =>
+                                preview.BackColor = SelectedColor(combo, d);
+                            dlg.Controls.Add(combo);
+                            dlg.Controls.Add(preview);
+                            editors[d] = combo;
+                            break;
+                        }
+                        default: // Choice
+                        {
+                            var combo = new ComboBox
+                            {
+                                Location = new Point(ctrlX, padTop + row * rowH),
+                                Width = ctrlW,
+                                DropDownStyle = ComboBoxStyle.DropDownList
+                            };
+                            FillChoiceCombo(combo, d, current);
+                            dlg.Controls.Add(combo);
+                            editors[d] = combo;
+                            break;
+                        }
+                    }
+                    row++;
+                }
+
+                int btnY = padTop + row * rowH + 12;
+                var ok = new Button { Text = "确定", DialogResult = DialogResult.OK, Location = new Point(ctrlX, btnY), Width = 90 };
+                var cancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new Point(ctrlX + 104, btnY), Width = 90 };
+                dlg.Controls.Add(ok);
+                dlg.Controls.Add(cancel);
+                dlg.AcceptButton = ok;
+                dlg.CancelButton = cancel;
+                dlg.ClientSize = new Size(ctrlX + ctrlW + 32, btnY + 40);
+                dlg.ShowInTaskbar = false;
+
+                if (dlg.ShowDialog(_form) != DialogResult.OK) return null;
+
+                // 收集用户确认的参数覆盖值
+                var result = new Osiris.Core.Plugins.FilterParameters();
+                foreach (var pair in editors)
+                {
+                    var d = pair.Key;
+                    if (d.Kind == FilterParameterKind.Int)
+                    {
+                        result[d.Key] = (int)((NumericUpDown)pair.Value).Value;
+                    }
+                    else
+                    {
+                        var combo = (ComboBox)pair.Value;
+                        result[d.Key] = d.ChoiceValues[combo.SelectedIndex];
+                    }
+                }
+                return result;
+            }
+        }
+
+        private static int Clamp(int v, int min, int max) => v < min ? min : (v > max ? max : v);
+
+        /// <summary>颜色下拉：填充选项文本并选中当前值，同步色块。</summary>
+        private static void FillColorCombo(ComboBox combo, Panel preview, FilterParameterDescriptor d,
+                                           Osiris.Core.Plugins.FilterParameters current)
+        {
+            for (int i = 0; i < d.Choices.Length; i++) combo.Items.Add(d.Choices[i]);
+            var cur = current.Get<object>(d.Key, null);
+            int sel = 0;
+            for (int i = 0; i < d.ChoiceValues.Length; i++)
+                if (Equals(d.ChoiceValues[i], cur)) { sel = i; break; }
+            combo.SelectedIndex = sel;
+            preview.BackColor = SelectedColor(combo, d);
+        }
+
+        /// <summary>普通下拉：填充选项并选中当前值（按值相等匹配）。</summary>
+        private static void FillChoiceCombo(ComboBox combo, FilterParameterDescriptor d,
+                                            Osiris.Core.Plugins.FilterParameters current)
+        {
+            for (int i = 0; i < d.Choices.Length; i++) combo.Items.Add(d.Choices[i]);
+            var cur = current.Get<object>(d.Key, null);
+            int sel = 0;
+            for (int i = 0; i < d.ChoiceValues.Length; i++)
+                if (ValuesEqual(d.ChoiceValues[i], cur)) { sel = i; break; }
+            combo.SelectedIndex = sel;
+        }
+
+        /// <summary>int[] 与 int[] 比较、int 与 int 比较（Choice 值可为组合，如宽高数组）。</summary>
+        private static bool ValuesEqual(object a, object b)
+        {
+            if (a == null || b == null) return ReferenceEquals(a, b);
+            if (a is int[] ia && b is int[] ib) return ia.Length == ib.Length && ia[0] == ib[0] && ia.Length > 1 && ia[1] == ib[1];
+            return Equals(a, b);
+        }
+
+        /// <summary>选中颜色的 RGB（ChoiceValues 为 PackBgra 打包 int）。</summary>
+        private static Color SelectedColor(ComboBox combo, FilterParameterDescriptor d)
+        {
+            if (combo.SelectedIndex < 0 || combo.SelectedIndex >= d.ChoiceValues.Length) return Color.White;
+            int bgra = (int)d.ChoiceValues[combo.SelectedIndex];
+            int a = (bgra >> 24) & 0xFF, r = (bgra >> 16) & 0xFF, g = (bgra >> 8) & 0xFF, b = bgra & 0xFF;
+            if (a == 0) return Color.White;
+            return Color.FromArgb(r, g, b);
         }
 
         /// <summary>把全部已注册资源装配到窗体（菜单树/工具栏/状态栏）。</summary>

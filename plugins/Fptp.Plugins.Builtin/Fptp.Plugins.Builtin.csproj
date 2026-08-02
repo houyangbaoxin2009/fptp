@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <RootNamespace>Fptp.Plugins.Builtin</RootNamespace>
     <AssemblyName>Fptp.Plugins.Builtin</AssemblyName>
-    <Version>2.0.4.0</Version>
+    <Version>2.0.5.0</Version>
     <!-- 插件输出到仓库根 plugins/bin（运行时宿主扫描目录） -->
     <OutputPath>$(MSBuildThisFileDirectory)..\bin\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using Osiris.Core.Imaging;
 using Osiris.Core.Plugins;
@@ -25,6 +26,28 @@ namespace Osiris.Core.Filters
         {
             [ParamColor] = ColorUtil.PackBgra(0, 0, 255),   // 默认蓝色
             [ParamTolerance] = 60
+        };
+
+        /// <summary>参数描述：目标颜色（下拉）+ 容差（数值框），壳据此生成对话框。</summary>
+        public IReadOnlyList<FilterParameterDescriptor> Parameters => new[]
+        {
+            new FilterParameterDescriptor
+            {
+                Key = ParamColor, Label = "目标颜色", Kind = FilterParameterKind.Color,
+                Choices = new[] { "蓝色", "红色", "白色", "透明" },
+                ChoiceValues = new object[]
+                {
+                    ColorUtil.PackBgra(0, 0, 255),
+                    ColorUtil.PackBgra(255, 0, 0),
+                    ColorUtil.PackBgra(255, 255, 255),
+                    ColorUtil.PackBgra(0, 0, 0, 0)
+                }
+            },
+            new FilterParameterDescriptor
+            {
+                Key = ParamTolerance, Label = "容差", Kind = FilterParameterKind.Int,
+                Min = 0, Max = 150
+            }
         };
 
         public PixelSurface Apply(PixelSurface input, FilterParameters p, IProgress progress, CancellationToken ct)
