@@ -45,6 +45,16 @@ namespace Osiris.Core.Imaging
             if (photo == null) throw new ArgumentNullException(nameof(photo));
             if (paperWidth <= 0 || paperHeight <= 0) throw new ArgumentOutOfRangeException(nameof(paperWidth), "相纸尺寸必须为正");
 
+            // 照片大于相纸时先等比缩小到相纸内（否则居中起点为负，BlockCopy 越界崩溃）
+            if (photo.Width > paperWidth || photo.Height > paperHeight)
+            {
+                double scale = Math.Min((double)paperWidth / photo.Width,
+                                        (double)paperHeight / photo.Height);
+                int sw = Math.Max(1, (int)(photo.Width * scale));
+                int sh = Math.Max(1, (int)(photo.Height * scale));
+                photo = ScaleBilinear(photo, sw, sh);
+            }
+
             int photoW = photo.Width, photoH = photo.Height;
             int cols = Math.Max(1, (paperWidth + Gap) / (photoW + Gap));
             int rows = Math.Max(1, (paperHeight + Gap) / (photoH + Gap));
@@ -100,6 +110,49 @@ namespace Osiris.Core.Imaging
                 Buffer.BlockCopy(src, srcOffset, dst, dstOffset, rowBytes);
             }
         }
+
+        /// <summary>双线性缩放照片（照片大于相纸时降采样，BGRA 各通道插值）。</summary>
+        private static PixelSurface ScaleBilinear(PixelSurface src, int outW, int outH)
+        {
+            var output = new PixelSurface(outW, outH);
+            var srcData = src.Data;
+            var dstData = output.Data;
+            double scaleX = (double)src.Width / outW;
+            double scaleY = (double)src.Height / outH;
+
+            for (int y = 0; y < outH; y++)
+            {
+                double sy = (y + 0.5) * scaleY - 0.5;
+                int y0 = Clamp((int)Math.Floor(sy), 0, src.Height - 1);
+                int y1 = Clamp(y0 + 1, 0, src.Height - 1);
+                double fy = Clamp01(sy - y0);
+
+                for (int x = 0; x < outW; x++)
+                {
+                    double sx = (x + 0.5) * scaleX - 0.5;
+                    int x0 = Clamp((int)Math.Floor(sx), 0, src.Width - 1);
+                    int x1 = Clamp(x0 + 1, 0, src.Width - 1);
+                    double fx = Clamp01(sx - x0);
+
+                    int o = (y * outW + x) * 4;
+                    for (int c = 0; c < 4; c++)
+                    {
+                        double v00 = srcData[(y0 * src.Width + x0) * 4 + c];
+                        double v10 = srcData[(y0 * src.Width + x1) * 4 + c];
+                        double v01 = srcData[(y1 * src.Width + x0) * 4 + c];
+                        double v11 = srcData[(y1 * src.Width + x1) * 4 + c];
+                        double top = v00 + (v10 - v00) * fx;
+                        double bot = v01 + (v11 - v01) * fx;
+                        dstData[o + c] = (byte)(top + (bot - top) * fy);
+                    }
+                }
+            }
+            return output;
+        }
+
+        private static int Clamp(int v, int min, int max) => v < min ? min : (v > max ? max : v);
+
+        private static double Clamp01(double v) => v < 0 ? 0 : (v > 1 ? 1 : v);
 
         /// <summary>画裁剪辅助线（浅灰 1px 矩形边框）。</summary>
         private static void DrawGuideRect(PixelSurface paper, int x, int y, int w, int h, bool solid)
