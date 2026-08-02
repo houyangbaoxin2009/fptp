@@ -21,8 +21,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.2.0";
-        public string MinHostVersion => "2.0.2.0";
+        public string Version => "2.0.3.0";
+        public string MinHostVersion => "2.0.3.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
         {
@@ -56,6 +56,14 @@ namespace Fptp.Plugins.Builtin
             host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.smartCrop", "智能裁切",
                 _smartCrop, new Osiris.Core.Plugins.FilterParameters()));
             host.Ui.AddMenu(new MenuContribution("图像/智能裁切", "builtin.smartCrop", null, 12));
+
+            // 排版输出：把当前照片网格居中排到相纸（5寸），生成新图层
+            host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layout5", "5寸排版", "5寸"));
+            host.Ui.AddMenu(new MenuContribution("图像/排版输出/5寸排版", "builtin.layout5", null, 13));
+            host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layout6", "6寸排版", "6寸"));
+            host.Ui.AddMenu(new MenuContribution("图像/排版输出/6寸排版", "builtin.layout6", null, 14));
+            host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layoutA4", "A4排版", "A4"));
+            host.Ui.AddMenu(new MenuContribution("图像/排版输出/A4排版", "builtin.layoutA4", null, 15));
 
             // "选择"菜单 → 套索选框工具（切换激活/取消）
             host.Ui.RegisterCommand(new LassoToolCommand(host, _lasso));
@@ -177,6 +185,45 @@ namespace Fptp.Plugins.Builtin
                 foreach (var k in overrides.Keys)
                     merged[k] = overrides[k];
             return merged;
+        }
+    }
+
+    /// <summary>排版命令：把当前文档首图层照片网格居中排到相纸，结果作为新图层入栈。</summary>
+    internal sealed class LayoutCommand : ICommand
+    {
+        private readonly IHostContext _host;
+        private readonly string _id;
+        private readonly string _displayName;
+        private readonly string _paperName;
+
+        public LayoutCommand(IHostContext host, string id, string displayName, string paperName)
+        {
+            _host = host;
+            _id = id;
+            _displayName = displayName;
+            _paperName = paperName;
+        }
+
+        public string Id => _id;
+        public string DisplayName => _displayName;
+
+        public bool CanExecute(object parameter)
+            => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
+
+        public void Execute(object parameter)
+        {
+            var doc = _host.ActiveDocument;
+            if (doc == null || doc.Layers.Count == 0) return;
+            var layer = doc.Layers[0];
+
+            var result = Osiris.Core.Imaging.LayoutProcessor.LayoutPreset(
+                layer.Pixels, _paperName, Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle.Dash);
+
+            // 排版结果是独立图层（相纸尺寸可能大于文档），置顶入栈
+            var layoutLayer = new Layer(_displayName, result.Paper.Width, result.Paper.Height);
+            System.Buffer.BlockCopy(result.Paper.Data, 0, layoutLayer.Pixels.Data, 0, result.Paper.Data.Length);
+            doc.Layers.Add(layoutLayer);
+            doc.History.Push(new AddLayerCommand(_displayName, layoutLayer), doc);
         }
     }
 

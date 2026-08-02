@@ -5,6 +5,18 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
+## [2.0.3.0] - 2026-08-02
+
+### 新增
+- 证件照排版输出（2.0 替代 1.x GenSettings 排版能力，命名即职责）：
+  - `LayoutProcessor` 排版处理器：照片网格居中排到相纸（5寸/6寸/A4/A5/自定义），可带虚线裁剪辅助线，纯 PixelSurface 合成
+  - `AddLayerCommand` 添加图层命令：排版结果作为新图层置顶入栈，可撤销/重做
+- 内置模组新增"图像/排版输出"子菜单：5寸排版、6寸排版、A4排版
+- CLI 新增 `plugins layout <输入> <输出> [相纸] [辅助线]` 命令
+
+### 变更
+- 版本号提升至 2.0.3.0（全部项目与内置模组同步）
+
 ## [2.0.2.0] - 2026-08-02
 
 ### 新增

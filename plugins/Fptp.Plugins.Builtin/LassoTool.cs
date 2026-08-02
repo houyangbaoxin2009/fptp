@@ -19,8 +19,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin.lasso";
         public string Name => "套索选框";
-        public string Version => "2.0.2.0";
-        public string MinHostVersion => "2.0.2.0";
+        public string Version => "2.0.3.0";
+        public string MinHostVersion => "2.0.3.0";
 
         /// <summary>是否已被壳激活为当前工具（命令据此切换/灰显）。</summary>
         public bool Active { get; private set; }

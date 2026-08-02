@@ -53,7 +53,10 @@ namespace Osiris.Cli
             if (args.Length >= 4 && args[1] == "gray")
                 return RunFilter(registry, "grayscale", args[2], args[3]);
 
-            Console.WriteLine("用法: plugins list | plugins gray <输入> <输出> | plugins filter <滤镜Id> <输入> <输出>");
+            if (args.Length >= 4 && args[1] == "layout")
+                return RunLayout(registry, args);
+
+            Console.WriteLine("用法: plugins list | plugins gray <输入> <输出> | plugins filter <滤镜Id> <输入> <输出> | plugins layout <输入> <输出> [相纸] [辅助线]");
             return 0;
         }
 
@@ -87,6 +90,55 @@ namespace Osiris.Cli
             }
             Console.WriteLine("{0}处理完成: {1}", filter.DisplayName, output);
             return 0;
+        }
+
+        /// <summary>执行排版：读图 → 网格居中排到相纸 → 写图。</summary>
+        private static int RunLayout(PluginRegistry registry, string[] args)
+        {
+            var input = args[2];
+            var output = args[3];
+            var paperName = args.Length >= 5 ? args[4] : "5寸";
+            var guideLine = args.Length >= 6 ? ParseGuideLine(args[5]) : Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle.Dash;
+
+            if (!File.Exists(input))
+            {
+                Console.Error.WriteLine("输入文件不存在: " + input);
+                return 1;
+            }
+
+            using (var stream = File.OpenRead(input))
+            {
+                var surface = new Osiris.Engine.Skia.ImageCodecSkia().Read(stream, Path.GetExtension(input));
+                Osiris.Core.Imaging.LayoutProcessor.LayoutResult result;
+                try
+                {
+                    result = Osiris.Core.Imaging.LayoutProcessor.LayoutPreset(surface, paperName, guideLine);
+                }
+                catch (ArgumentException ex)
+                {
+                    Console.Error.WriteLine("排版失败: " + ex.Message);
+                    return 1;
+                }
+                using (var outStream = File.Create(output))
+                    new Osiris.Engine.Skia.ImageCodecSkia().Write(result.Paper, outStream, Path.GetExtension(output));
+                Console.WriteLine("排版完成: {0}（{1}列 x {2}行 = {3}张）", output, result.Columns, result.Rows, result.Count);
+            }
+            return 0;
+        }
+
+        private static Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle ParseGuideLine(string s)
+        {
+            switch (s.ToLowerInvariant())
+            {
+                case "none":
+                case "无":
+                    return Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle.None;
+                case "solid":
+                case "实线":
+                    return Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle.Solid;
+                default:
+                    return Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle.Dash;
+            }
         }
     }
 
