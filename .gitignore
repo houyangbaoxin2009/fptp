@@ -381,3 +381,8 @@ AGENTS.md
 MARKETING.md
 # docs/ 不再整体忽略：2.0 架构文档入库；PDF 由上方 *.pdf 规则忽略
 
+# 插件构建产物（源码入库，bin/obj 不入库）
+plugins/bin/
+plugins/**/obj/
+plugins/**/bin/
+

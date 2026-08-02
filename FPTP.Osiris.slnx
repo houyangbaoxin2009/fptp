@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/plugins/">
+    <Project Path="plugins/Fptp.Plugins.Builtin/Fptp.Plugins.Builtin.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Osiris.App/Osiris.App.csproj" />
     <Project Path="src/Osiris.Cli/Osiris.Cli.csproj" />

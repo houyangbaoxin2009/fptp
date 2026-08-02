@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Fptp.Plugins.Builtin</RootNamespace>
+    <AssemblyName>Fptp.Plugins.Builtin</AssemblyName>
+    <!-- 插件输出到仓库根 plugins/bin（运行时宿主扫描目录） -->
+    <OutputPath>$(MSBuildThisFileDirectory)..\bin\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <EnableDefaultItems>true</EnableDefaultItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Osiris.Core\Osiris.Core.csproj" />
+  </ItemGroup>
+
+</Project>

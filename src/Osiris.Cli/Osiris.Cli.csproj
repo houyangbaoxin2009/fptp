@@ -19,4 +19,9 @@
     <ProjectReference Include="..\Osiris.Settings\Osiris.Settings.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 链接复用宿主插件加载器（条件编译在 Cli 各目标下各自生效） -->
+    <Compile Include="..\Osiris.App\PluginHost\PluginLoader.cs" Link="PluginHost\PluginLoader.cs" />
+  </ItemGroup>
+
 </Project>

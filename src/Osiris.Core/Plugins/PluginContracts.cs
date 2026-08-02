@@ -22,12 +22,20 @@ namespace Osiris.Core.Plugins
         IPluginRegistry Plugins { get; }
         IProgress Progress { get; }
         CancellationToken Cancellation { get; }
+        /// <summary>UI 服务：模组贡献菜单/工具栏/面板（壳为 null 时模组跳过 UI 注册）。</summary>
+        Ui.IUiService Ui { get; }
     }
 
     public interface IPluginRegistry
     {
         IReadOnlyList<IPlugin> Loaded { get; }
         T Find<T>(string id) where T : class, IPlugin;
+    }
+
+    /// <summary>滤镜插件：暴露一组滤镜处理器（插件与脚本共用契约）。</summary>
+    public interface IFilterPlugin : IPlugin
+    {
+        IReadOnlyList<Filters.IFilterProcessor> Filters { get; }
     }
 
     /// <summary>进度上报。</summary>
