@@ -21,8 +21,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.3.0";
-        public string MinHostVersion => "2.0.3.0";
+        public string Version => "2.0.4.0";
+        public string MinHostVersion => "2.0.4.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
         {
@@ -39,6 +39,8 @@ namespace Fptp.Plugins.Builtin
 
             // 贡献"文件"菜单 → 打开命令（命令由壳实现，Id 共享）
             host.Ui.AddMenu(new MenuContribution("文件/打开", KnownCommands.OpenDocument, "Ctrl+O", 0));
+            host.Ui.AddMenu(new MenuContribution("文件/保存", KnownCommands.Save, "Ctrl+S", 1));
+            host.Ui.AddMenu(new MenuContribution("文件/另存为", KnownCommands.SaveAs, null, 2));
 
             // 编辑菜单 → 撤销/重做（壳命令）
             host.Ui.AddMenu(new MenuContribution("编辑/撤销", KnownCommands.Undo, "Ctrl+Z", 1));
@@ -53,7 +55,8 @@ namespace Fptp.Plugins.Builtin
                 _replaceBackground, new Osiris.Core.Plugins.FilterParameters()));
             host.Ui.AddMenu(new MenuContribution("图像/换底色", "builtin.replaceBackground", null, 11));
 
-            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.smartCrop", "智能裁切",
+            // 智能裁切改变尺寸 → 生成新文档（画布=结果尺寸，不走 PixelEditCommand 避免越界）
+            host.Ui.RegisterCommand(new GenerateDocumentCommand(host, "builtin.smartCrop", "智能裁切",
                 _smartCrop, new Osiris.Core.Plugins.FilterParameters()));
             host.Ui.AddMenu(new MenuContribution("图像/智能裁切", "builtin.smartCrop", null, 12));
 
@@ -173,7 +176,7 @@ namespace Fptp.Plugins.Builtin
         }
 
         /// <summary>合并滤镜默认参数与命令覆盖值（覆盖优先）。</summary>
-        private static Osiris.Core.Plugins.FilterParameters MergeParameters(
+        internal static Osiris.Core.Plugins.FilterParameters MergeParameters(
             Osiris.Core.Plugins.FilterParameters defaults,
             Osiris.Core.Plugins.FilterParameters overrides)
         {
@@ -188,7 +191,7 @@ namespace Fptp.Plugins.Builtin
         }
     }
 
-    /// <summary>排版命令：把当前文档首图层照片网格居中排到相纸，结果作为新图层入栈。</summary>
+    /// <summary>排版命令：把当前文档首图层照片网格居中排到相纸，结果作为新文档加载（相纸尺寸即画布）。</summary>
     internal sealed class LayoutCommand : ICommand
     {
         private readonly IHostContext _host;
@@ -219,11 +222,57 @@ namespace Fptp.Plugins.Builtin
             var result = Osiris.Core.Imaging.LayoutProcessor.LayoutPreset(
                 layer.Pixels, _paperName, Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle.Dash);
 
-            // 排版结果是独立图层（相纸尺寸可能大于文档），置顶入栈
-            var layoutLayer = new Layer(_displayName, result.Paper.Width, result.Paper.Height);
-            System.Buffer.BlockCopy(result.Paper.Data, 0, layoutLayer.Pixels.Data, 0, result.Paper.Data.Length);
-            doc.Layers.Add(layoutLayer);
-            doc.History.Push(new AddLayerCommand(_displayName, layoutLayer), doc);
+            // 相纸是新文档（尺寸=相纸），消除渲染裁剪；原文档由历史保留可撤销回退
+            var paperDoc = new OsirisDocument(result.Paper.Width, result.Paper.Height);
+            var paperLayer = new Layer(_displayName, result.Paper.Width, result.Paper.Height);
+            System.Buffer.BlockCopy(result.Paper.Data, 0, paperLayer.Pixels.Data, 0, result.Paper.Data.Length);
+            paperDoc.Layers.Add(paperLayer);
+            _host.Ui?.LoadDocument(paperDoc, _displayName);
+        }
+    }
+
+    /// <summary>
+    /// 生成新文档命令：滤镜输出尺寸不同于原图层时使用（如智能裁切/排版）。
+    /// 结果作为新文档加载（画布=结果尺寸），原文档留在历史中。
+    /// </summary>
+    internal sealed class GenerateDocumentCommand : ICommand
+    {
+        private readonly IHostContext _host;
+        private readonly string _id;
+        private readonly string _displayName;
+        private readonly IFilterProcessor _filter;
+        private readonly Osiris.Core.Plugins.FilterParameters _overrides;
+
+        public GenerateDocumentCommand(IHostContext host, string id, string displayName,
+                                       IFilterProcessor filter, Osiris.Core.Plugins.FilterParameters overrides)
+        {
+            _host = host;
+            _id = id;
+            _displayName = displayName;
+            _filter = filter;
+            _overrides = overrides;
+        }
+
+        public string Id => _id;
+        public string DisplayName => _displayName;
+
+        public bool CanExecute(object parameter)
+            => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
+
+        public void Execute(object parameter)
+        {
+            var doc = _host.ActiveDocument;
+            if (doc == null || doc.Layers.Count == 0) return;
+            var layer = doc.Layers[0];
+
+            var p = FptpFilterCommand.MergeParameters(_filter.Defaults, _overrides);
+            var result = _filter.Apply(layer.Pixels, p, _host.Progress, _host.Cancellation);
+
+            var resultDoc = new OsirisDocument(result.Width, result.Height);
+            var resultLayer = new Layer(_displayName, result.Width, result.Height);
+            System.Buffer.BlockCopy(result.Data, 0, resultLayer.Pixels.Data, 0, result.Data.Length);
+            resultDoc.Layers.Add(resultLayer);
+            _host.Ui?.LoadDocument(resultDoc, _displayName);
         }
     }
 

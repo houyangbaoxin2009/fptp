@@ -85,6 +85,17 @@ namespace Osiris.Engine.Skia
             return bmp;
         }
 
+        /// <summary>把合成位图（含全部图层）按扩展名编码保存到文件。</summary>
+        public static void SaveComposite(SkiaSharp.SKBitmap bmp, string filePath)
+        {
+            if (bmp == null) throw new ArgumentNullException(nameof(bmp));
+            if (string.IsNullOrEmpty(filePath)) throw new ArgumentNullException(nameof(filePath));
+            using var data = bmp.Encode(ToFormat(Path.GetExtension(filePath)), 90);
+            if (data == null) throw new InvalidOperationException("图片编码失败: " + filePath);
+            using var fs = File.Create(filePath);
+            data.SaveTo(fs);
+        }
+
         private bool Matches(string extension)
         {
             foreach (var ext in Extensions)

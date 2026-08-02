@@ -31,6 +31,9 @@ namespace Osiris.App.Workbench
         /// <summary>当前文档（打开新文档后替换）。</summary>
         public OsirisDocument Document => _document;
         public IUiService Ui => _ui;
+        /// <summary>当前文档保存路径（未保存过为 null）。</summary>
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public string CurrentPath { get; set; }
 
         /// <summary>文档替换通知（宿主据此更新 ActiveDocument 绑定）。</summary>
         internal event Action DocumentChanged;
@@ -81,6 +84,8 @@ namespace Osiris.App.Workbench
 
             // 先把内置命令注册进壳，再由模组贡献 UI 资源
             _ui.RegisterCommand(new WorkbenchCommands.OpenDocumentCommand(this));
+            _ui.RegisterCommand(new WorkbenchCommands.SaveCommand(this));
+            _ui.RegisterCommand(new WorkbenchCommands.SaveAsCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.UndoCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.RedoCommand(this));
 
@@ -173,6 +178,7 @@ namespace Osiris.App.Workbench
             _document = doc;
             _document.History.Changed += OnHistoryChanged;
 
+            CurrentPath = null;
             Text = "Osiris 2.0 — " + title;
             _statusStrip.Items[0].Text = title + "  (图层: " + doc.Layers.Count + ")";
             DocumentChanged?.Invoke();

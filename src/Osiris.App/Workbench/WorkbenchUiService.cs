@@ -50,6 +50,12 @@ namespace Osiris.App.Workbench
             _form.SetActiveTool(tool);
         }
 
+        /// <summary>用新文档替换当前文档（排版相纸等模组生成结果）。</summary>
+        public void LoadDocument(Osiris.Core.Document.OsirisDocument doc, string title)
+        {
+            _form.LoadDocument(doc, title);
+        }
+
         /// <summary>把全部已注册资源装配到窗体（菜单树/工具栏/状态栏）。</summary>
         internal void ApplyTo(WorkbenchForm form)
         {

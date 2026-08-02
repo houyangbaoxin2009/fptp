@@ -5,12 +5,28 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
+## [2.0.4.0] - 2026-08-02
+
+### 修复
+- **智能裁切越界崩溃**：裁切改变输出尺寸，原实现按原图层尺寸写回导致 `Buffer.BlockCopy` 越界。改为生成新文档（结果尺寸即画布），不再写回原图层
+- **排版渲染裁剪**：排版相纸（如 5寸 1500x1050）原作为图层塞入照片文档，画布按文档尺寸渲染只显示左上角。改为生成新文档（相纸尺寸即画布），整张相纸完整显示
+- `FptpFilterCommand.MergeParameters` 提升为 internal（供生成新文档命令复用）
+
+### 新增
+- 文件/保存（Ctrl+S）、文件/另存为 壳命令：合成当前文档写盘（PNG/JPEG/BMP/WebP），复用 `ImageCodecSkia`
+- `ImageCodecSkia.SaveComposite` 静态方法：合成位图按扩展名编码保存
+- `IUiService.LoadDocument`：模组生成结果（裁切/排版）以新文档呈现，壳负责替换文档并重绘
+- `GenerateDocumentCommand` 通用命令：滤镜输出尺寸变化时生成新文档
+- `LayoutCommand` 改为生成相纸新文档（替代原"添加图层"方式）
+
+### 变更
+- 版本号提升至 2.0.4.0（全部项目与内置模组同步）
+
 ## [2.0.3.0] - 2026-08-02
 
 ### 新增
 - 证件照排版输出（2.0 替代 1.x GenSettings 排版能力，命名即职责）：
   - `LayoutProcessor` 排版处理器：照片网格居中排到相纸（5寸/6寸/A4/A5/自定义），可带虚线裁剪辅助线，纯 PixelSurface 合成
-  - `AddLayerCommand` 添加图层命令：排版结果作为新图层置顶入栈，可撤销/重做
 - 内置模组新增"图像/排版输出"子菜单：5寸排版、6寸排版、A4排版
 - CLI 新增 `plugins layout <输入> <输出> [相纸] [辅助线]` 命令
 

@@ -101,6 +101,10 @@ namespace Osiris.Core.Ui
     {
         /// <summary>打开图片文档（壳实现，菜单由模组贡献）。</summary>
         public const string OpenDocument = "workbench.openDocument";
+        /// <summary>保存（壳实现，合成当前文档写盘）。</summary>
+        public const string Save = "workbench.save";
+        /// <summary>另存为（壳实现，选择路径后保存）。</summary>
+        public const string SaveAs = "workbench.saveAs";
         /// <summary>撤销（壳实现，操作当前文档历史）。</summary>
         public const string Undo = "workbench.undo";
         /// <summary>重做（壳实现，操作当前文档历史）。</summary>
@@ -123,5 +127,10 @@ namespace Osiris.Core.Ui
         /// 传入 null 取消激活。
         /// </summary>
         void ActivateTool(Plugins.IEditorTool tool);
+        /// <summary>
+        /// 用新文档替换当前文档（模组生成结果时调用，如排版相纸即新文档）。
+        /// 壳负责替换文档、重订阅历史并重绘画布。
+        /// </summary>
+        void LoadDocument(Document.OsirisDocument doc, string title);
     }
 }
