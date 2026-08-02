@@ -41,6 +41,7 @@ namespace Fptp.Plugins.Builtin
             host.Ui.AddMenu(new MenuContribution("文件/打开", KnownCommands.OpenDocument, "Ctrl+O", 0));
             host.Ui.AddMenu(new MenuContribution("文件/保存", KnownCommands.Save, "Ctrl+S", 1));
             host.Ui.AddMenu(new MenuContribution("文件/另存为", KnownCommands.SaveAs, null, 2));
+            host.Ui.AddMenu(new MenuContribution("文件/打印", KnownCommands.Print, "Ctrl+P", 3));
 
             // 编辑菜单 → 撤销/重做（壳命令）
             host.Ui.AddMenu(new MenuContribution("编辑/撤销", KnownCommands.Undo, "Ctrl+Z", 1));

@@ -14,6 +14,8 @@
 
 ### 新增
 - 文件/保存（Ctrl+S）、文件/另存为 壳命令：合成当前文档写盘（PNG/JPEG/BMP/WebP），复用 `ImageCodecSkia`
+- 文件/打印（Ctrl+P）壳命令：合成当前文档按页面可打印区域等比缩放居中打印（对齐 1.x）
+- CLI 批量处理：`plugins batch <输入目录> <输出目录> [--crop] [--gray] [--bg] [--layout <相纸>]`，逐张失败不中断（对齐 1.x BatchBox）
 - `ImageCodecSkia.SaveComposite` 静态方法：合成位图按扩展名编码保存
 - `IUiService.LoadDocument`：模组生成结果（裁切/排版）以新文档呈现，壳负责替换文档并重绘
 - `GenerateDocumentCommand` 通用命令：滤镜输出尺寸变化时生成新文档

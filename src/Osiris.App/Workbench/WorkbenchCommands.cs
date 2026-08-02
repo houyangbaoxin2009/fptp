@@ -52,6 +52,56 @@ namespace Osiris.App.Workbench
             }
         }
 
+        /// <summary>打印：合成当前文档，按页面可打印区域等比缩放居中打印（对齐 1.x）。</summary>
+        internal sealed class PrintCommand : ICommand
+        {
+            private readonly WorkbenchForm _form;
+
+            public PrintCommand(WorkbenchForm form) { _form = form; }
+
+            public string Id => KnownCommands.Print;
+            public string DisplayName => "打印(&P)...";
+
+            public bool CanExecute(object parameter) => _form.Document.Layers.Count > 0;
+
+            public void Execute(object parameter)
+            {
+                using (var toPrint = _form.RenderToGdiBitmap())
+                using (var pd = new System.Drawing.Printing.PrintDocument())
+                using (var dlg = new PrintDialog { Document = pd })
+                {
+                    if (dlg.ShowDialog(_form) != DialogResult.OK) return;
+
+                    pd.PrintPage += (s, ev) =>
+                    {
+                        // 按可打印区域等比缩放，居中打印
+                        var bounds = ev.MarginBounds;
+                        float scale = Math.Min(bounds.Width / (float)toPrint.Width,
+                                               bounds.Height / (float)toPrint.Height);
+                        int w = (int)(toPrint.Width * scale);
+                        int h = (int)(toPrint.Height * scale);
+                        int x = (int)(bounds.X + (bounds.Width - w) / 2);
+                        int y = (int)(bounds.Y + (bounds.Height - h) / 2);
+                        ev.Graphics.DrawImage(toPrint, x, y, w, h);
+                        ev.HasMorePages = false;
+                    };
+
+                    try
+                    {
+                        _form.SetStatus("正在打印...");
+                        pd.Print();
+                        _form.SetStatus("打印完成");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(_form, "打印失败: " + ex.Message, "Osiris",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        _form.SetStatus("打印失败");
+                    }
+                }
+            }
+        }
+
         /// <summary>撤销（操作当前文档历史栈，刷新画布由 History.Changed 事件驱动）。</summary>
         internal sealed class UndoCommand : ICommand
         {

@@ -105,6 +105,8 @@ namespace Osiris.Core.Ui
         public const string Save = "workbench.save";
         /// <summary>另存为（壳实现，选择路径后保存）。</summary>
         public const string SaveAs = "workbench.saveAs";
+        /// <summary>打印（壳实现，合成当前文档按页面缩放居中打印）。</summary>
+        public const string Print = "workbench.print";
         /// <summary>撤销（壳实现，操作当前文档历史）。</summary>
         public const string Undo = "workbench.undo";
         /// <summary>重做（壳实现，操作当前文档历史）。</summary>

@@ -86,6 +86,7 @@ namespace Osiris.App.Workbench
             _ui.RegisterCommand(new WorkbenchCommands.OpenDocumentCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.SaveCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.SaveAsCommand(this));
+            _ui.RegisterCommand(new WorkbenchCommands.PrintCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.UndoCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.RedoCommand(this));
 
@@ -187,6 +188,13 @@ namespace Osiris.App.Workbench
 
         /// <summary>重绘画布（撤销/重做/文档变更后调用）。</summary>
         internal void RefreshCanvas() => RenderCanvas();
+
+        /// <summary>合成当前文档为 GDI+ 位图（保存/打印共用；调用方负责 Dispose）。</summary>
+        internal System.Drawing.Bitmap RenderToGdiBitmap()
+        {
+            using (var sk = new Osiris.Engine.Skia.CanvasRenderer().Render(_document))
+                return ToGdiBitmap(sk);
+        }
 
         /// <summary>激活/取消交互工具：壳只路由鼠标事件与覆盖层，不知工具内部逻辑。</summary>
         internal void SetActiveTool(IEditorTool tool)
