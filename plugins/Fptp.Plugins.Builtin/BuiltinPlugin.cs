@@ -15,6 +15,8 @@ namespace Fptp.Plugins.Builtin
     public sealed class BuiltinPlugin : IFilterPlugin
     {
         private readonly GrayscaleFilter _grayscale = new GrayscaleFilter();
+        private readonly ReplaceBackgroundFilter _replaceBackground = new ReplaceBackgroundFilter();
+        private readonly SmartCropFilter _smartCrop = new SmartCropFilter();
         private readonly LassoTool _lasso = new LassoTool();
 
         public string Id => "fptp.builtin";
@@ -22,7 +24,10 @@ namespace Fptp.Plugins.Builtin
         public string Version => "2.0.2.0";
         public string MinHostVersion => "2.0.2.0";
 
-        public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[] { _grayscale };
+        public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
+        {
+            _grayscale, _replaceBackground, _smartCrop
+        };
 
         public void Initialize(IHostContext host)
         {
@@ -39,10 +44,18 @@ namespace Fptp.Plugins.Builtin
             host.Ui.AddMenu(new MenuContribution("编辑/撤销", KnownCommands.Undo, "Ctrl+Z", 1));
             host.Ui.AddMenu(new MenuContribution("编辑/重做", KnownCommands.Redo, "Ctrl+Y", 2));
 
-            // 贡献"图像"菜单 → 灰度命令（壳自动创建中间节点）
-            host.Ui.RegisterCommand(new GrayscaleCommand(host));
+            // 贡献"图像"菜单 → 滤镜命令（壳自动创建中间节点）
+            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.grayscale", "灰度", _grayscale, null));
             host.Ui.AddMenu(new MenuContribution("图像/灰度", "builtin.grayscale", null, 10));
             host.Ui.AddToolbar(new ToolbarContribution("builtin.grayscale", null, 10));
+
+            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.replaceBackground", "换底色",
+                _replaceBackground, new Osiris.Core.Plugins.FilterParameters()));
+            host.Ui.AddMenu(new MenuContribution("图像/换底色", "builtin.replaceBackground", null, 11));
+
+            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.smartCrop", "智能裁切",
+                _smartCrop, new Osiris.Core.Plugins.FilterParameters()));
+            host.Ui.AddMenu(new MenuContribution("图像/智能裁切", "builtin.smartCrop", null, 12));
 
             // "选择"菜单 → 套索选框工具（切换激活/取消）
             host.Ui.RegisterCommand(new LassoToolCommand(host, _lasso));
@@ -109,20 +122,30 @@ namespace Fptp.Plugins.Builtin
         }
     }
 
-    /// <summary>灰度命令：把当前文档首图层灰度化（经历史栈入栈，可撤销）。</summary>
-    internal sealed class GrayscaleCommand : ICommand
+    /// <summary>
+    /// 通用滤镜命令：把滤镜应用到当前文档首图层（经历史栈入栈，可撤销）。
+    /// 参数经 FilterParameters 传入（默认用滤镜 Defaults，UI 设置面板可覆盖）。
+    /// </summary>
+    internal sealed class FptpFilterCommand : ICommand
     {
         private readonly IHostContext _host;
-        private readonly GrayscaleFilter _filter;
+        private readonly string _id;
+        private readonly string _displayName;
+        private readonly IFilterProcessor _filter;
+        private readonly Osiris.Core.Plugins.FilterParameters _overrides;
 
-        public GrayscaleCommand(IHostContext host)
+        public FptpFilterCommand(IHostContext host, string id, string displayName,
+                                 IFilterProcessor filter, Osiris.Core.Plugins.FilterParameters overrides)
         {
             _host = host;
-            _filter = new GrayscaleFilter();
+            _id = id;
+            _displayName = displayName;
+            _filter = filter;
+            _overrides = overrides;
         }
 
-        public string Id => "builtin.grayscale";
-        public string DisplayName => "灰度";
+        public string Id => _id;
+        public string DisplayName => _displayName;
 
         public bool CanExecute(object parameter)
             => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
@@ -133,12 +156,27 @@ namespace Fptp.Plugins.Builtin
             if (doc == null || doc.Layers.Count == 0) return;
             var layer = doc.Layers[0];
 
-            // 先应用滤镜拿到结果像素，再以区域快照命令入栈（Push 内执行并记录 before）
-            var result = _filter.Apply(layer.Pixels, _filter.Defaults,
-                                       _host.Progress, _host.Cancellation);
-            var cmd = new PixelEditCommand("灰度", layer,
+            // 合并参数：命令覆盖值优先，缺省用滤镜 Defaults
+            var p = MergeParameters(_filter.Defaults, _overrides);
+            var result = _filter.Apply(layer.Pixels, p, _host.Progress, _host.Cancellation);
+            var cmd = new PixelEditCommand(_displayName, layer,
                 0, 0, layer.Pixels.Width, layer.Pixels.Height, result.Data);
             doc.History.Push(cmd, doc);
+        }
+
+        /// <summary>合并滤镜默认参数与命令覆盖值（覆盖优先）。</summary>
+        private static Osiris.Core.Plugins.FilterParameters MergeParameters(
+            Osiris.Core.Plugins.FilterParameters defaults,
+            Osiris.Core.Plugins.FilterParameters overrides)
+        {
+            var merged = new Osiris.Core.Plugins.FilterParameters();
+            if (defaults != null)
+                foreach (var k in defaults.Keys)
+                    merged[k] = defaults[k];
+            if (overrides != null)
+                foreach (var k in overrides.Keys)
+                    merged[k] = overrides[k];
+            return merged;
         }
     }
 

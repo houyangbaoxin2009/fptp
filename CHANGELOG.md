@@ -8,6 +8,19 @@
 ## [2.0.2.0] - 2026-08-02
 
 ### 新增
+- 证件照核心滤镜（2.0 替代 1.x Prepalg，按模块归类命名）：
+  - `ReplaceBackgroundFilter` 换底色：色键 + 边缘羽化（四角采样，容差可调，支持透明背景）
+  - `SmartCropFilter` 智能裁切：中心裁切 + 双线性缩放（默认 1 寸 295x413）
+  - `ColorUtil` 颜色工具（2.0 替代 1.x Assalg 颜色部分）
+- CLI 泛化滤镜执行：`plugins filter <滤镜Id> <输入> <输出>`
+- 通用滤镜命令 `FptpFilterCommand`（参数合并：命令覆盖值优先）
+
+### 变更
+- `FilterParameters` 新增 `Keys`（参数合并用）
+
+## [2.0.2.0] - 2026-08-02
+
+### 新增
 - 工具框架：
   - `Selection` 选区模型（像素级蒙版 + 多边形栅格化，偶数-奇数规则）
   - `IEditorTool` 交互工具契约（纯数据鼠标事件，零 UI 依赖）

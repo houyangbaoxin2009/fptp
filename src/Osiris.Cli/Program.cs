@@ -47,15 +47,18 @@ namespace Osiris.Cli
                 return 0;
             }
 
-            if (args.Length >= 4 && args[1] == "gray")
-                return RunGray(registry, args[2], args[3]);
+            if (args.Length >= 4 && args[1] == "filter")
+                return RunFilter(registry, args[2], args[3], args[4]);
 
-            Console.WriteLine("用法: plugins list | plugins gray <输入> <输出>");
+            if (args.Length >= 4 && args[1] == "gray")
+                return RunFilter(registry, "grayscale", args[2], args[3]);
+
+            Console.WriteLine("用法: plugins list | plugins gray <输入> <输出> | plugins filter <滤镜Id> <输入> <输出>");
             return 0;
         }
 
-        /// <summary>执行灰度滤镜：读图 → 找滤镜插件 → 应用 → 写图。</summary>
-        private static int RunGray(PluginRegistry registry, string input, string output)
+        /// <summary>执行滤镜：读图 → 按 Id 后缀找滤镜 → 应用 → 写图（CLI 也是无 UI 宿主验证通道）。</summary>
+        private static int RunFilter(PluginRegistry registry, string filterId, string input, string output)
         {
             if (!File.Exists(input))
             {
@@ -68,21 +71,21 @@ namespace Osiris.Cli
                 if (plugin is IFilterPlugin fp)
                     filters.AddRange(fp.Filters);
 
-            var gray = filters.Find(f => f.Id.EndsWith("grayscale", StringComparison.OrdinalIgnoreCase));
-            if (gray == null)
+            var filter = filters.Find(f => f.Id.EndsWith(filterId, StringComparison.OrdinalIgnoreCase));
+            if (filter == null)
             {
-                Console.Error.WriteLine("未找到灰度滤镜");
+                Console.Error.WriteLine("未找到滤镜: " + filterId);
                 return 1;
             }
 
             using (var stream = File.OpenRead(input))
             {
                 var surface = new Osiris.Engine.Skia.ImageCodecSkia().Read(stream, Path.GetExtension(input));
-                var result = gray.Apply(surface, gray.Defaults, null, System.Threading.CancellationToken.None);
+                var result = filter.Apply(surface, filter.Defaults, null, System.Threading.CancellationToken.None);
                 using (var outStream = File.Create(output))
                     new Osiris.Engine.Skia.ImageCodecSkia().Write(result, outStream, Path.GetExtension(output));
             }
-            Console.WriteLine("灰度处理完成: " + output);
+            Console.WriteLine("{0}处理完成: {1}", filter.DisplayName, output);
             return 0;
         }
     }

@@ -99,6 +99,9 @@ namespace Osiris.Core.Plugins
             set => _values[key] = value;
         }
 
+        /// <summary>已设置的全部参数键。</summary>
+        public IEnumerable<string> Keys => _values.Keys;
+
         public T Get<T>(string key, T fallback = default)
         {
             return _values.TryGetValue(key, out var v) && v is T t ? t : fallback;
