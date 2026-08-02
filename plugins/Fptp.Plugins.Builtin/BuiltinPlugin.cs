@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Osiris.Core.Document;
 using Osiris.Core.Filters;
@@ -21,8 +22,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.5.0";
-        public string MinHostVersion => "2.0.5.0";
+        public string Version => "2.0.6.0";
+        public string MinHostVersion => "2.0.6.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
         {
@@ -79,30 +80,42 @@ namespace Fptp.Plugins.Builtin
                 PanelSide.Left, () => CreateHistoryPanel(host), 0));
         }
 
-        /// <summary>历史面板数据契约：内容随 History.Changed 刷新，点击跳转到对应命令。</summary>
+        /// <summary>历史面板数据契约：动态绑定当前 ActiveDocument（文档切换后面板跟随），点击跳转到对应命令。</summary>
         private static ListPanelContent CreateHistoryPanel(IHostContext host)
         {
             var panel = new ListPanelContent();
-            var doc = host.ActiveDocument;
-            if (doc == null) return panel;
+            OsirisDocument bound = null;
 
-            // 刷新：列出撤销栈命令名（0..游标），选中当前游标
-            System.Action refresh = null;
-            refresh = () =>
+            void OnHistoryChanged(object s, EventArgs e) => BindAndRefresh();
+
+            // 重新绑定当前 ActiveDocument 的历史事件后刷新列表
+            void BindAndRefresh()
             {
+                var doc = host.ActiveDocument;
+                if (!ReferenceEquals(bound, doc))
+                {
+                    if (bound != null) bound.History.Changed -= OnHistoryChanged;
+                    bound = doc;
+                    if (bound != null) bound.History.Changed += OnHistoryChanged;
+                }
+
                 var names = new List<string>();
-                for (int i = 0; i <= doc.History.Cursor; i++)
-                    names.Add(doc.History.Commands[i].Name);
-                panel.SelectedIndex = doc.History.Cursor;
+                if (bound != null)
+                    for (int i = 0; i <= bound.History.Cursor; i++)
+                        names.Add(bound.History.Commands[i].Name);
+                panel.SelectedIndex = bound != null ? bound.History.Cursor : -1;
                 panel.Items = () => names;
                 panel.NotifyChanged();
-            };
-            doc.History.Changed += (s, e) => refresh();
-            refresh();
+            }
+
+            // 文档替换（打开/裁切/排版）后重绑定；壳在 SetDocument 中触发
+            panel.ActiveDocumentChanged += BindAndRefresh;
+            BindAndRefresh();
 
             panel.SelectedIndexChanged = idx =>
             {
-                if (idx >= 0 && idx <= doc.History.Cursor)
+                var doc = host.ActiveDocument;
+                if (doc != null && idx >= 0 && idx <= doc.History.Cursor)
                     doc.History.JumpTo(idx, doc);
             };
             return panel;

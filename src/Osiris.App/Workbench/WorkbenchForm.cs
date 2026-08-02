@@ -13,6 +13,15 @@ namespace Osiris.App.Workbench
         private readonly WorkbenchUiService _ui;
         private OsirisDocument _document;
         private IEditorTool _activeTool;
+        private string _currentTitle = "";
+        /// <summary>文档级导航栈：裁切/排版生成新文档替换后，可撤销回到原文档（原文档+标题+保存路径）。</summary>
+        private readonly Stack<(OsirisDocument Doc, string Title, string Path)> _docBack =
+            new Stack<(OsirisDocument, string, string)>();
+        private readonly Stack<(OsirisDocument Doc, string Title, string Path)> _docForward =
+            new Stack<(OsirisDocument, string, string)>();
+        /// <summary>已登记的面板内容（文档切换后触发重绑定）。</summary>
+        private readonly List<Osiris.Core.Ui.ListPanelContent> _listPanels =
+            new List<Osiris.Core.Ui.ListPanelContent>();
 
         // 工作区容器：壳只提供空白区域，内容由面板/画布贡献填充
         private readonly SplitContainer _root;
@@ -102,7 +111,10 @@ namespace Osiris.App.Workbench
             var content = panel.ContentFactory?.Invoke();
             Control hostContent = content as Control;
             if (hostContent == null && content is Osiris.Core.Ui.ListPanelContent lpc)
+            {
                 hostContent = CreateListPanel(lpc);
+                _listPanels.Add(lpc);
+            }
             var host = new Panel { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
             if (hostContent != null) host.Controls.Add(hostContent);
 
@@ -172,17 +184,52 @@ namespace Osiris.App.Workbench
             _statusStrip.Items[0].Text = message;
         }
 
-        /// <summary>加载文档：替换当前文档、重订阅历史事件、通知宿主并渲染画布。</summary>
-        internal void LoadDocument(OsirisDocument doc, string title)
+        /// <summary>
+        /// 加载文档：替换当前文档并重订阅历史事件（模组生成结果/打开文件共用入口）。
+        /// 当前文档有实际内容时压入文档级回退栈（初始空文档不入栈），撤销可回到原文档。
+        /// </summary>
+        internal void LoadDocument(OsirisDocument doc, string title, string path = null)
+        {
+            if (_document.Layers.Count > 0)
+                _docBack.Push((_document, _currentTitle, CurrentPath));
+            _docForward.Clear();
+            SetDocument(doc, title, path);
+        }
+
+        /// <summary>文档级撤销：回到上一个文档（裁切/排版生成新文档后按 Ctrl+Z 回原图）。</summary>
+        internal void UndoDocument()
+        {
+            if (_docBack.Count == 0) return;
+            var prev = _docBack.Pop();
+            _docForward.Push((_document, _currentTitle, CurrentPath));
+            SetDocument(prev.Doc, prev.Title, prev.Path);
+        }
+
+        /// <summary>文档级重做：前进到下一个文档。</summary>
+        internal void RedoDocument()
+        {
+            if (_docForward.Count == 0) return;
+            var next = _docForward.Pop();
+            _docBack.Push((_document, _currentTitle, CurrentPath));
+            SetDocument(next.Doc, next.Title, next.Path);
+        }
+
+        internal bool CanUndoDocument => _docBack.Count > 0;
+        internal bool CanRedoDocument => _docForward.Count > 0;
+
+        /// <summary>替换当前文档核心：重订阅历史、更新标题/路径/状态栏、通知面板与宿主、渲染。</summary>
+        private void SetDocument(OsirisDocument doc, string title, string path)
         {
             _document.History.Changed -= OnHistoryChanged;
             _document = doc;
             _document.History.Changed += OnHistoryChanged;
 
-            CurrentPath = null;
+            _currentTitle = title;
+            CurrentPath = path;
             Text = "Osiris 2.0 — " + title;
             _statusStrip.Items[0].Text = title + "  (图层: " + doc.Layers.Count + ")";
             DocumentChanged?.Invoke();
+            foreach (var p in _listPanels) p.NotifyActiveDocumentChanged();
             RefreshCanvas();
         }
 

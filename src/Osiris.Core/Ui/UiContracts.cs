@@ -85,8 +85,12 @@ namespace Osiris.Core.Ui
         public Action<int> SelectedIndexChanged { get; set; }
         /// <summary>数据变化通知（壳刷新列表）。</summary>
         public event Action Changed;
+        /// <summary>当前文档替换通知（壳在切换文档后触发，模组据此重绑定数据源）。</summary>
+        public event Action ActiveDocumentChanged;
 
         public void NotifyChanged() => Changed?.Invoke();
+        /// <summary>通知当前文档已替换（壳调用，模组重绑定 ActiveDocument 相关数据）。</summary>
+        public void NotifyActiveDocumentChanged() => ActiveDocumentChanged?.Invoke();
     }
 
     public enum PanelSide

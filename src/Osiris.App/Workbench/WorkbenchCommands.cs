@@ -39,8 +39,7 @@ namespace Osiris.App.Workbench
                             var layer = new Layer(Path.GetFileName(dlg.FileName), surface.Width, surface.Height);
                             surface.Pixels.CopyTo(layer.Pixels.Pixels);
                             doc.Layers.Add(layer);
-                            _form.CurrentPath = dlg.FileName;
-                            _form.LoadDocument(doc, Path.GetFileName(dlg.FileName));
+                            _form.LoadDocument(doc, Path.GetFileName(dlg.FileName), dlg.FileName);
                         }
                     }
                     catch (Exception ex)
@@ -102,7 +101,7 @@ namespace Osiris.App.Workbench
             }
         }
 
-        /// <summary>撤销（操作当前文档历史栈，刷新画布由 History.Changed 事件驱动）。</summary>
+        /// <summary>撤销：优先撤销当前文档内历史；无历史时回退到上一个文档（裁切/排版生成的新文档可回到原图）。</summary>
         internal sealed class UndoCommand : ICommand
         {
             private readonly WorkbenchForm _form;
@@ -112,12 +111,19 @@ namespace Osiris.App.Workbench
             public string Id => KnownCommands.Undo;
             public string DisplayName => "撤销(&U)";
 
-            public bool CanExecute(object parameter) => _form.Document.History.CanUndo;
+            public bool CanExecute(object parameter)
+                => _form.Document.History.CanUndo || _form.CanUndoDocument;
 
-            public void Execute(object parameter) => _form.Document.History.Undo(_form.Document);
+            public void Execute(object parameter)
+            {
+                if (_form.Document.History.CanUndo)
+                    _form.Document.History.Undo(_form.Document);
+                else
+                    _form.UndoDocument();
+            }
         }
 
-        /// <summary>重做（操作当前文档历史栈，刷新画布由 History.Changed 事件驱动）。</summary>
+        /// <summary>重做：优先重做当前文档内历史；无历史时前进到下一个文档。</summary>
         internal sealed class RedoCommand : ICommand
         {
             private readonly WorkbenchForm _form;
@@ -127,9 +133,16 @@ namespace Osiris.App.Workbench
             public string Id => KnownCommands.Redo;
             public string DisplayName => "重做(&R)";
 
-            public bool CanExecute(object parameter) => _form.Document.History.CanRedo;
+            public bool CanExecute(object parameter)
+                => _form.Document.History.CanRedo || _form.CanRedoDocument;
 
-            public void Execute(object parameter) => _form.Document.History.Redo(_form.Document);
+            public void Execute(object parameter)
+            {
+                if (_form.Document.History.CanRedo)
+                    _form.Document.History.Redo(_form.Document);
+                else
+                    _form.RedoDocument();
+            }
         }
 
         /// <summary>保存：合成当前文档写盘；无路径时转另存为。</summary>

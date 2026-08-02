@@ -5,6 +5,20 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
+## [2.0.6.0] - 2026-08-02
+
+### 修复
+- **文档级撤销链断裂**：裁切/排版生成新文档经 `LoadDocument` 替换后，原文档被直接丢弃，Ctrl+Z 无法回到原图。新增文档导航栈（`_docBack`/`_docForward`），撤销优先回退当前文档历史，历史为空时回退到上一个文档（裁切/排版可撤回原图）
+- **历史面板绑定过期文档**：历史面板在模组初始化时捕获 `ActiveDocument`（初始空文档），此后打开/裁切/排版切换文档，面板数据永不刷新。改为动态绑定当前 `ActiveDocument`，文档替换后自动重订阅历史事件并刷新
+- **打开文件后丢失保存路径**：`OpenDocumentCommand` 先设 `CurrentPath` 再经 `LoadDocument` 被重置为 null，导致打开后按 Ctrl+S 走另存为。`LoadDocument` 增加 path 参数，打开即保留原保存路径
+
+### 新增
+- `ListPanelContent.ActiveDocumentChanged` 通知事件：壳在切换当前文档后触发，模组据此重绑定面板数据源（`WorkbenchForm.AddPanelInternal` 登记列表面板）
+- `WorkbenchForm.UndoDocument/RedoDocument/CanUndoDocument/CanRedoDocument`：文档级撤销/重做（含标题与保存路径还原）
+
+### 变更
+- 版本号提升至 2.0.6.0（全部项目与内置模组同步）
+
 ## [2.0.5.0] - 2026-08-02
 
 ### 新增
