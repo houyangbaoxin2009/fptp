@@ -369,14 +369,17 @@ namespace fptp
 		}
 
 		/// <summary>
-		/// 以共享读方式打开图片并克隆到内存，避免长期持有源文件锁。
+		/// 以共享读方式打开图片并生成独立副本，避免长期持有源文件锁。
+		/// 注意：不能用 tmp.Clone()——.NET Framework 中从流创建的 Bitmap 在流关闭后
+		/// Clone() 得到的副本访问像素时仍会抛"GDI+ 中发生一般性错误"；
+		/// new Bitmap(tmp) 才是真正独立的 GDI+ 级复制。
 		/// </summary>
 		private static Bitmap LoadBitmapUnlocked(string path)
 		{
 			using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
 			using (Bitmap tmp = new Bitmap(fs))
 			{
-				return (Bitmap)tmp.Clone();
+				return new Bitmap(tmp);
 			}
 		}
 

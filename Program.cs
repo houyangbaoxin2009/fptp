@@ -865,12 +865,13 @@ namespace fptp
 			return true;
 		}
 
-		/// 以可共享读取方式加载位图并克隆到内存，立即释放文件锁，支持 in-place 保存（输出=输入）。
+		/// 以可共享读取方式加载位图并生成独立副本，立即释放文件锁，支持 in-place 保存（输出=输入）。
+		/// 注意：不能用 tmp.Clone()——从流创建的 Bitmap 在流关闭后访问像素会抛 GDI+ 一般性错误。
 		private static Bitmap LoadBitmapUnlocked(string path)
 		{
 			using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
 			using (Bitmap tmp = new Bitmap(fs))
-				return (Bitmap)tmp.Clone();
+				return new Bitmap(tmp);
 		}
 
 		/// <summary>解析 -k value 或 --key value 参数值。</summary>
