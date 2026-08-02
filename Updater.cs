@@ -14,14 +14,18 @@ namespace fptp
 	public static class Updater
 	{
 		// GitCode API：获取仓库所有 Releases（GitCode 升序、GitHub 降序，取版本最大者）
+		// per_page=100 分页拉全，避免 release 多时只取到第一页漏掉最新版本
 		private const string GitCodeReleasesApi =
-			"https://api.gitcode.com/api/v5/repos/jiro2025/fptp/releases";
+			"https://api.gitcode.com/api/v5/repos/jiro2025/fptp/releases?per_page=100";
 
 		// GitHub API：结构与 GitCode 一致，供国外用户使用
 		private const string GitHubReleasesApi =
-			"https://api.github.com/repos/houyangbaoxin2009/fptp/releases";
+			"https://api.github.com/repos/houyangbaoxin2009/fptp/releases?per_page=100";
 
 		private const string InstallerName = "FPTP-Setup.exe";
+
+		// 防重入标记：同一时刻只允许一个更新检查（启动检查 + 手动检查互斥）
+		private static int _checking;
 
 		/// <summary>
 		/// 启动时静默检查（后台线程）。发现新版本才弹窗。
@@ -30,55 +34,79 @@ namespace fptp
 		{
 			ThreadPool.QueueUserWorkItem(_ =>
 			{
+				// 防重入：同一时刻只允许一个更新检查，避免并发重复请求
+				if (Interlocked.CompareExchange(ref _checking, 1, 0) != 0) return;
 				try
 				{
-					LatestRelease? latest = FetchLatestRelease();
-					if (latest == null) return;
+					try
+					{
+						LatestRelease? latest = FetchLatestRelease();
+						if (latest == null) return;
 
-					Version current = new Version(Basic.AppVersion);
-					Version? remote = ParseTagVersion(latest.TagName ?? "");
-					if (remote == null || remote <= current) return;
+						Version current = new Version(Basic.AppVersion);
+						Version? remote = ParseTagVersion(latest.TagName ?? "");
+						if (remote == null || remote <= current) return;
 
-					owner.BeginInvoke(new Action(() => PromptUpdate(owner, latest)));
+						owner.BeginInvoke(new Action(() => PromptUpdate(owner, latest)));
+					}
+					catch
+					{
+						// 静默检查失败不打扰用户
+					}
 				}
-				catch
+				finally
 				{
-					// 静默检查失败不打扰用户
+					Interlocked.Exchange(ref _checking, 0);
 				}
 			});
 		}
 
 		/// <summary>
-		/// 手动检查更新（前台线程，有结果反馈）。
+		/// 手动检查更新（后台线程，有结果反馈，结果回 UI 线程弹窗）。
 		/// </summary>
 		public static void CheckManual(Form owner)
 		{
-			try
+			ThreadPool.QueueUserWorkItem(_ =>
 			{
-				LatestRelease? latest = FetchLatestRelease();
-				if (latest == null)
+				// 防重入：同一时刻只允许一个更新检查
+				if (Interlocked.CompareExchange(ref _checking, 1, 0) != 0) return;
+				try
 				{
-					MessageBox.Show(owner, Lang.Get("update.none"), Lang.Get("msg.tip"),
-						MessageBoxButtons.OK, MessageBoxIcon.Information);
-					return;
-				}
+					try
+					{
+						LatestRelease? latest = FetchLatestRelease();
+						if (latest == null)
+						{
+							owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+								Lang.Get("update.none"), Lang.Get("msg.tip"),
+								MessageBoxButtons.OK, MessageBoxIcon.Information)));
+							return;
+						}
 
-				Version current = new Version(Basic.AppVersion);
-				Version? remote = ParseTagVersion(latest.TagName ?? "");
-				if (remote == null || remote <= current)
+						Version current = new Version(Basic.AppVersion);
+						Version? remote = ParseTagVersion(latest.TagName ?? "");
+						if (remote == null || remote <= current)
+						{
+							owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+								Lang.Get("update.none"), Lang.Get("msg.tip"),
+								MessageBoxButtons.OK, MessageBoxIcon.Information)));
+							return;
+						}
+
+						owner.BeginInvoke(new Action(() => PromptUpdate(owner, latest)));
+					}
+					catch (Exception ex)
+					{
+						owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+							Lang.Get("update.failed", ex.Message), Lang.Get("msg.error"),
+							MessageBoxButtons.OK, MessageBoxIcon.Error)));
+					}
+				}
+				finally
 				{
-					MessageBox.Show(owner, Lang.Get("update.none"), Lang.Get("msg.tip"),
-						MessageBoxButtons.OK, MessageBoxIcon.Information);
-					return;
+					Interlocked.Exchange(ref _checking, 0);
 				}
-
-				PromptUpdate(owner, latest);
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show(owner, Lang.Get("update.failed", ex.Message), Lang.Get("msg.error"),
-					MessageBoxButtons.OK, MessageBoxIcon.Error);
-			}
+			});
 		}
 
 		private class LatestRelease
@@ -134,6 +162,11 @@ namespace fptp
 					Version? bestVersion = null;
 					foreach (JsonElement release in doc.RootElement.EnumerateArray())
 					{
+						// 预发布（RC/Beta）不作为稳定更新提供
+						if (release.TryGetProperty("prerelease", out JsonElement prEl) &&
+							prEl.ValueKind == JsonValueKind.True)
+							continue;
+
 						string? tag = release.TryGetProperty("tag_name", out JsonElement tagEl)
 							? tagEl.GetString() : null;
 						if (string.IsNullOrEmpty(tag)) continue;
@@ -167,9 +200,13 @@ namespace fptp
 							}
 						}
 
+						// 无安装包资产的 Release 不能作为更新，跳过（避免“提示更新但下载失败”）
+						if (string.IsNullOrEmpty(download)) continue;
+
 						best = new LatestRelease { TagName = tag, Body = body, DownloadUrl = download };
 						bestVersion = ver;
 					}
+					// 全部 Release 都没有安装包资产时返回 null，由调用方回退另一平台
 					return best;
 				}
 			}
@@ -205,38 +242,45 @@ namespace fptp
 				return;
 			}
 
-			try
+			// 唯一临时名，避免与同时运行的其他实例/残留冲突
+			string tmpPath = Path.Combine(Path.GetTempPath(),
+				$"{Path.GetFileNameWithoutExtension(InstallerName)}-{Guid.NewGuid():N}.exe");
+
+			// 下载在后台线程执行，UI 线程不阻塞；完成后回 UI 线程弹窗并启动安装
+			ThreadPool.QueueUserWorkItem(_ =>
 			{
-				owner.Cursor = Cursors.WaitCursor;
-				// 唯一临时名，避免与同时运行的其他实例/残留冲突
-				string tmpPath = Path.Combine(Path.GetTempPath(),
-					$"{Path.GetFileNameWithoutExtension(InstallerName)}-{Guid.NewGuid():N}.exe");
-				DownloadFile(latest.DownloadUrl!, tmpPath);
-				owner.Cursor = Cursors.Default;
-
-				MessageBox.Show(owner, Lang.Get("update.downloaded"), Lang.Get("msg.tip"),
-					MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-				System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+				try
 				{
-					FileName = tmpPath,
-					// 静默安装：更新流程不再让用户手动走安装向导
-					Arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES",
-					UseShellExecute = true
-				});
-				owner.Close();
-			}
-			catch (Exception ex)
-			{
-				owner.Cursor = Cursors.Default;
-				MessageBox.Show(owner, Lang.Get("update.downloadFailed", ex.Message),
-					Lang.Get("msg.error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-			}
+					DownloadFile(latest.DownloadUrl!, tmpPath);
+					owner.BeginInvoke(new Action(() =>
+					{
+						MessageBox.Show(owner, Lang.Get("update.downloaded"), Lang.Get("msg.tip"),
+							MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+						System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+						{
+							FileName = tmpPath,
+							// 静默安装：更新流程不再让用户手动走安装向导
+							Arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES",
+							UseShellExecute = true
+						});
+						owner.Close();
+					}));
+				}
+				catch (Exception ex)
+				{
+					// 下载失败清理临时文件，避免残留 %TEMP%
+					TryDelete(tmpPath);
+					owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+						Lang.Get("update.downloadFailed", ex.Message), Lang.Get("msg.error"),
+						MessageBoxButtons.OK, MessageBoxIcon.Error)));
+				}
+			});
 		}
 
 		/// <summary>
 		/// 下载文件到本地路径。HttpWebRequest 流式下载：支持超时，完成后校验
-		/// 文件是有效 PE（MZ 头）而非错误页/空文件。
+		/// 文件是有效 PE（MZ 头）而非错误页/空文件；中途异常清理临时文件。
 		/// </summary>
 		private static void DownloadFile(string url, string savePath)
 		{
@@ -246,32 +290,53 @@ namespace fptp
 			request.ReadWriteTimeout = 60000;   // 下载 60 秒无数据传输即超时，避免界面假死
 			request.UserAgent = "FPTP-Updater/1.0";
 
-			using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
-			using (Stream src = response.GetResponseStream())
-			using (FileStream dst = new FileStream(savePath, FileMode.Create, FileAccess.Write))
+			try
 			{
-				byte[] buffer = new byte[81920];
-				int read;
-				while ((read = src.Read(buffer, 0, buffer.Length)) > 0)
-					dst.Write(buffer, 0, read);
-			}
+				using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+				using (Stream src = response.GetResponseStream())
+				using (FileStream dst = new FileStream(savePath, FileMode.Create, FileAccess.Write))
+				{
+					long expected = response.ContentLength;   // 服务器提供的 Content-Length，分块传输时为 -1
+					byte[] buffer = new byte[81920];
+					long written = 0;
+					int read;
+					while ((read = src.Read(buffer, 0, buffer.Length)) > 0)
+					{
+						dst.Write(buffer, 0, read);
+						written += read;
+					}
 
-			// 校验：必须存在、非空、带 MZ 头（PE 可执行文件），否则视为下载失败
-			FileInfo fi = new FileInfo(savePath);
-			if (fi.Length < 1024 * 1024)
-			{
-				TryDelete(savePath);
-				throw new IOException("downloaded file is too small to be a valid installer");
-			}
-			using (FileStream fs = new FileStream(savePath, FileMode.Open, FileAccess.Read))
-			{
-				byte[] header = new byte[2];
-				if (fs.Read(header, 0, 2) != 2 ||
-					header[0] != (byte)'M' || header[1] != (byte)'Z')
+					// 完整性校验：服务器给了 Content-Length 时必须一致，防中途断流截断
+					if (expected >= 0 && written != expected)
+					{
+						TryDelete(savePath);
+						throw new IOException("downloaded file size mismatch");
+					}
+				}
+
+				// 校验：必须存在、非空、带 MZ 头（PE 可执行文件），否则视为下载失败
+				FileInfo fi = new FileInfo(savePath);
+				if (fi.Length < 1024 * 1024)
 				{
 					TryDelete(savePath);
-					throw new IOException("downloaded file is not a valid executable");
+					throw new IOException("downloaded file is too small to be a valid installer");
 				}
+				using (FileStream fs = new FileStream(savePath, FileMode.Open, FileAccess.Read))
+				{
+					byte[] header = new byte[2];
+					if (fs.Read(header, 0, 2) != 2 ||
+						header[0] != (byte)'M' || header[1] != (byte)'Z')
+					{
+						TryDelete(savePath);
+						throw new IOException("downloaded file is not a valid executable");
+					}
+				}
+			}
+			catch
+			{
+				// 下载中途任何异常（网络断开等）都清理临时文件，避免残留 %TEMP%
+				TryDelete(savePath);
+				throw;
 			}
 		}
 

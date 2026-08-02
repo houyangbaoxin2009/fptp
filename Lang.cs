@@ -179,10 +179,18 @@ namespace fptp
 
 		/// <summary>
 		/// 获取带占位符的翻译文本（string.Format）。
+		/// 译文含非法占位符（如多余的括号）时回退原文，避免损坏的语言包导致崩溃。
 		/// </summary>
 		public static string Get(string key, params object[] args)
 		{
-			return string.Format(Get(key), args);
+			try
+			{
+				return string.Format(Get(key), args);
+			}
+			catch (FormatException)
+			{
+				return Get(key);
+			}
 		}
 	}
 }

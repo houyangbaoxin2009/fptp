@@ -211,5 +211,12 @@
   "cli.invalidTolerance": "Error: missing valid -t/--tolerance argument (0-150)",
   "cli.unknownColor": "Error: unknown color '{0}'. Available: white blue red etc.",
   "cli.cropFailed": "Error: crop failed",
-  "cli.unknownLang": "Unknown language: {0}. Available: zh-CN en-US"
+  "cli.unknownLang": "Unknown language: {0}. Available: zh-CN en-US",
+  "cli.unknownLanguage": "Error: unknown language '{0}'. Available: zh-CN en-US",
+  "cli.invalidSize": "Error: invalid size. Available: 1 (one inch) 2 (two inch)",
+  "cli.invalidLayout": "Error: missing valid -l/--layout argument (0-4)",
+  "cli.unknownOption": "Error: unknown option '{0}'",
+  "cli.missingLangValue": "Error: missing value for --lang. Available: zh-CN en-US",
+  "cli.missingSizeValue": "Error: missing value for -s/--size. Available: 1 (one inch) 2 (two inch)",
+  "cli.mixedArgs": "Error: unexpected argument '{0}'. Legacy argument mode cannot be mixed with subcommands"
 }

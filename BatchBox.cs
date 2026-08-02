@@ -244,6 +244,16 @@ namespace fptp
 				return;
 			}
 
+			// 输入输出目录不能相同，否则处理结果会直接覆盖源图片（不可逆数据丢失）
+			string input = Path.GetFullPath(txtInput.Text).TrimEnd('\\', '/');
+			string output = Path.GetFullPath(txtOutput.Text).TrimEnd('\\', '/');
+			if (string.Equals(input, output, StringComparison.OrdinalIgnoreCase))
+			{
+				MessageBox.Show(this, Lang.Get("msg.loadFailed", "input and output directory must be different"), Lang.Get("msg.error"),
+					MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				return;
+			}
+
 			// UI 线程快照参数，后台线程不再直接读控件
 			_inputDir = txtInput.Text;
 			_outputDir = txtOutput.Text;
@@ -305,6 +315,7 @@ namespace fptp
 			int layoutPreset = _layoutPreset;
 
 			int done = 0;
+			int failed = 0;
 			foreach (string file in images)
 			{
 				if (worker.CancellationPending)
@@ -316,17 +327,19 @@ namespace fptp
 				try
 				{
 					ProcessOne(file, outputDir, doCrop, doGray, doBg, doLayout, bgColor, tolerance, layoutPreset);
+					done++;
 				}
 				catch
 				{
 					// 单张失败不中断整体，由进度区提示
+					failed++;
 				}
 
-				done++;
-				worker.ReportProgress(done * 100 / images.Count, done);
+				// 成功与失败都推进进度，保证进度条走满；done 只统计成功数
+				worker.ReportProgress((done + failed) * 100 / images.Count, done);
 			}
 
-			e.Result = images.Count.ToString();
+			e.Result = (done, failed);
 		}
 
 		/// <summary>处理单张图片：按勾选依次执行 裁剪/黑白/换底/排版。</summary>
@@ -438,11 +451,14 @@ namespace fptp
 					MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				lblProgress.Text = "";
 			}
-			else
+			else if (e.Result is (int ok, int failed))
 			{
-				lblProgress.Text = Lang.Get("batch.done", e.Result);
-				MessageBox.Show(this, Lang.Get("batch.doneMsg", e.Result), Lang.Get("msg.done"),
+				lblProgress.Text = Lang.Get("batch.done", ok);
+				MessageBox.Show(this, Lang.Get("batch.doneMsg", ok), Lang.Get("msg.done"),
 					MessageBoxButtons.OK, MessageBoxIcon.Information);
+				if (failed > 0)
+					MessageBox.Show(this, string.Format("{0} failed", failed), Lang.Get("msg.tip"),
+						MessageBoxButtons.OK, MessageBoxIcon.Warning);
 			}
 		}
 
@@ -454,7 +470,12 @@ namespace fptp
 				e.Cancel = true;
 				return;
 			}
+			// 解除事件挂接后再释放 worker，与 mainBox 的 workingTimer 清理风格一致
+			worker.DoWork -= Worker_DoWork;
+			worker.ProgressChanged -= Worker_ProgressChanged;
+			worker.RunWorkerCompleted -= Worker_RunWorkerCompleted;
 			base.OnFormClosing(e);
+			worker.Dispose();
 		}
 	}
 }

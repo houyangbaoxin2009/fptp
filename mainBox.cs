@@ -16,6 +16,8 @@ namespace fptp
 		private GenSettings settings;
 		private AppSettings appSettings;
 		private bool _applyingSettings;
+		private bool _busy;
+		private KeySettings cachedKeySettings;
 		private readonly Stack<Bitmap> undoStack = new Stack<Bitmap>();
 		private const int MaxUndoSteps = 20;
 		private System.Windows.Forms.Timer workingTimer;
@@ -77,9 +79,13 @@ namespace fptp
 			string combo = KeySettings.FormatKeys(keyData);
 			if (combo != "")
 			{
-				var keys = Assalg.LoadKeySettings();
-				if (keys.Actions == null) keys.Actions = new Dictionary<string, string>();
-				foreach (var kv in keys.Actions)
+				// 快捷键配置缓存：仅首次按键时读取一次，避免每次按键都做磁盘 I/O
+				if (cachedKeySettings == null)
+				{
+					cachedKeySettings = Assalg.LoadKeySettings();
+					if (cachedKeySettings.Actions == null) cachedKeySettings.Actions = new Dictionary<string, string>();
+				}
+				foreach (var kv in cachedKeySettings.Actions)
 				{
 					if (kv.Value == combo && keyActions.TryGetValue(kv.Key, out Action? act))
 					{
@@ -286,205 +292,295 @@ namespace fptp
 
 		private void BtnLoad_Click(object sender, EventArgs e)
 		{
-			string filePath = Basic.OpenImageFile(this);
-
-			if (!string.IsNullOrEmpty(filePath))
+			if (_busy) return;
+			_busy = true;
+			try
 			{
-				Bitmap tempImage = null;
-				try
+				string filePath = Basic.OpenImageFile(this);
+
+				if (!string.IsNullOrEmpty(filePath))
 				{
-					tempImage = new Bitmap(filePath);
-					var newCurrent = (Bitmap)tempImage.Clone();
-
-					// 全部成功后才释放旧图，避免失败时清空当前图
-					pictureBox1.Image?.Dispose();
-					sourceImage?.Dispose();
-					currentImage?.Dispose();
-
-					currentImage = newCurrent;
-					sourceImage = tempImage;
-					tempImage = null;
-
-					int minSide = Math.Min(sourceImage.Width, sourceImage.Height);
-
-					if (minSide < 300)
+					Bitmap tempImage = null;
+					Bitmap newCurrent = null;
+					try
 					{
-						MessageBox.Show(Lang.Get("msg.loadedBad"),
-										Lang.Get("msg.badImage"), MessageBoxButtons.OK, MessageBoxIcon.Error);
-						pictureBox1.Image = null;   // 旧图已在上面释放，必须清空引用避免碰已释放对象
-						currentImage.Dispose();
-						sourceImage.Dispose();
-						currentImage = null;
-						sourceImage = null;
-						return;
+						tempImage = LoadBitmapUnlocked(filePath);
+						newCurrent = (Bitmap)tempImage.Clone();
+
+						// 先校验新图：不合格时不触碰旧图与画布，旧图保持可用
+						int minSide = Math.Min(tempImage.Width, tempImage.Height);
+
+						if (minSide < 300)
+						{
+							newCurrent.Dispose();
+							newCurrent = null;
+							tempImage.Dispose();
+							tempImage = null;
+							MessageBox.Show(Lang.Get("msg.loadedBad"),
+											Lang.Get("msg.badImage"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+							return;
+						}
+
+						// 新图合格后才替换：先脱离画布引用再释放旧图，避免 PictureBox 重绘已释放位图
+						Image oldPaper = pictureBox1.Image;
+						pictureBox1.Image = null;
+						if (oldPaper != null && oldPaper != currentImage)
+							oldPaper.Dispose();   // 排版纸与当前编辑图引用不同，单独释放避免重复释放
+
+						sourceImage?.Dispose();
+						currentImage?.Dispose();
+
+						currentImage = newCurrent;
+						sourceImage = tempImage;
+						tempImage = null;
+						newCurrent = null;
+
+						if (minSide < 600)
+						{
+							MessageBox.Show(Lang.Get("msg.loadedLow"),
+											Lang.Get("msg.tip"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+						}
+						else
+						{
+							lblInfo.Text = Lang.Get("msg.loadedOk", currentImage.Width, currentImage.Height);
+						}
+
+						pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+						pictureBox1.Image = currentImage;
+
+						ClearUndo();
+						btnReload.Enabled = true;
+
+						ClearPublishFiles();
+						ExportStage("原始图片", currentImage);
 					}
-					else if (minSide < 600)
+					catch (Exception ex)
 					{
-						MessageBox.Show(Lang.Get("msg.loadedLow"),
-										Lang.Get("msg.tip"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+						tempImage?.Dispose();
+						newCurrent?.Dispose();
+						MessageBox.Show(Lang.Get("msg.loadFailed", ex.Message));
 					}
-					else
-					{
-						lblInfo.Text = Lang.Get("msg.loadedOk", currentImage.Width, currentImage.Height);
-					}
-
-					pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
-					pictureBox1.Image = currentImage;
-
-					ClearUndo();
-					btnReload.Enabled = true;
-
-					ClearPublishFiles();
-					ExportStage("原始图片", currentImage);
 				}
-				catch (Exception ex)
-				{
-					tempImage?.Dispose();
-					MessageBox.Show(Lang.Get("msg.loadFailed", ex.Message));
-				}
+			}
+			finally
+			{
+				_busy = false;
+			}
+		}
+
+		/// <summary>
+		/// 以共享读方式打开图片并克隆到内存，避免长期持有源文件锁。
+		/// </summary>
+		private static Bitmap LoadBitmapUnlocked(string path)
+		{
+			using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+			using (Bitmap tmp = new Bitmap(fs))
+			{
+				return (Bitmap)tmp.Clone();
 			}
 		}
 
 		private void BtnAutoCrop_Click(object sender, EventArgs e)
 		{
-			if (!Basic.CheckImage(currentImage, this)) return;
-
-			PushUndo();
-			settings = Assalg.LoadGenSettings();
-			int targetW = settings.DefaultSize switch
+			if (_busy) return;
+			_busy = true;
+			try
 			{
-				2 => Basic.TWO_INCH_W,
-				3 => Basic.PASSPORT_W,
-				_ => Basic.ONE_INCH_W,
-			};
-			int targetH = settings.DefaultSize switch
+				if (!Basic.CheckImage(currentImage, this)) return;
+
+				PushUndo();
+				settings = Assalg.LoadGenSettings();
+				int targetW = settings.DefaultSize switch
+				{
+					2 => Basic.TWO_INCH_W,
+					3 => Basic.PASSPORT_W,
+					_ => Basic.ONE_INCH_W,
+				};
+				int targetH = settings.DefaultSize switch
+				{
+					2 => Basic.TWO_INCH_H,
+					3 => Basic.PASSPORT_H,
+					_ => Basic.ONE_INCH_H,
+				};
+
+				lblInfo.Text = Lang.Get("msg.cropping");
+
+				this.Cursor = Cursors.WaitCursor;
+				try
+				{
+					Bitmap croppedImage = Prepalg.SmartCrop(currentImage, targetW, targetH);
+
+					currentImage.Dispose();
+					currentImage = croppedImage;
+				}
+				catch (Exception ex)
+				{
+					// 新图未生成时保留当前图，避免进入无效状态
+					MessageBox.Show(Lang.Get("msg.loadFailed", ex.Message));
+					return;
+				}
+				finally
+				{
+					this.Cursor = Cursors.Default;
+				}
+
+				ReleaseLayoutPaper();
+				pictureBox1.Image = currentImage;
+				pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+
+				string sizeName = settings.DefaultSize switch
+				{
+					2 => Lang.Get("size.two"),
+					3 => Lang.Get("size.passport"),
+					_ => Lang.Get("size.one"),
+				};
+				lblInfo.Text = Lang.Get("msg.cropped", sizeName, targetW, targetH);
+
+				ExportStage("智能裁剪", currentImage);
+			}
+			finally
 			{
-				2 => Basic.TWO_INCH_H,
-				3 => Basic.PASSPORT_H,
-				_ => Basic.ONE_INCH_H,
-			};
-
-			lblInfo.Text = Lang.Get("msg.cropping");
-			Application.DoEvents();
-
-			Bitmap croppedImage = Prepalg.SmartCrop(currentImage, targetW, targetH);
-
-			currentImage.Dispose();
-			currentImage = croppedImage;
-
-			ReleaseLayoutPaper();
-			pictureBox1.Image = currentImage;
-			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
-
-			string sizeName = settings.DefaultSize switch
-			{
-				2 => Lang.Get("size.two"),
-				3 => Lang.Get("size.passport"),
-				_ => Lang.Get("size.one"),
-			};
-			lblInfo.Text = Lang.Get("msg.cropped", sizeName, targetW, targetH);
-
-			ExportStage("智能裁剪", currentImage);
+				_busy = false;
+			}
 		}
 
 		private void BtnBlackWhite_Click(object sender, EventArgs e)
 		{
-			if (!Basic.CheckImage(currentImage, this)) return;
-
-			PushUndo();
-			this.Cursor = Cursors.WaitCursor;
+			if (_busy) return;
+			_busy = true;
 			try
 			{
-				Bitmap bwImage = Prepalg.ToGrayscale(currentImage);
-				currentImage.Dispose();
-				currentImage = bwImage;
+				if (!Basic.CheckImage(currentImage, this)) return;
+
+				PushUndo();
+				this.Cursor = Cursors.WaitCursor;
+				try
+				{
+					Bitmap bwImage = Prepalg.ToGrayscale(currentImage);
+					currentImage.Dispose();
+					currentImage = bwImage;
+				}
+				catch (Exception ex)
+				{
+					// 新图未生成时保留当前图，避免进入无效状态
+					MessageBox.Show(Lang.Get("msg.loadFailed", ex.Message));
+					return;
+				}
+				finally
+				{
+					this.Cursor = Cursors.Default;
+				}
+
+				ReleaseLayoutPaper();
+				pictureBox1.Image = currentImage;
+
+				lblInfo.Text = Lang.Get("msg.bwDone");
+
+				ExportStage("黑白", currentImage);
 			}
 			finally
 			{
-				this.Cursor = Cursors.Default;
+				_busy = false;
 			}
-
-			ReleaseLayoutPaper();
-			pictureBox1.Image = currentImage;
-
-			lblInfo.Text = Lang.Get("msg.bwDone");
-
-			ExportStage("黑白", currentImage);
 		}
 
 		private void BtnChangeBg_Click(object sender, EventArgs e)
 		{
-			if (!Basic.CheckImage(currentImage, this)) return;
-
-			PushUndo();
-			settings = Assalg.LoadGenSettings();
-
-			Color targetColor = Color.White;
-			switch (cmbBgColor.SelectedIndex)
-			{
-				case 0: targetColor = Color.FromArgb(65, 105, 225); break;   // 蓝色
-				case 1: targetColor = Color.FromArgb(220, 20, 60); break;    // 红色
-				case 3: targetColor = Color.Transparent; break;              // 透明
-				default: targetColor = Color.White; break;                   // 白色
-			}
-
-			lblInfo.Text = Lang.Get("msg.bgWorking");
-			Application.DoEvents();
-			this.Cursor = Cursors.WaitCursor;
+			if (_busy) return;
+			_busy = true;
 			try
 			{
-				int tolerance = TrackBar.Value;
-				Bitmap newImage = settings.AnimeMode
-					? Prepalg.ReplaceBackgroundAnime(currentImage, targetColor, tolerance, this)
-					: Prepalg.ReplaceBackground(currentImage, targetColor, tolerance, this);
+				if (!Basic.CheckImage(currentImage, this)) return;
 
-				currentImage.Dispose();
-				currentImage = newImage;
+				PushUndo();
+				settings = Assalg.LoadGenSettings();
+
+				Color targetColor = Color.White;
+				switch (cmbBgColor.SelectedIndex)
+				{
+					case 0: targetColor = Color.FromArgb(65, 105, 225); break;   // 蓝色
+					case 1: targetColor = Color.FromArgb(220, 20, 60); break;    // 红色
+					case 3: targetColor = Color.Transparent; break;              // 透明
+					default: targetColor = Color.White; break;                   // 白色
+				}
+
+				lblInfo.Text = Lang.Get("msg.bgWorking");
+				this.Cursor = Cursors.WaitCursor;
+				try
+				{
+					// 不传 parent：避免 Prepalg 内部 Application.DoEvents() 造成重入
+					int tolerance = TrackBar.Value;
+					Bitmap newImage = settings.AnimeMode
+						? Prepalg.ReplaceBackgroundAnime(currentImage, targetColor, tolerance)
+						: Prepalg.ReplaceBackground(currentImage, targetColor, tolerance);
+
+					currentImage.Dispose();
+					currentImage = newImage;
+				}
+				catch (Exception ex)
+				{
+					// 新图未生成时保留当前图，避免进入无效状态
+					MessageBox.Show(Lang.Get("msg.loadFailed", ex.Message));
+					return;
+				}
+				finally
+				{
+					this.Cursor = Cursors.Default;
+				}
+
+				ReleaseLayoutPaper();
+				pictureBox1.Image = currentImage;
+
+				lblInfo.Text = Lang.Get("msg.bgDone");
+
+				ExportStage("换底色", currentImage);
 			}
 			finally
 			{
-				this.Cursor = Cursors.Default;
+				_busy = false;
 			}
-
-			ReleaseLayoutPaper();
-			pictureBox1.Image = currentImage;
-
-			lblInfo.Text = Lang.Get("msg.bgDone");
-
-			ExportStage("换底色", currentImage);
 		}
 
 		private void BtnLayout_Click(object sender, EventArgs e)
 		{
-			if (!Basic.CheckImage(currentImage, this)) return;
-
-			settings = Assalg.LoadGenSettings();
-			int preset = cmbLayout.SelectedIndex >= 0 ? cmbLayout.SelectedIndex : settings.LayoutPreset;
-
-			int paperW, paperH;
-			switch (preset)
+			if (_busy) return;
+			_busy = true;
+			try
 			{
-				case 1: paperW = Basic.LAYOUT_6INCH_W; paperH = Basic.LAYOUT_6INCH_H; break;
-				case 2: paperW = Basic.LAYOUT_A4_W; paperH = Basic.LAYOUT_A4_H; break;
-				case 3: paperW = Basic.LAYOUT_A5_W; paperH = Basic.LAYOUT_A5_H; break;
-				case 4:
-					if (!TryGetCustomSize(out paperW, out paperH)) return;
-					settings.CustomLayoutW = paperW;
-					settings.CustomLayoutH = paperH;
-					break;
-				default: paperW = Basic.LAYOUT_5INCH_W; paperH = Basic.LAYOUT_5INCH_H; break;
+				if (!Basic.CheckImage(currentImage, this)) return;
+
+				settings = Assalg.LoadGenSettings();
+				int preset = cmbLayout.SelectedIndex >= 0 ? cmbLayout.SelectedIndex : settings.LayoutPreset;
+
+				int paperW, paperH;
+				switch (preset)
+				{
+					case 1: paperW = Basic.LAYOUT_6INCH_W; paperH = Basic.LAYOUT_6INCH_H; break;
+					case 2: paperW = Basic.LAYOUT_A4_W; paperH = Basic.LAYOUT_A4_H; break;
+					case 3: paperW = Basic.LAYOUT_A5_W; paperH = Basic.LAYOUT_A5_H; break;
+					case 4:
+						if (!TryGetCustomSize(out paperW, out paperH)) return;
+						settings.CustomLayoutW = paperW;
+						settings.CustomLayoutH = paperH;
+						break;
+					default: paperW = Basic.LAYOUT_5INCH_W; paperH = Basic.LAYOUT_5INCH_H; break;
+				}
+
+				settings.LayoutPreset = preset;
+				Assalg.SaveGenSettings(settings);
+
+				string layoutName = Lang.Get(new[]
+				{
+					"layout.preset5", "layout.preset6", "layout.presetA4", "layout.presetA5", "layout.custom"
+				}[preset]);
+				lblInfo.Text = Lang.Get("msg.layoutWorking", layoutName);
+
+				DoLayout(paperW, paperH);
 			}
-
-			settings.LayoutPreset = preset;
-			Assalg.SaveGenSettings(settings);
-
-			string layoutName = Lang.Get(new[]
+			finally
 			{
-				"layout.preset5", "layout.preset6", "layout.presetA4", "layout.presetA5", "layout.custom"
-			}[preset]);
-			lblInfo.Text = Lang.Get("msg.layoutWorking", layoutName);
-
-			DoLayout(paperW, paperH);
+				_busy = false;
+			}
 		}
 
 		/// <summary>
@@ -587,101 +683,118 @@ namespace fptp
 
 		private void BtnSave_Click(object sender, EventArgs e)
 		{
-			var toSave = (Bitmap)pictureBox1.Image;
-			if (!Basic.CheckImage(toSave, this)) return;
-
-			settings = Assalg.LoadGenSettings();
-
-			string ext = settings.SaveFormat;
-			string[] formats = { "jpg", "png", "bmp", "tiff", "gif" };
-			string[] formatKeys = { "fmt.jpg", "fmt.png", "fmt.bmp", "fmt.tiff", "fmt.gif" };
-
-			// 含透明像素的图片只能以 PNG 保存（JPEG/BMP/GIF 无 alpha）
-			bool hasAlpha = Assalg.HasAlpha(toSave);
-			if (hasAlpha && ext != "png")
+			if (_busy) return;
+			_busy = true;
+			try
 			{
-				ext = "png";
-				settings.SaveFormat = "png";
-				Assalg.SaveGenSettings(settings);
-			}
+				var toSave = (Bitmap)pictureBox1.Image;
+				if (!Basic.CheckImage(toSave, this)) return;
 
-			using (SaveFileDialog sfd = new SaveFileDialog())
-			{
-				// 构造格式过滤器：JPEG|*.jpg|PNG|*.png|...
-				string filter = string.Join("|", System.Linq.Enumerable.Range(0, formats.Length)
-					.Select(i => $"{Lang.Get(formatKeys[i])}|*.{formats[i]}"));
-				sfd.Filter = filter;
-				sfd.FileName = $"{Basic.AppName}_照片.{ext}";
-				sfd.FilterIndex = Math.Max(1, Array.IndexOf(formats, ext) + 1);
+				settings = Assalg.LoadGenSettings();
 
-				if (sfd.ShowDialog(this) == DialogResult.OK)
+				string ext = settings.SaveFormat;
+				string[] formats = { "jpg", "png", "bmp", "tiff", "gif" };
+				string[] formatKeys = { "fmt.jpg", "fmt.png", "fmt.bmp", "fmt.tiff", "fmt.gif" };
+
+				// 含透明像素的图片只能以 PNG 保存（JPEG/BMP/GIF 无 alpha）
+				bool hasAlpha = Assalg.HasAlpha(toSave);
+				if (hasAlpha && ext != "png")
 				{
-					try
-					{
-						this.Cursor = Cursors.WaitCursor;
+					ext = "png";
+					settings.SaveFormat = "png";
+					Assalg.SaveGenSettings(settings);
+				}
 
-						// 用户手动选了不支持透明的格式时强制回退 PNG
-						string chosenExt = Path.GetExtension(sfd.FileName).ToLower();
-						if (hasAlpha && chosenExt != ".png" && chosenExt != ".tiff")
+				using (SaveFileDialog sfd = new SaveFileDialog())
+				{
+					// 构造格式过滤器：JPEG|*.jpg|PNG|*.png|...
+					string filter = string.Join("|", System.Linq.Enumerable.Range(0, formats.Length)
+						.Select(i => $"{Lang.Get(formatKeys[i])}|*.{formats[i]}"));
+					sfd.Filter = filter;
+					sfd.FileName = $"{Basic.AppName}_照片.{ext}";
+					sfd.FilterIndex = Math.Max(1, Array.IndexOf(formats, ext) + 1);
+
+					if (sfd.ShowDialog(this) == DialogResult.OK)
+					{
+						try
 						{
-							sfd.FileName = Path.ChangeExtension(sfd.FileName, ".png");
-							MessageBox.Show(Lang.Get("msg.alphaPng"), Lang.Get("msg.tip"),
-								MessageBoxButtons.OK, MessageBoxIcon.Information);
+							this.Cursor = Cursors.WaitCursor;
+
+							// 用户手动选了不支持透明的格式时强制回退 PNG
+							string chosenExt = Path.GetExtension(sfd.FileName).ToLower();
+							if (hasAlpha && chosenExt != ".png" && chosenExt != ".tiff")
+							{
+								sfd.FileName = Path.ChangeExtension(sfd.FileName, ".png");
+								MessageBox.Show(Lang.Get("msg.alphaPng"), Lang.Get("msg.tip"),
+									MessageBoxButtons.OK, MessageBoxIcon.Information);
+							}
+
+							Assalg.SaveImage(toSave, sfd.FileName, settings.SaveQuality);
+
+							lblInfo.Text = Lang.Get("msg.saveOk");
+							MessageBox.Show(Lang.Get("msg.saved"), Lang.Get("msg.done"), MessageBoxButtons.OK, MessageBoxIcon.Information);
 						}
-
-						Assalg.SaveImage(toSave, sfd.FileName, settings.SaveQuality);
-
-						lblInfo.Text = Lang.Get("msg.saveOk");
-						MessageBox.Show(Lang.Get("msg.saved"), Lang.Get("msg.done"), MessageBoxButtons.OK, MessageBoxIcon.Information);
-					}
-					catch (Exception ex)
-					{
-						MessageBox.Show(Lang.Get("msg.saveFailed", ex.Message));
-					}
-					finally
-					{
-						this.Cursor = Cursors.Default;
+						catch (Exception ex)
+						{
+							MessageBox.Show(Lang.Get("msg.saveFailed", ex.Message));
+						}
+						finally
+						{
+							this.Cursor = Cursors.Default;
+						}
 					}
 				}
+			}
+			finally
+			{
+				_busy = false;
 			}
 		}
 
 		private void BtnPrint_Click(object sender, EventArgs e)
 		{
-			Image toPrint = pictureBox1.Image;
-			if (!Basic.CheckImage((Bitmap)toPrint, this)) return;
-
+			if (_busy) return;
+			_busy = true;
 			try
 			{
-				using (PrintDocument pd = new PrintDocument())
-				using (PrintDialog dlg = new PrintDialog())
+				Image toPrint = pictureBox1.Image;
+				if (!Basic.CheckImage((Bitmap)toPrint, this)) return;
+
+				try
 				{
-					dlg.Document = pd;
-					if (dlg.ShowDialog(this) != DialogResult.OK) return;
-
-					pd.PrintPage += (s, ev) =>
+					using (PrintDocument pd = new PrintDocument())
+					using (PrintDialog dlg = new PrintDialog())
 					{
-						// 按页面可打印区域等比缩放，居中打印
-						RectangleF bounds = ev.MarginBounds;
-						float scale = Math.Min(bounds.Width / toPrint.Width, bounds.Height / toPrint.Height);
-						int w = (int)(toPrint.Width * scale);
-						int h = (int)(toPrint.Height * scale);
-						int x = (int)(bounds.X + (bounds.Width - w) / 2);
-						int y = (int)(bounds.Y + (bounds.Height - h) / 2);
-						ev.Graphics.DrawImage(toPrint, x, y, w, h);
-						ev.HasMorePages = false;
-					};
+						dlg.Document = pd;
+						if (dlg.ShowDialog(this) != DialogResult.OK) return;
 
-					lblInfo.Text = Lang.Get("msg.printing");
-					Application.DoEvents();
-					pd.Print();
-					lblInfo.Text = Lang.Get("msg.printOk");
+						pd.PrintPage += (s, ev) =>
+						{
+							// 按页面可打印区域等比缩放，居中打印
+							RectangleF bounds = ev.MarginBounds;
+							float scale = Math.Min(bounds.Width / toPrint.Width, bounds.Height / toPrint.Height);
+							int w = (int)(toPrint.Width * scale);
+							int h = (int)(toPrint.Height * scale);
+							int x = (int)(bounds.X + (bounds.Width - w) / 2);
+							int y = (int)(bounds.Y + (bounds.Height - h) / 2);
+							ev.Graphics.DrawImage(toPrint, x, y, w, h);
+							ev.HasMorePages = false;
+						};
+
+						lblInfo.Text = Lang.Get("msg.printing");
+						pd.Print();
+						lblInfo.Text = Lang.Get("msg.printOk");
+					}
+				}
+				catch (Exception ex)
+				{
+					MessageBox.Show(Lang.Get("msg.printFailed", ex.Message), Lang.Get("msg.error"),
+						MessageBoxButtons.OK, MessageBoxIcon.Error);
 				}
 			}
-			catch (Exception ex)
+			finally
 			{
-				MessageBox.Show(Lang.Get("msg.printFailed", ex.Message), Lang.Get("msg.error"),
-					MessageBoxButtons.OK, MessageBoxIcon.Error);
+				_busy = false;
 			}
 		}
 
@@ -692,6 +805,8 @@ namespace fptp
 			{
 				if (dialog.ShowDialog(this) == DialogResult.OK)
 				{
+					// 快捷键可能已在设置中修改，失效缓存以便下次按键重新加载
+					cachedKeySettings = null;
 					settings = dialog.Result;
 					Assalg.SaveGenSettings(settings);
 					appSettings = dialog.AppResult;
@@ -716,27 +831,36 @@ namespace fptp
 
 		private void BtnUnload_Click(object sender, EventArgs e)
 		{
-			if (pictureBox1.Image != null && pictureBox1.Image != currentImage)
-				pictureBox1.Image.Dispose();
-
-			pictureBox1.Image = null;
-
-			if (currentImage != null)
+			if (_busy) return;
+			_busy = true;
+			try
 			{
-				currentImage.Dispose();
-				currentImage = null;
-			}
+				if (pictureBox1.Image != null && pictureBox1.Image != currentImage)
+					pictureBox1.Image.Dispose();
 
-			if (sourceImage != null)
+				pictureBox1.Image = null;
+
+				if (currentImage != null)
+				{
+					currentImage.Dispose();
+					currentImage = null;
+				}
+
+				if (sourceImage != null)
+				{
+					sourceImage.Dispose();
+					sourceImage = null;
+				}
+
+				ClearUndo();
+				ClearPublishFiles();
+				btnReload.Enabled = false;
+				lblInfo.Text = Lang.Get("msg.unloaded");
+			}
+			finally
 			{
-				sourceImage.Dispose();
-				sourceImage = null;
+				_busy = false;
 			}
-
-			ClearUndo();
-			ClearPublishFiles();
-			btnReload.Enabled = false;
-			lblInfo.Text = Lang.Get("msg.unloaded");
 		}
 
 		private void Form1_Load_1(object sender, EventArgs e)
@@ -804,34 +928,52 @@ namespace fptp
 
 		private void BtnUndo_Click(object sender, EventArgs e)
 		{
-			if (undoStack.Count == 0 || currentImage == null) return;
+			if (_busy) return;
+			_busy = true;
+			try
+			{
+				if (undoStack.Count == 0 || currentImage == null) return;
 
-			currentImage.Dispose();
-			currentImage = undoStack.Pop();
+				currentImage.Dispose();
+				currentImage = undoStack.Pop();
 
-			ReleaseLayoutPaper();
-			pictureBox1.Image = currentImage;
-			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
-			btnUndo.Enabled = undoStack.Count > 0;
+				ReleaseLayoutPaper();
+				pictureBox1.Image = currentImage;
+				pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+				btnUndo.Enabled = undoStack.Count > 0;
 
-			lblInfo.Text = Lang.Get("msg.undoDone");
+				lblInfo.Text = Lang.Get("msg.undoDone");
+			}
+			finally
+			{
+				_busy = false;
+			}
 		}
 
 		private void BtnReload_Click(object sender, EventArgs e)
 		{
-			if (sourceImage == null) return;
+			if (_busy) return;
+			_busy = true;
+			try
+			{
+				if (sourceImage == null) return;
 
-			ClearUndo();
+				ClearUndo();
 
-			currentImage?.Dispose();
-			currentImage = (Bitmap)sourceImage.Clone();
-			ReleaseLayoutPaper();
-			pictureBox1.Image = currentImage;
-			pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+				currentImage?.Dispose();
+				currentImage = (Bitmap)sourceImage.Clone();
+				ReleaseLayoutPaper();
+				pictureBox1.Image = currentImage;
+				pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 
-			ClearPublishFiles();
-			ExportStage("原始图片", currentImage);
-			lblInfo.Text = Lang.Get("msg.reloadDone");
+				ClearPublishFiles();
+				ExportStage("原始图片", currentImage);
+				lblInfo.Text = Lang.Get("msg.reloadDone");
+			}
+			finally
+			{
+				_busy = false;
+			}
 		}
 
 		// ── 文件夹批处理 ──
@@ -879,7 +1021,16 @@ namespace fptp
 		{
 			if (!Directory.Exists(PublishDir)) return;
 			foreach (string f in Directory.GetFiles(PublishDir, "*.jpg"))
-				File.Delete(f);
+			{
+				try
+				{
+					File.Delete(f);
+				}
+				catch
+				{
+					// 文件被占用时跳过，不影响主流程
+				}
+			}
 		}
 
 		private void ExportStage(string name, Bitmap image)

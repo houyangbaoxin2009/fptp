@@ -20,11 +20,15 @@ namespace fptp
 		/// <summary>防止加载时误触发主题切换的守卫。</summary>
 		private bool _applyingUi;
 
+		/// <summary>打开对话框时的原始主题 id，取消时用于回滚主题（含磁盘写入）。</summary>
+		private readonly string _originalThemeId;
+
 		public GenSettingsBox(GenSettings current)
 		{
 			InitializeComponent();
 			Result = current;
 			AppResult = Assalg.LoadAppSettings();
+			_originalThemeId = AppResult.ThemeId;
 		}
 
 		private void SettingsBox_Load(object sender, EventArgs e)
@@ -83,13 +87,12 @@ namespace fptp
 			_applyingUi = true;
 			try
 			{
-				int sel = cmbTheme.SelectedIndex >= 0 && cmbTheme.SelectedIndex < _themeList.Count
-					? cmbTheme.SelectedIndex
-					: _themeList.FindIndex(x => x.Id == Theme.CurrentId);
+				// 先重建列表再计算选中项，避免用旧列表计算导致首次加载永远选中第一项
 				_themeList = Theme.AvailableThemes();
 				cmbTheme.Items.Clear();
 				foreach (ThemeCon theme in _themeList)
 					cmbTheme.Items.Add(theme.Name);
+				int sel = _themeList.FindIndex(x => x.Id == Theme.CurrentId);
 				cmbTheme.SelectedIndex = sel >= 0 ? sel : 0;
 			}
 			finally
@@ -103,13 +106,12 @@ namespace fptp
 		/// </summary>
 		private void ReloadLanguages()
 		{
-			int sel = cmbLang.SelectedIndex >= 0 && cmbLang.SelectedIndex < _langList.Count
-				? cmbLang.SelectedIndex
-				: _langList.FindIndex(x => x.Id == AppResult.Language);
+			// 先重建列表再计算选中项，避免用旧列表计算导致首次加载永远选中第一项
 			_langList = Lang.AvailableLanguages();
 			cmbLang.Items.Clear();
 			foreach (LangCon lang in _langList)
 				cmbLang.Items.Add(lang.Name);
+			int sel = _langList.FindIndex(x => x.Id == AppResult.Language);
 			cmbLang.SelectedIndex = sel >= 0 ? sel : 0;
 		}
 
@@ -176,8 +178,9 @@ namespace fptp
 			};
 			cmbSize.SelectedIndex = sizeIdx;
 			cmbBgColor.SelectedIndex = ColorIndexFromStored(Result.BackgroundColor);
-			trackBar.Value = Result.Tolerance;
-			lblToleranceVal.Text = Result.Tolerance.ToString();
+			// 防御性钳制：即使容差范围将来变化，非法导入值也不会让 trackBar 赋值崩溃
+			trackBar.Value = Math.Max(trackBar.Minimum, Math.Min(trackBar.Maximum, Result.Tolerance));
+			lblToleranceVal.Text = trackBar.Value.ToString();
 
 			chkAllowExternal.Checked = AppResult.Privacy.AllowExternalAccess;
 			ReloadTempMode();
@@ -279,6 +282,17 @@ namespace fptp
 				try
 				{
 					string json = File.ReadAllText(ofd.FileName);
+					// 空对象 {} 会反序列化为非 null 的默认包，先拦截，避免静默重置全部设置为默认值
+					using (JsonDocument doc = JsonDocument.Parse(json))
+					{
+						if (doc.RootElement.ValueKind == JsonValueKind.Object
+							&& !doc.RootElement.EnumerateObject().MoveNext())
+						{
+							MessageBox.Show(Lang.Get("msg.loadFailed", "invalid json"), Lang.Get("msg.error"),
+								MessageBoxButtons.OK, MessageBoxIcon.Error);
+							return;
+						}
+					}
 					var pkg = SettingsPackage.FromJson(json);
 					if (pkg == null || pkg.Gen == null || pkg.App == null)
 					{
@@ -286,6 +300,15 @@ namespace fptp
 							MessageBoxButtons.OK, MessageBoxIcon.Error);
 						return;
 					}
+					// 容差等数值/枚举字段统一钳制到合法范围，坏文件不会让控件赋值崩溃
+					Assalg.SanitizeGenSettings(pkg.Gen);
+					// AppSettings 无公开清洗方法，此处内联兜底：null 与非法值回退默认
+					pkg.App ??= new AppSettings();
+					pkg.App.Privacy ??= new PrivacySettings();
+					if (string.IsNullOrEmpty(pkg.App.Language)) pkg.App.Language = "zh-CN";
+					if (string.IsNullOrEmpty(pkg.App.ThemeId)) pkg.App.ThemeId = "green";
+					if (pkg.App.TempImageMode != "memory" && pkg.App.TempImageMode != "disk")
+						pkg.App.TempImageMode = "memory";
 					Result = pkg.Gen;
 					AppResult = pkg.App;
 					ApplyLang();
@@ -488,6 +511,8 @@ namespace fptp
 			ThemeCon con = _themeList[cmbTheme.SelectedIndex];
 			// 记忆当前选择（内置 id 或自定义主题 id）
 			Theme.SetCurrent(con.Id);
+			// 同步到 AppResult，避免 OK 保存时用旧值覆盖磁盘上的主题
+			AppResult.ThemeId = con.Id;
 			Theme.Init();
 			Theme.Apply(this);
 		}
@@ -618,6 +643,13 @@ namespace fptp
 
 		private void btnCancel_Click(object sender, EventArgs e)
 		{
+			// 取消时回滚主题：Theme.SetCurrent 在切换时已写入磁盘，需恢复原始主题（预览与磁盘一并还原）
+			if (Theme.CurrentId != _originalThemeId)
+			{
+				Theme.SetCurrent(_originalThemeId);
+				Theme.Init();
+				Theme.Apply(this);
+			}
 			DialogResult = DialogResult.Cancel;
 			Close();
 		}

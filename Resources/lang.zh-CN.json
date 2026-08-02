@@ -211,5 +211,12 @@
   "cli.invalidTolerance": "Error: 缺少有效 -t/--tolerance 参数 (0-150)",
   "cli.unknownColor": "Error: 未知颜色 '{0}'。可用: white blue red 等",
   "cli.cropFailed": "Error: 裁剪失败",
-  "cli.unknownLang": "未知语言: {0}。可用: zh-CN en-US"
+  "cli.unknownLang": "未知语言: {0}。可用: zh-CN en-US",
+  "cli.unknownLanguage": "Error: 未知语言 '{0}'。可用: zh-CN en-US",
+  "cli.invalidSize": "Error: 无效尺寸。可用: 1 (一寸) 2 (二寸)",
+  "cli.invalidLayout": "Error: 缺少有效 -l/--layout 参数 (0-4)",
+  "cli.unknownOption": "Error: 未知选项 '{0}'",
+  "cli.missingLangValue": "Error: --lang 缺少值。可用: zh-CN en-US",
+  "cli.missingSizeValue": "Error: -s/--size 缺少值。可用: 1 (一寸) 2 (二寸)",
+  "cli.mixedArgs": "Error: 无效参数 '{0}'。旧版参数模式不能与子命令混用"
 }

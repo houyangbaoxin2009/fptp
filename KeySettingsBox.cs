@@ -22,6 +22,7 @@ namespace fptp
 		public KeySettingsBox()
 		{
 			InitializeComponent();
+			Theme.Apply(this); // 应用主题，避免深色/自定义主题下对话框保持默认浅色
 			KeyPreview = true;
 			current = new Dictionary<string, string>(Assalg.LoadKeySettings().Actions);
 			ApplyLang();
@@ -66,6 +67,8 @@ namespace fptp
 					key == Keys.PageUp || key == Keys.PageDown || key == Keys.Home || key == Keys.End ||
 					key == Keys.Tab || key == Keys.Escape || key == Keys.Enter)
 					return base.ProcessCmdKey(ref msg, keyData);
+				// 无修饰键的普通按键不录制，防止误把单键绑定成快捷键
+				return base.ProcessCmdKey(ref msg, keyData);
 			}
 
 			string combo = KeySettings.FormatKeys(keyData);
@@ -74,6 +77,16 @@ namespace fptp
 				DataGridViewRow row = dgvKeys.SelectedRows[0];
 				if (row.Tag is string action)
 				{
+					// 组合键已被其他动作占用时提示并放弃覆盖（等于当前动作自身绑定则放行，无副作用）
+					foreach (var kv in current)
+					{
+						if (kv.Key != action && kv.Value == combo)
+						{
+							MessageBox.Show(this, Lang.Get("key.hint"), Lang.Get("msg.tip"),
+								MessageBoxButtons.OK, MessageBoxIcon.Warning);
+							return true;
+						}
+					}
 					current[action] = combo;
 					row.Cells[1].Value = combo;
 					return true;

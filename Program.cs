@@ -32,7 +32,24 @@ namespace fptp
 
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
+			// 未处理异常兜底：任何 UI 线程 / 非 UI 线程异常都弹窗提示，绝不无声崩溃
+			Application.ThreadException += (s, ex) => ShowFatal(ex.Exception);
+			AppDomain.CurrentDomain.UnhandledException += (s, ex) => ShowFatal(ex.ExceptionObject as Exception);
+			Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 			Application.Run(new mainBox());
+		}
+
+		/// <summary>未处理异常兜底：尽量弹窗提示错误，内部自兜底避免崩溃循环。</summary>
+		private static void ShowFatal(Exception ex)
+		{
+			try
+			{
+				MessageBox.Show(ex?.Message ?? "Unknown error", Lang.Get("msg.error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+			}
+			catch
+			{
+				// 弹窗本身失败也绝不再次抛出（防止崩溃循环）
+			}
 		}
 
 		/// <summary>
@@ -41,6 +58,9 @@ namespace fptp
 		/// </summary>
 		static int RunCommandMode(string[] args)
 		{
+			// 先加载默认语言，保证 --lang 解析过程中的错误提示也能正常翻译（后续再按 --lang 切换）
+			Lang.Load("zh-CN");
+
 			// ── 语言参数（全局，任意位置）── 先剔除 --lang 及其值，避免干扰后续分支判断
 			string langCode = "";
 			var filtered = new List<string>();
@@ -48,11 +68,16 @@ namespace fptp
 			{
 				if (string.Equals(args[i], "--lang", StringComparison.OrdinalIgnoreCase))
 				{
-					// 下一个 token 是值（非 - 开头）则跳过；否则视为缺值
+					// 下一个 token 是值（非 - 开头）则跳过；否则视为缺值并报错
 					if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
 					{
 						langCode = args[i + 1];
 						i++;
+					}
+					else
+					{
+						Console.WriteLine(Lang.Get("cli.missingLangValue"));
+						return 1;
 					}
 					continue;
 				}
@@ -62,10 +87,11 @@ namespace fptp
 
 			if (langCode != "" && langCode != "zh-CN" && langCode != "en-US")
 			{
-				Console.WriteLine("Error: unknown language. Available: zh-CN en-US");
+				Console.WriteLine(Lang.Get("cli.unknownLanguage", langCode));
 				return 1;
 			}
-			Lang.Load(langCode == "" ? "zh-CN" : langCode);
+			if (langCode != "")
+				Lang.Load(langCode);
 
 			// ── 子命令模式 ──
 			if (args.Length > 0 && !args[0].StartsWith("-"))
@@ -80,7 +106,29 @@ namespace fptp
 
 			string inputPath = ParseArgValue(args, "-i", "--input") ?? "";
 			string outputPath = ParseArgValue(args, "-o", "--output") ?? "";
-			string sizeType = ParseArgValue(args, "-s", "--size") ?? "1";
+			string sizeType = "1";
+			if (HasArg(args, "-s", "--size"))
+			{
+				string sv = ParseArgValue(args, "-s", "--size");
+				if (sv == null)
+				{
+					Console.WriteLine(Lang.Get("cli.missingSizeValue"));
+					return 1;
+				}
+				sizeType = sv;
+			}
+
+			// 旧版模式不允许未知选项或子命令混用：非 - 开头的 token（如子命令名）一律报错
+			foreach (string arg in args)
+			{
+				if (!arg.StartsWith("-"))
+				{
+					Console.WriteLine(Lang.Get("cli.mixedArgs", arg));
+					return 1;
+				}
+			}
+			if (!CheckUnknownOptions(args, new[] { "-i", "--input", "-o", "--output", "-s", "--size", "-v", "--version" }))
+				return 1;
 
 			if (string.IsNullOrEmpty(inputPath) || string.IsNullOrEmpty(outputPath))
 			{
@@ -90,13 +138,13 @@ namespace fptp
 
 			if (sizeType != "1" && sizeType != "2")
 			{
-				Console.WriteLine("Error: invalid size. Available: 1 (one inch) 2 (two inch)");
+				Console.WriteLine(Lang.Get("cli.invalidSize"));
 				return 1;
 			}
 
 			try
 			{
-				using (Bitmap source = new Bitmap(inputPath))
+				using (Bitmap source = LoadBitmapUnlocked(inputPath))
 				{
 					int targetW, targetH;
 					if (sizeType == "2")
@@ -187,6 +235,10 @@ namespace fptp
 
 		static int RunBasicCommand(string command, string[] args)
 		{
+			// info / version 不接受任何参数
+			if (!CheckUnknownOptions(args, new string[0]))
+				return 1;
+
 			switch (command)
 			{
 				case "info":
@@ -239,6 +291,9 @@ namespace fptp
 
 		static int RunPrepBatch(string[] args)
 		{
+			if (!CheckUnknownOptions(args, new[] { "-i", "--input", "-o", "--output", "-c", "--color", "-t", "--tolerance", "-l", "--layout", "-a", "--anime", "--preset" }))
+				return 1;
+
 			string inputDir = ParseArgValue(args, "-i", "--input") ?? "";
 			string outputDir = ParseArgValue(args, "-o", "--output") ?? "";
 
@@ -276,12 +331,27 @@ namespace fptp
 				}
 			}
 
-			if (TryParseInt(ParseArgValue(args, "-t", "--tolerance"), out int t) && t >= 0 && t <= 150)
+			// -t/--tolerance 与 -l/--layout：若选项出现但缺值或越界，严格报错退出（不再静默忽略）
+			if (HasArg(args, "-t", "--tolerance"))
+			{
+				if (!TryParseInt(ParseArgValue(args, "-t", "--tolerance"), out int t) || t < 0 || t > 150)
+				{
+					Console.WriteLine(Lang.Get("cli.invalidTolerance"));
+					return 1;
+				}
 				gen.Tolerance = t;
-			if (HasFlag(args, "-a", "--anime"))
+			}
+			if (HasArg(args, "-a", "--anime"))
 				gen.AnimeMode = true;
-			if (TryParseInt(ParseArgValue(args, "-l", "--layout"), out int l) && l >= 0 && l <= 4)
+			if (HasArg(args, "-l", "--layout"))
+			{
+				if (!TryParseInt(ParseArgValue(args, "-l", "--layout"), out int l) || l < 0 || l > 4)
+				{
+					Console.WriteLine(Lang.Get("cli.invalidLayout"));
+					return 1;
+				}
 				gen.LayoutPreset = l;
+			}
 			string colorName = ParseArgValue(args, "-c", "--color") ?? "";
 			if (!string.IsNullOrEmpty(colorName))
 			{
@@ -341,7 +411,7 @@ namespace fptp
 				// 单张失败不中断整批（损坏/被占用图片跳过，其余继续）
 				try
 				{
-					using (Bitmap source = new Bitmap(f))
+					using (Bitmap source = LoadBitmapUnlocked(f))
 					{
 						Bitmap cur = (Bitmap)source.Clone();
 						try
@@ -422,6 +492,9 @@ namespace fptp
 
 		static int RunPrepCrop(string[] args)
 		{
+			if (!CheckUnknownOptions(args, new[] { "-i", "--input", "-o", "--output", "-w", "--width", "-h", "--height" }))
+				return 1;
+
 			string inputPath = ParseArgValue(args, "-i", "--input") ?? "";
 			string outputPath = ParseArgValue(args, "-o", "--output") ?? "";
 
@@ -445,7 +518,7 @@ namespace fptp
 
 			try
 			{
-				using (Bitmap source = new Bitmap(inputPath))
+				using (Bitmap source = LoadBitmapUnlocked(inputPath))
 				using (Bitmap result = Prepalg.SmartCrop(source, width, height))
 				{
 					if (result == null) { Console.WriteLine(Lang.Get("cli.cropFailed")); return 1; }
@@ -463,6 +536,9 @@ namespace fptp
 
 		static int RunPrepGrayscale(string[] args)
 		{
+			if (!CheckUnknownOptions(args, new[] { "-i", "--input", "-o", "--output" }))
+				return 1;
+
 			string inputPath = ParseArgValue(args, "-i", "--input") ?? "";
 			string outputPath = ParseArgValue(args, "-o", "--output") ?? "";
 
@@ -474,7 +550,7 @@ namespace fptp
 
 			try
 			{
-				using (Bitmap source = new Bitmap(inputPath))
+				using (Bitmap source = LoadBitmapUnlocked(inputPath))
 				using (Bitmap result = Prepalg.ToGrayscale(source))
 				{
 					Assalg.SaveImage(result, outputPath);
@@ -491,6 +567,9 @@ namespace fptp
 
 		static int RunPrepBgColor(string[] args)
 		{
+			if (!CheckUnknownOptions(args, new[] { "-i", "--input", "-o", "--output", "-c", "--color", "-t", "--tolerance", "-a", "--anime" }))
+				return 1;
+
 			string inputPath = ParseArgValue(args, "-i", "--input") ?? "";
 			string outputPath = ParseArgValue(args, "-o", "--output") ?? "";
 			string colorName = ParseArgValue(args, "-c", "--color") ?? "white";
@@ -525,7 +604,7 @@ namespace fptp
 
 			try
 			{
-				using (Bitmap source = new Bitmap(inputPath))
+				using (Bitmap source = LoadBitmapUnlocked(inputPath))
 				using (Bitmap result = anime
 					? Prepalg.ReplaceBackgroundAnime(source, bgColor, tolerance)
 					: Prepalg.ReplaceBackground(source, bgColor, tolerance))
@@ -572,6 +651,9 @@ namespace fptp
 		/// </summary>
 		static int RunAssWorking(string[] args)
 		{
+			if (!CheckUnknownOptions(args, new[] { "-o", "--output" }))
+				return 1;
+
 			string outputPath = ParseArgValue(args, "-o", "--output") ?? "";
 			string exeDir = Path.GetDirectoryName(Application.ExecutablePath) ?? ".";
 			string publishDir = Path.Combine(exeDir, "publish");
@@ -628,6 +710,9 @@ namespace fptp
 
 		static int RunAssSave(string[] args)
 		{
+			if (!CheckUnknownOptions(args, new[] { "-i", "--input", "-o", "--output" }))
+				return 1;
+
 			string inputPath = ParseArgValue(args, "-i", "--input") ?? "";
 			string outputPath = ParseArgValue(args, "-o", "--output") ?? "";
 
@@ -639,7 +724,7 @@ namespace fptp
 
 			try
 			{
-				using (Bitmap source = new Bitmap(inputPath))
+				using (Bitmap source = LoadBitmapUnlocked(inputPath))
 				{
 					Assalg.SaveImage(source, outputPath);
 				}
@@ -655,6 +740,9 @@ namespace fptp
 
 		static int RunAssCheckRes(string[] args)
 		{
+			if (!CheckUnknownOptions(args, new[] { "-i", "--input", "-w", "--width", "-h", "--height" }))
+				return 1;
+
 			string inputPath = ParseArgValue(args, "-i", "--input") ?? "";
 
 			if (string.IsNullOrEmpty(inputPath))
@@ -677,12 +765,12 @@ namespace fptp
 
 			try
 			{
-				using (Bitmap source = new Bitmap(inputPath))
+				using (Bitmap source = LoadBitmapUnlocked(inputPath))
 				{
 					bool ok = Assalg.CheckResolution(source, minW, minH);
 					Console.WriteLine(JsonSerializer.Serialize(new
 					{
-						success = true,
+						success = ok,
 						meetsRequirement = ok,
 						imageWidth = source.Width,
 						imageHeight = source.Height,
@@ -701,6 +789,10 @@ namespace fptp
 
 		static int RunAssSettings(string[] args)
 		{
+			// settings 不接受任何参数
+			if (!CheckUnknownOptions(args, new string[0]))
+				return 1;
+
 			try
 			{
 				GenSettings settings = Assalg.LoadGenSettings();
@@ -735,6 +827,50 @@ namespace fptp
 					return true;
 			}
 			return false;
+		}
+
+		/// <summary>
+		/// 判断参数列表中是否出现指定选项（-x / --xx 均可）。
+		/// 与 HasFlag 相同，用于区分「选项完全未出现」与「选项出现但缺值」（后者 ParseArgValue 也返回 null）。
+		/// </summary>
+		private static bool HasArg(string[] args, string shortName, string longName)
+		{
+			return HasFlag(args, shortName, longName);
+		}
+
+		/// <summary>
+		/// 校验参数列表中是否存在白名单之外的未知选项（- 开头的 token）。
+		/// 遇到未知选项时打印错误并返回 false。
+		/// </summary>
+		private static bool CheckUnknownOptions(string[] args, string[] allowedFlags)
+		{
+			foreach (string arg in args)
+			{
+				if (!arg.StartsWith("-")) continue;   // 值 token，跳过
+				bool known = false;
+				foreach (string allowed in allowedFlags)
+				{
+					if (string.Equals(arg, allowed, StringComparison.OrdinalIgnoreCase))
+					{
+						known = true;
+						break;
+					}
+				}
+				if (!known)
+				{
+					Console.WriteLine(Lang.Get("cli.unknownOption", arg));
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/// 以可共享读取方式加载位图并克隆到内存，立即释放文件锁，支持 in-place 保存（输出=输入）。
+		private static Bitmap LoadBitmapUnlocked(string path)
+		{
+			using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+			using (Bitmap tmp = new Bitmap(fs))
+				return (Bitmap)tmp.Clone();
 		}
 
 		/// <summary>解析 -k value 或 --key value 参数值。</summary>

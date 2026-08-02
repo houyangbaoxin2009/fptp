@@ -344,6 +344,20 @@ namespace fptp
 					break;
 				case ComboBox cmb:
 					cmb.FlatStyle = FlatStyle.Flat;
+					// 原生下拉列表本身无法主题化（需自绘），设置闭合控件颜色至少覆盖显示区域
+					cmb.BackColor = PanelBg;
+					cmb.ForeColor = TextColor;
+					break;
+				case DataGridView dgv:
+					dgv.BackgroundColor = WindowBg;
+					dgv.GridColor = Border;
+					dgv.BorderStyle = BorderStyle.None;
+					dgv.EnableHeadersVisualStyles = false; // 让下方表头配色生效
+					dgv.ColumnHeadersDefaultCellStyle.BackColor = WindowBg;
+					dgv.ColumnHeadersDefaultCellStyle.ForeColor = SubText;
+					dgv.RowsDefaultCellStyle.BackColor = PanelBg;
+					dgv.RowsDefaultCellStyle.ForeColor = TextColor;
+					dgv.DefaultCellStyle.SelectionBackColor = Accent;
 					break;
 			}
 		}

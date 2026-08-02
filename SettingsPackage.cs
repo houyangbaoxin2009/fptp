@@ -156,7 +156,8 @@ namespace fptp
 
 		public static SettingsPackage? FromJson(string json)
 		{
-			return JsonSerializer.Deserialize<SettingsPackage>(json);
+			return JsonSerializer.Deserialize<SettingsPackage>(json,
+				new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 		}
 	}
 }

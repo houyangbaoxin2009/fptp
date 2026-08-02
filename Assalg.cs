@@ -267,7 +267,7 @@ namespace fptp
 			if (string.IsNullOrEmpty(g.BackgroundColor) ||
 				(g.BackgroundColor != "白色" && g.BackgroundColor != "蓝色" && g.BackgroundColor != "红色" && g.BackgroundColor != "透明"))
 				g.BackgroundColor = "蓝色";
-			g.Tolerance = Math.Max(0, Math.Min(100, g.Tolerance));
+			g.Tolerance = Math.Max(0, Math.Min(150, g.Tolerance));
 			g.LayoutPreset = Math.Max(0, Math.Min(4, g.LayoutPreset));
 			g.CustomLayoutW = Math.Max(100, Math.Min(10000, g.CustomLayoutW));
 			g.CustomLayoutH = Math.Max(100, Math.Min(10000, g.CustomLayoutH));
@@ -282,7 +282,7 @@ namespace fptp
 				if (string.IsNullOrEmpty(p.BackgroundColor) ||
 					(p.BackgroundColor != "白色" && p.BackgroundColor != "蓝色" && p.BackgroundColor != "红色" && p.BackgroundColor != "透明"))
 					p.BackgroundColor = "蓝色";
-				p.Tolerance = Math.Max(0, Math.Min(100, p.Tolerance));
+				p.Tolerance = Math.Max(0, Math.Min(150, p.Tolerance));
 				p.LayoutPreset = Math.Max(0, Math.Min(4, p.LayoutPreset));
 				if (string.IsNullOrEmpty(p.SaveFormat))
 					p.SaveFormat = "jpg";
@@ -335,7 +335,8 @@ namespace fptp
 			catch (Exception ex)
 			{
 				if (showError)
-					MessageBox.Show($"保存设置失败：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+					MessageBox.Show(Lang.Get("msg.saveFailed", ex.Message), Lang.Get("msg.error"),
+						MessageBoxButtons.OK, MessageBoxIcon.Error);
 			}
 		}
 
