@@ -16,8 +16,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "0.1.0";
-        public string MinHostVersion => "2.0.0";
+        public string Version => "2.0.0.0";
+        public string MinHostVersion => "2.0.0.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[] { _grayscale };
 
