@@ -124,24 +124,15 @@ namespace fptp
 
 			string[] colors = { "蓝色", "红色", "白色", "透明" };
 			string[] colorKeys = { "color.blue", "color.red", "color.white", "color.transparent" };
-			string selColor = cmbBgColor.Text;
 			cmbBgColor.Items.Clear();
 			for (int i = 0; i < colors.Length; i++)
 				cmbBgColor.Items.Add(Lang.Get(colorKeys[i]));
-			cmbBgColor.Text = TranslateSetting(selColor, colors, colorKeys);
+			// 用存储值恢复选中索引，而非按显示文本猜测：文本在语言切换瞬间可能还是旧语言，
+			// TranslateSetting 反查失败会导致 SelectedIndex=-1，随后保存底色静默变白
+			cmbBgColor.SelectedIndex = ColorIndexFromStored(settings.BackgroundColor);
 
 			ReloadLayoutPresets();
 			ReloadPresetList();
-		}
-
-		/// <summary>
-		/// 将设置中存储的默认值翻译为当前语言的显示文本。
-		/// </summary>
-		private static string TranslateSetting(string stored, string[] zhValues, string[] keys)
-		{
-			for (int i = 0; i < zhValues.Length; i++)
-				if (stored == zhValues[i]) return Lang.Get(keys[i]);
-			return stored;
 		}
 
 		/// <summary>
@@ -177,7 +168,10 @@ namespace fptp
 			int sel = settings.CurrentPreset;
 			cmbPreset.Items.Clear();
 			foreach (PresetProfile p in settings.Presets)
+			{
+				if (p == null) continue;   // 防御手改 setting.json 写入的 null 元素
 				cmbPreset.Items.Add(p.Name);
+			}
 			if (sel >= 0 && sel < cmbPreset.Items.Count)
 				cmbPreset.SelectedIndex = sel;
 			else
@@ -340,10 +334,7 @@ namespace fptp
 							MessageBox.Show(Lang.Get("msg.loadedLow"),
 											Lang.Get("msg.tip"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
 						}
-						else
-						{
-							lblInfo.Text = Lang.Get("msg.loadedOk", currentImage.Width, currentImage.Height);
-						}
+						lblInfo.Text = Lang.Get("msg.loadedOk", currentImage.Width, currentImage.Height);
 
 						pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
 						pictureBox1.Image = currentImage;
@@ -699,13 +690,14 @@ namespace fptp
 				string[] formats = { "jpg", "png", "bmp", "tiff", "gif" };
 				string[] formatKeys = { "fmt.jpg", "fmt.png", "fmt.bmp", "fmt.tiff", "fmt.gif" };
 
-				// 含透明像素的图片只能以 PNG 保存（JPEG/BMP/GIF 无 alpha）
+				// 含透明像素的图片只能以 PNG 保存（JPEG/BMP 无 alpha；GIF 仅 1bit 透明；TIFF 支持 alpha 走豁免）
 				bool hasAlpha = Assalg.HasAlpha(toSave);
-				if (hasAlpha && ext != "png")
+				bool formatChanged = false;
+				if (hasAlpha && ext != "png" && ext != "tiff")
 				{
 					ext = "png";
-					settings.SaveFormat = "png";
-					Assalg.SaveGenSettings(settings);
+					// 保存格式改写延迟到对话框确认后执行，避免用户取消时静默改掉设置
+					formatChanged = true;
 				}
 
 				using (SaveFileDialog sfd = new SaveFileDialog())
@@ -719,12 +711,18 @@ namespace fptp
 
 					if (sfd.ShowDialog(this) == DialogResult.OK)
 					{
+						// 确认保存后才落盘格式改写，避免取消对话框时静默改变用户设置
+						if (formatChanged)
+						{
+							settings.SaveFormat = "png";
+							Assalg.SaveGenSettings(settings);
+						}
 						try
 						{
 							this.Cursor = Cursors.WaitCursor;
 
 							// 用户手动选了不支持透明的格式时强制回退 PNG
-							string chosenExt = Path.GetExtension(sfd.FileName).ToLower();
+							string chosenExt = Path.GetExtension(sfd.FileName).ToLowerInvariant();
 							if (hasAlpha && chosenExt != ".png" && chosenExt != ".tiff")
 							{
 								sfd.FileName = Path.ChangeExtension(sfd.FileName, ".png");
@@ -808,8 +806,6 @@ namespace fptp
 			{
 				if (dialog.ShowDialog(this) == DialogResult.OK)
 				{
-					// 快捷键可能已在设置中修改，失效缓存以便下次按键重新加载
-					cachedKeySettings = null;
 					settings = dialog.Result;
 					Assalg.SaveGenSettings(settings);
 					appSettings = dialog.AppResult;
@@ -821,6 +817,9 @@ namespace fptp
 					Theme.Apply(this);
 					lblInfo.Text = Lang.Get("msg.settingsSaved");
 				}
+				// 快捷键子对话框 OK 已写盘、主对话框取消则不保存 Gen/App——
+				// 无论何种路径都失效缓存，下次按键重新加载，避免取消后仍用旧快捷键
+				cachedKeySettings = null;
 			}
 		}
 
@@ -1065,7 +1064,9 @@ namespace fptp
 			try
 			{
 				EnsurePublishDir();
-				if (currentImage != null)
+				// 隐私契约：仅"允许外部访问"且"硬盘模式"才写盘。
+				// 仅内存模式下即使有请求也不落盘，只清掉请求文件避免每 500ms 重试。
+				if (appSettings.Privacy.AllowExternalAccess && appSettings.TempImageMode == "disk" && currentImage != null)
 					Assalg.SaveImage(currentImage, Path.Combine(PublishDir, "working.png"));
 				File.Delete(requestFile);
 			}

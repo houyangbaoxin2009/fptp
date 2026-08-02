@@ -71,6 +71,13 @@ namespace fptp
 				return base.ProcessCmdKey(ref msg, keyData);
 			}
 
+			// 单独按下的修饰键（裸 Ctrl/Shift/Alt，WinForms 以 keyData=Control|ControlKey 传入）
+			// 不录制：会格式化成 "Ctrl+ControlKey" 之类的垃圾组合键，等待后续真正的按键
+			Keys keyCode = keyData & Keys.KeyCode;
+			if (keyCode == Keys.ControlKey || keyCode == Keys.ShiftKey || keyCode == Keys.Menu ||
+				keyCode == Keys.LWin || keyCode == Keys.RWin)
+				return base.ProcessCmdKey(ref msg, keyData);
+
 			string combo = KeySettings.FormatKeys(keyData);
 			if (combo != "" && dgvKeys.SelectedRows.Count > 0)
 			{

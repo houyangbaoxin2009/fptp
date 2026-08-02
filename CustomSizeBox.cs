@@ -14,6 +14,7 @@ namespace fptp
 		public CustomSizeBox(int width, int height)
 		{
 			InitializeComponent();
+			Theme.Apply(this);   // 深色/自定义主题下与其它对话框保持一致
 			txtWidth.Text = width.ToString();
 			txtHeight.Text = height.ToString();
 			ApplyLang();

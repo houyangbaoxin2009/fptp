@@ -27,8 +27,8 @@ namespace fptp
 
 		/// <summary>
 		/// 加载指定语言的翻译表。优先级：
-		/// 1. 设置文件中的语言包（Assalg.LoadLangPackage，用户导入/翻译）
-		/// 2. exe\lang\ 目录语言包文件（可编辑，编译后随软件分发）
+		/// 1. exe\lang\ 目录语言包文件（可编辑，改完即生效，README 承诺）
+		/// 2. 设置文件中的语言包（Assalg.LoadLangPackage，用户导入/翻译；无同名目录文件时生效）
 		/// 3. 程序集内嵌 JSON 语言包（内置 zh-CN / en-US）
 		/// 4. 最终回退内置中文
 		/// </summary>
@@ -36,7 +36,12 @@ namespace fptp
 		{
 			string target = string.IsNullOrEmpty(code) ? "zh-CN" : code;
 
-			// 1. 设置文件中的语言包（con.id 匹配目标语言）
+			// 1. exe\lang\ 目录语言包文件优先：手工编辑该文件即时生效，
+			//    不被已导入的设置包永久遮蔽（README 明确承诺"可直接编辑，改完即生效"）
+			if (TryLoadFile(target))
+				return;
+
+			// 2. 设置文件中的语言包（con.id 匹配目标语言）
 			LangPackage? pkg = Assalg.LoadLangPackage();
 			if (pkg != null && pkg.Con != null && pkg.Con.Id == target && pkg.Ass != null && pkg.Ass.Count > 0)
 			{
@@ -45,10 +50,6 @@ namespace fptp
 				CurrentName = string.IsNullOrEmpty(pkg.Con.Name) ? target : pkg.Con.Name;
 				return;
 			}
-
-			// 2. exe\lang\ 目录语言包文件
-			if (TryLoadFile(target))
-				return;
 
 			// 3. 内置嵌入资源
 			if (TryLoadEmbedded(target))
@@ -144,7 +145,7 @@ namespace fptp
 		public static string CurrentDisplayName => CurrentName;
 
 		/// <summary>
-		/// 可用语言列表：内置语言 + 设置文件中已导入的语言（含显示名）。
+		/// 可用语言列表：内置语言 + exe\lang\ 目录语言包文件 + 设置文件中已导入的语言（含显示名）。
 		/// </summary>
 		public static List<LangCon> AvailableLanguages()
 		{
@@ -153,6 +154,38 @@ namespace fptp
 				new LangCon { Id = "zh-CN", Name = Get("settings.lang.zh") },
 				new LangCon { Id = "en-US", Name = Get("settings.lang.en") }
 			};
+
+			// 扫描 exe\lang\ 目录：手工放置的 lang.{id}.{name}.json 也应在 UI 可选
+			try
+			{
+				string dir = Path.Combine(
+					Path.GetDirectoryName(System.Windows.Forms.Application.ExecutablePath) ?? ".", "lang");
+				if (Directory.Exists(dir))
+				{
+					foreach (string f in Directory.GetFiles(dir, "lang.*.json"))
+					{
+						string fileName = Path.GetFileName(f);
+						if (fileName.StartsWith("lang.", StringComparison.OrdinalIgnoreCase) &&
+							fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+						{
+							string middle = fileName.Substring(5, fileName.Length - 5 - ".json".Length);
+							// middle = id.name，按第一个点分割，剩余部分作为显示名
+							int dot = middle.IndexOf('.');
+							string id = dot >= 0 ? middle.Substring(0, dot) : middle;
+							string name = dot >= 0 ? middle.Substring(dot + 1) : "";
+							if (string.IsNullOrEmpty(id)) continue;
+							if (string.IsNullOrEmpty(name)) name = id;
+							if (!list.Exists(x => x.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
+								list.Add(new LangCon { Id = id, Name = name });
+						}
+					}
+				}
+			}
+			catch
+			{
+				// 目录读取失败不阻塞语言列表
+			}
+
 			LangPackage? pkg = Assalg.LoadLangPackage();
 			if (pkg != null && pkg.Con != null && !string.IsNullOrEmpty(pkg.Con.Id) &&
 				!pkg.Con.Id.Equals("zh-CN", StringComparison.OrdinalIgnoreCase) &&
@@ -189,7 +222,8 @@ namespace fptp
 			}
 			catch (FormatException)
 			{
-				return Get(key);
+				// 译文含非法占位符时回退 key 本身，避免损坏语言包导致崩溃且不显示 {0} 原文
+				return key;
 			}
 		}
 	}

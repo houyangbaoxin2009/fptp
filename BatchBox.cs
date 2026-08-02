@@ -25,6 +25,7 @@ namespace fptp
 		private bool _doGray;
 		private bool _doBg;
 		private bool _doLayout;
+		private int _totalFiles;
 
 		public BatchBox(GenSettings settings)
 		{
@@ -66,6 +67,16 @@ namespace fptp
 			btnImportBat.Text = Lang.Get("batch.importBat");
 			btnStart.Text = Lang.Get("batch.start");
 			btnCancel.Text = Lang.Get("settings.cancel");
+
+			// 底色下拉项随语言重建（Designer 硬编码中文，不重建则英文界面仍显示中文）
+			string[] colors = { "蓝色", "红色", "白色", "透明" };
+			string[] colorKeys = { "color.blue", "color.red", "color.white", "color.transparent" };
+			int sel = cmbBgColor.SelectedIndex >= 0 ? cmbBgColor.SelectedIndex : MainBoxColorIndex(settings.BackgroundColor);
+			cmbBgColor.Items.Clear();
+			for (int i = 0; i < colors.Length; i++)
+				cmbBgColor.Items.Add(Lang.Get(colorKeys[i]));
+			if (sel >= 0 && sel < cmbBgColor.Items.Count)
+				cmbBgColor.SelectedIndex = sel;
 		}
 
 		private static int MainBoxColorIndex(string stored)
@@ -128,7 +139,17 @@ namespace fptp
 
 				try
 				{
-					if (ApplyBatParameters(File.ReadAllText(dlg.FileName)))
+					// bat 常为 ANSI/GBK 编码（记事本默认），按 UTF-8 读中文路径会乱码。
+					// 带 BOM 用对应编码，无 BOM 按系统默认（中文系统即 GBK）。
+					string text;
+					byte[] bytes = File.ReadAllBytes(dlg.FileName);
+					if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+						text = System.Text.Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+					else if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+						text = System.Text.Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+					else
+						text = System.Text.Encoding.Default.GetString(bytes);
+					if (ApplyBatParameters(text))
 						lblProgress.Text = Lang.Get("batch.importOk");
 				}
 				catch (Exception ex)
@@ -142,16 +163,18 @@ namespace fptp
 		/// <summary>解析 bat 内容中的 fptp.exe prep batch 命令行参数并填充到控件，返回是否成功。</summary>
 		private bool ApplyBatParameters(string batContent)
 		{
-			// 定位 prep batch 段，按空格/引号拆分参数
-			int idx = batContent.IndexOf("batch", StringComparison.OrdinalIgnoreCase);
-			if (idx < 0)
+			// 按行定位 prep batch 命令段：正则匹配 "prep batch"（允许 fptp.exe 前缀），
+			// 避免路径/注释/echo 里的 "batch" 子串误命中导致从错误位置解析
+			var m = System.Text.RegularExpressions.Regex.Match(batContent,
+				@"(?im)(?:^|[^\w.-])(?:fptp\.exe\s+)?prep\s+batch\b");
+			if (!m.Success)
 			{
 				MessageBox.Show(this, Lang.Get("batch.importNoCmd"), Lang.Get("msg.error"),
 					MessageBoxButtons.OK, MessageBoxIcon.Error);
 				return false;
 			}
 
-			string tail = batContent.Substring(idx + 5);
+			string tail = batContent.Substring(m.Index + m.Length);
 			string[] parts = SplitArgs(tail);
 
 			for (int i = 0; i < parts.Length; i++)
@@ -278,7 +301,8 @@ namespace fptp
 		private void SetBusy(bool busy)
 		{
 			btnStart.Enabled = !busy;
-			btnCancel.Enabled = !busy;
+			// 运行期间必须保持取消可用，否则批处理中途无法中断（README 承诺"可随时取消"）
+			btnCancel.Enabled = busy;
 			btnInput.Enabled = !busy;
 			btnOutput.Enabled = !busy;
 			btnImportBat.Enabled = !busy;
@@ -295,7 +319,7 @@ namespace fptp
 			List<string> images = new List<string>();
 			foreach (string f in files)
 			{
-				string ext = Path.GetExtension(f).ToLower();
+				string ext = Path.GetExtension(f).ToLowerInvariant();
 				if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".bmp")
 					images.Add(f);
 			}
@@ -305,6 +329,7 @@ namespace fptp
 				e.Result = "none";
 				return;
 			}
+			_totalFiles = images.Count;   // 供进度文字显示真实总数（progressBar.Maximum 恒为 100）
 
 			Color bgColor = _bgColor;
 			int tolerance = _tolerance;
@@ -428,7 +453,7 @@ namespace fptp
 		private void Worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
 		{
 			progressBar.Value = e.ProgressPercentage;
-			lblProgress.Text = Lang.Get("batch.progress", e.UserState, progressBar.Maximum);
+			lblProgress.Text = Lang.Get("batch.progress", e.UserState, _totalFiles);
 		}
 
 		private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)

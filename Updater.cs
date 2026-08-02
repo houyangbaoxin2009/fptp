@@ -27,6 +27,14 @@ namespace fptp
 		// 防重入标记：同一时刻只允许一个更新检查（启动检查 + 手动检查互斥）
 		private static int _checking;
 
+		/// <summary>安全回 UI 线程：owner 已销毁/句柄不可用时直接放弃（避免 BeginInvoke 抛 ObjectDisposedException）。</summary>
+		private static bool SafeBeginInvoke(Form owner, Action action)
+		{
+			if (owner == null || owner.IsDisposed || !owner.IsHandleCreated) return false;
+			try { owner.BeginInvoke(action); return true; }
+			catch { return false; }
+		}
+
 		/// <summary>
 		/// 启动时静默检查（后台线程）。发现新版本才弹窗。
 		/// </summary>
@@ -52,8 +60,7 @@ namespace fptp
 					catch
 					{
 						// 静默检查失败不打扰用户
-					}
-				}
+					}				}
 				finally
 				{
 					Interlocked.Exchange(ref _checking, 0);
@@ -77,9 +84,9 @@ namespace fptp
 						LatestRelease? latest = FetchLatestRelease();
 						if (latest == null)
 						{
-							owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+							SafeBeginInvoke(owner, () => MessageBox.Show(owner,
 								Lang.Get("update.none"), Lang.Get("msg.tip"),
-								MessageBoxButtons.OK, MessageBoxIcon.Information)));
+								MessageBoxButtons.OK, MessageBoxIcon.Information));
 							return;
 						}
 
@@ -87,19 +94,22 @@ namespace fptp
 						Version? remote = ParseTagVersion(latest.TagName ?? "");
 						if (remote == null || remote <= current)
 						{
-							owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+							SafeBeginInvoke(owner, () => MessageBox.Show(owner,
 								Lang.Get("update.none"), Lang.Get("msg.tip"),
-								MessageBoxButtons.OK, MessageBoxIcon.Information)));
+								MessageBoxButtons.OK, MessageBoxIcon.Information));
 							return;
 						}
 
-						owner.BeginInvoke(new Action(() => PromptUpdate(owner, latest)));
+						SafeBeginInvoke(owner, () => PromptUpdate(owner, latest));
 					}
 					catch (Exception ex)
 					{
-						owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+						// 回 UI 线程弹错误。catch 内不再直接 BeginInvoke（owner 已销毁时
+						// 二次 BeginInvoke 会再次抛出，成为线程池未处理异常导致进程崩溃），
+						// 一律走 SafeBeginInvoke 安全兜底。
+						SafeBeginInvoke(owner, () => MessageBox.Show(owner,
 							Lang.Get("update.failed", ex.Message), Lang.Get("msg.error"),
-							MessageBoxButtons.OK, MessageBoxIcon.Error)));
+							MessageBoxButtons.OK, MessageBoxIcon.Error));
 					}
 				}
 				finally
@@ -182,6 +192,8 @@ namespace fptp
 						if (release.TryGetProperty("assets", out JsonElement assetsEl) &&
 							assetsEl.ValueKind == JsonValueKind.Array)
 						{
+							// 优先匹配安装包名（InstallerName），避免同一 Release 附带
+							// 多个 .exe（如便携版）时选中错误文件；无匹配再退化任意 .exe
 							foreach (JsonElement asset in assetsEl.EnumerateArray())
 							{
 								// GitCode 资产可能用 url 字段而非 GitHub 的 browser_download_url，两字段都兼容
@@ -192,10 +204,28 @@ namespace fptp
 									url = aUrl.GetString();
 
 								if (!string.IsNullOrEmpty(url) &&
-									url!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+									url!.EndsWith(InstallerName, StringComparison.OrdinalIgnoreCase))
 								{
 									download = url;
 									break;
+								}
+							}
+							if (download == null)
+							{
+								foreach (JsonElement asset in assetsEl.EnumerateArray())
+								{
+									string? url = null;
+									if (asset.TryGetProperty("browser_download_url", out JsonElement bUrl))
+										url = bUrl.GetString();
+									if (string.IsNullOrEmpty(url) && asset.TryGetProperty("url", out JsonElement aUrl))
+										url = aUrl.GetString();
+
+									if (!string.IsNullOrEmpty(url) &&
+										url!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+									{
+										download = url;
+										break;
+									}
 								}
 							}
 						}
@@ -252,28 +282,38 @@ namespace fptp
 				try
 				{
 					DownloadFile(latest.DownloadUrl!, tmpPath);
-					owner.BeginInvoke(new Action(() =>
+					SafeBeginInvoke(owner, () =>
 					{
 						MessageBox.Show(owner, Lang.Get("update.downloaded"), Lang.Get("msg.tip"),
 							MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-						System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+						// 启动安装器失败（杀软隔离、文件损坏等）不崩溃：清理临时文件并提示
+						try
 						{
-							FileName = tmpPath,
-							// 静默安装：更新流程不再让用户手动走安装向导
-							Arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES",
-							UseShellExecute = true
-						});
-						owner.Close();
-					}));
+							System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+							{
+								FileName = tmpPath,
+								// 静默安装：更新流程不再让用户手动走安装向导
+								Arguments = "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES",
+								UseShellExecute = true
+							});
+							owner.Close();
+						}
+						catch (Exception ex)
+						{
+							TryDelete(tmpPath);
+							MessageBox.Show(owner, Lang.Get("update.downloadFailed", ex.Message), Lang.Get("msg.error"),
+								MessageBoxButtons.OK, MessageBoxIcon.Error);
+						}
+					});
 				}
 				catch (Exception ex)
 				{
 					// 下载失败清理临时文件，避免残留 %TEMP%
 					TryDelete(tmpPath);
-					owner.BeginInvoke(new Action(() => MessageBox.Show(owner,
+					SafeBeginInvoke(owner, () => MessageBox.Show(owner,
 						Lang.Get("update.downloadFailed", ex.Message), Lang.Get("msg.error"),
-						MessageBoxButtons.OK, MessageBoxIcon.Error)));
+						MessageBoxButtons.OK, MessageBoxIcon.Error));
 				}
 			});
 		}

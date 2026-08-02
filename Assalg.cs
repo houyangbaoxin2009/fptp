@@ -27,7 +27,7 @@ namespace fptp
 		{
 			if (bmp == null) return;
 
-			string ext = Path.GetExtension(filePath).ToLower();
+			string ext = Path.GetExtension(filePath).ToLowerInvariant();
 
 			// 无扩展名或未知扩展名：直接按默认 PNG 编码保存（避免空串命中第一个编码器误存 BMP）
 			if (ext == "")
@@ -104,7 +104,7 @@ namespace fptp
 			ImageCodecInfo[] codecs = ImageCodecInfo.GetImageEncoders();
 			foreach (ImageCodecInfo codec in codecs)
 			{
-				if (codec.FilenameExtension.ToLower().Contains(extension))
+				if (codec.FilenameExtension.ToLowerInvariant().Contains(extension))
 					return codec;
 			}
 			return null;
@@ -129,6 +129,7 @@ namespace fptp
 		public static bool CheckResolution(Bitmap source, int minWidth, int minHeight)
 		{
 			if (source == null) return false;
+			if (minWidth <= 0 || minHeight <= 0) return false;
 			return (source.Width >= minWidth && source.Height >= minHeight);
 		}
 
@@ -257,10 +258,19 @@ namespace fptp
 
 		private static void SanitizeGen(GenSettings g)
 		{
+			// 预设列表内的 null 元素（手改 JSON 显式 null）必须先剔除，
+			// 否则 ReloadPresetList 对 null 解引用 p.Name 启动即崩溃
+			if (g.Presets != null)
+				g.Presets.RemoveAll(p => p == null);
 			if (string.IsNullOrEmpty(g.SaveFormat))
 				g.SaveFormat = "jpg";
 			else
+			{
 				g.SaveFormat = g.SaveFormat.ToLowerInvariant();
+				// 白名单校验：与 GUI/CLI 支持的输出格式一致，非法值回退 jpg
+				if (Array.IndexOf(new[] { "jpg", "png", "bmp", "tiff", "gif" }, g.SaveFormat) < 0)
+					g.SaveFormat = "jpg";
+			}
 			g.SaveQuality = Math.Max(70, Math.Min(100, g.SaveQuality));
 			g.GuideLineStyle = Math.Max(0, Math.Min(2, g.GuideLineStyle));
 			g.DefaultSize = Math.Max(1, Math.Min(3, g.DefaultSize));

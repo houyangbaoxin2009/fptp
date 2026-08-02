@@ -267,6 +267,14 @@ namespace fptp
 
 			Result = new GenSettings();
 			AppResult = new AppSettings();
+			// 恢复默认后主题需三方同步：磁盘（ThemeId=green）+ 实际配色（Init）+ 下拉选中，
+			// 否则界面显示旧主题、磁盘写 green、实际配色不一致，下次启动颜色突变
+			if (Theme.CurrentId != "green")
+			{
+				Theme.SetCurrent("green");
+				Theme.Init();
+				Theme.Apply(this);
+			}
 			ApplyLang();
 			ApplyToUI();
 		}

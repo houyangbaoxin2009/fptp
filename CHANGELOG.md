@@ -1,5 +1,32 @@
 # 更新日志
 
+## [1.4.5.0] — 2026-08-03
+
+> 1.4.5 为全面 bug 修复版，对全部源码逐文件排查确认的 29 项问题一次性修复：输出 DPI 丢失、预设空引用崩溃、隐私泄露、bat 编码、更新下载健壮性、语言包优先级等。
+
+### 修复
+- 修复输出位图 DPI 丢失：裁剪/黑白/换底结果位图未设分辨率，默认为 96DPI，打印与 Word 插入按 300DPI 基准错 3.125 倍，现 4 处 `SetResolution(300,300)`
+- 修复换底/黑白算法空输入崩溃：入口位图校验 null
+- 修复预设文件含 null 项崩溃：`SanitizeGen` 加载后剔除 null 预设
+- 修复保存格式手改非法值静默生效：SaveFormat 白名单校验（jpg/png/bmp/tiff/gif），非法回退 jpg
+- 修复分辨率检查零值误判：最小宽/高 ≤0 直接返回 false
+- 修复语言切换后底色静默损坏：`cmbBgColor` 按存储色值恢复选中索引（修复 en→zh 切语言底色变白），删除死代码
+- 修复批处理运行时取消按钮禁用：`btnCancel.Enabled = busy`
+- 修复批处理进度显示错误总数：新增 `_totalFiles` 记录真实文件数
+- 修复批处理 bat 中文路径乱码：按 BOM/Unicode/系统默认编码检测读取
+- 修复批处理解析 bat 误命中注释/路径中的 batch 子串：改为正则按行定位 `prep batch` 命令段
+- 修复批处理语言切换后底色下拉不刷新：`ApplyLang` 重建下拉项
+- 修复更新检查双重 BeginInvoke 崩溃：owner 销毁后 catch 内二次 BeginInvoke 抛未处理异常导致进程崩溃，现统一 `SafeBeginInvoke` 安全兜底
+- 修复更新下载安装包匹配错误：同一 Release 含多个 exe 时优先按 InstallerName 精确匹配
+- 修复更新启动安装器无保护：Process.Start 失败（杀软隔离/文件损坏）崩溃，现 try/catch 清理临时文件并提示
+- 修复设置包永久遮蔽语言包文件：`lang\` 目录语言包改回最高优先级（README 承诺"改完即生效"被导入的设置包覆盖），`AvailableLanguages` 补扫 `lang\` 目录
+- 修复语言包非法占位符崩溃：FormatException 时回退 key 本身而非递归
+- 修复恢复默认设置主题不同步：重置后界面配色/下拉/磁盘三方不一致，现同步 `Theme.SetCurrent("green")` 并重绘
+- 修复快捷键录制裸修饰键：单独按 Ctrl/Shift/Alt 录成 "Ctrl+ControlKey" 垃圾组合键，现忽略等待后续按键
+- 修复自定义尺寸/输入对话框不随主题：深色主题下白底突兀，构造补 `Theme.Apply`
+- 修复打开对话框缺 TIFF/GIF 过滤：`OpenImageFile` 支持 `*.tif;*.tiff;*.gif`
+- 版本号全面同步 1.4.5.0（Basic.cs / fptp.csproj / setup.iss）
+
 ## [1.4.4.1] — 2026-08-02
 
 > 1.4.4.1 为热修复版，修复 1.4.4.0 引入的加载图片回归：GDI+ 流克隆陷阱导致加载部分图片报"GDI+ 中发生一般性错误"。

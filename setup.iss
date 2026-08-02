@@ -2,7 +2,7 @@
 ; 编译：ISCC.exe setup.iss
 
 #define MyAppName "FPTP"
-#define MyAppVersion "1.4.4.1"
+#define MyAppVersion "1.4.5.0"
 #define MyAppPublisher "FranJ2"
 #define MyAppURL "https://github.com/houyangbaoxin2009/fptp"
 #define MyAppExeName "fptp.exe"

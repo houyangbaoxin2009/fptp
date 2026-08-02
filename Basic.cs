@@ -12,7 +12,7 @@ namespace fptp
 	{
 		// ── 应用信息 ──
 		public const string AppName = "FPTP";
-   public const string AppVersion = "1.4.4.1";
+	public const string AppVersion = "1.4.5.0";
 		public const string AppCopyright = "Copyright © 2026 Jiro";
 		public const string AppCompany = "FranJ2";
 		public const string AppGitHub = "https://gitcode.com/jiro2025/fptp";
@@ -71,7 +71,7 @@ namespace fptp
 		{
 			using (OpenFileDialog ofd = new OpenFileDialog())
 			{
-				ofd.Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp";
+				ofd.Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff;*.gif";
 				if (ofd.ShowDialog(parent) == DialogResult.OK)
 				{
 					return ofd.FileName;

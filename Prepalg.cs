@@ -51,8 +51,9 @@ namespace fptp
 			Bitmap result = null;
 			try
 			{
-				result = new Bitmap(targetW, targetH);
-				using (Graphics g = Graphics.FromImage(result))
+			result = new Bitmap(targetW, targetH);
+			result.SetResolution(300, 300);   // 保持 300 DPI 基准，导出文件物理尺寸正确
+			using (Graphics g = Graphics.FromImage(result))
 				{
 					g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 					g.SmoothingMode = SmoothingMode.HighQuality;
@@ -81,10 +82,12 @@ namespace fptp
 		/// <returns>灰度图</returns>
 		public static Bitmap ToGrayscale(Bitmap source)
 		{
+			if (source == null) return null;
 			Bitmap bmp = null;
 			try
 			{
 				bmp = new Bitmap(source.Width, source.Height);
+				bmp.SetResolution(300, 300);   // 保持 300 DPI 基准
 
 				using (Graphics g = Graphics.FromImage(bmp))
 				{
@@ -127,6 +130,7 @@ namespace fptp
 		/// <returns>处理后的图片</returns>
 		public static Bitmap ReplaceBackground(Bitmap source, Color newColor, int tolerance, System.Windows.Forms.Form parent = null)
 		{
+			if (source == null) return null;
 			int width = source.Width;
 			int height = source.Height;
 
@@ -203,6 +207,7 @@ namespace fptp
 			try
 			{
 				result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+				result.SetResolution(300, 300);   // 保持 300 DPI 基准
 				BitmapData outData = result.LockBits(new Rectangle(0, 0, width, height),
 					ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 				try
@@ -238,6 +243,7 @@ namespace fptp
 		/// <returns>处理后的图片</returns>
 		public static Bitmap ReplaceBackgroundAnime(Bitmap source, Color newColor, int tolerance, System.Windows.Forms.Form parent = null)
 		{
+			if (source == null) return null;
 			int width = source.Width;
 			int height = source.Height;
 
@@ -281,6 +287,7 @@ namespace fptp
 			try
 			{
 				result = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+				result.SetResolution(300, 300);   // 保持 300 DPI 基准
 				outData = result.LockBits(new Rectangle(0, 0, width, height),
 					ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 

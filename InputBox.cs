@@ -60,6 +60,7 @@ namespace fptp
 			Controls.Add(btnOk);
 			Controls.Add(btnCancel);
 
+			Theme.Apply(this);   // 深色/自定义主题下与其它对话框保持一致
 			Shown += (_, _) => txtValue.Focus();
 		}
 	}
