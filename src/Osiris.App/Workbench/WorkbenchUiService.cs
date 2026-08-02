@@ -44,6 +44,12 @@ namespace Osiris.App.Workbench
             _form.AddPanelInternal(contribution);
         }
 
+        /// <summary>激活/取消交互工具（壳只路由鼠标事件与覆盖层）。</summary>
+        public void ActivateTool(Osiris.Core.Plugins.IEditorTool tool)
+        {
+            _form.SetActiveTool(tool);
+        }
+
         /// <summary>把全部已注册资源装配到窗体（菜单树/工具栏/状态栏）。</summary>
         internal void ApplyTo(WorkbenchForm form)
         {

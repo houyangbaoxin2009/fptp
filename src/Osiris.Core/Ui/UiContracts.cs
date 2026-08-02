@@ -118,5 +118,10 @@ namespace Osiris.Core.Ui
         void AddToolbar(ToolbarContribution contribution);
         /// <summary>贡献停靠面板。</summary>
         void AddPanel(PanelContribution contribution);
+        /// <summary>
+        /// 激活交互工具（套索/画笔等）：壳只路由鼠标事件与覆盖层，工具由模组自持实例。
+        /// 传入 null 取消激活。
+        /// </summary>
+        void ActivateTool(Plugins.IEditorTool tool);
     }
 }

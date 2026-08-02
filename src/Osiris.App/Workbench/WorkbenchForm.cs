@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using Osiris.Core.Document;
+using Osiris.Core.Plugins;
 using Osiris.Core.Ui;
 
 namespace Osiris.App.Workbench
@@ -11,6 +12,7 @@ namespace Osiris.App.Workbench
     {
         private readonly WorkbenchUiService _ui;
         private OsirisDocument _document;
+        private IEditorTool _activeTool;
 
         // 工作区容器：壳只提供空白区域，内容由面板/画布贡献填充
         private readonly SplitContainer _root;
@@ -180,7 +182,46 @@ namespace Osiris.App.Workbench
         /// <summary>重绘画布（撤销/重做/文档变更后调用）。</summary>
         internal void RefreshCanvas() => RenderCanvas();
 
-        /// <summary>用渲染引擎把当前文档画到画布。</summary>
+        /// <summary>激活/取消交互工具：壳只路由鼠标事件与覆盖层，不知工具内部逻辑。</summary>
+        internal void SetActiveTool(IEditorTool tool)
+        {
+            if (ReferenceEquals(_activeTool, tool)) return;
+            _activeTool?.Deactivate();
+            _activeTool = tool;
+            _activeTool?.Activate();
+            RefreshCanvas();
+        }
+
+        /// <summary>PictureBox Zoom 模式下，控件坐标 → 文档像素坐标。</summary>
+        private ToolMouseEvent MapToDocument(int clientX, int clientY, ToolMouseButton button)
+        {
+            var img = _canvas?.Image;
+            if (img == null || _canvas.ClientSize.Width == 0 || _canvas.ClientSize.Height == 0)
+                return new ToolMouseEvent { X = 0, Y = 0, Button = button };
+            double scale = Math.Min(
+                (double)_canvas.ClientSize.Width / img.Width,
+                (double)_canvas.ClientSize.Height / img.Height);
+            int offsetX = (int)((_canvas.ClientSize.Width - img.Width * scale) / 2);
+            int offsetY = (int)((_canvas.ClientSize.Height - img.Height * scale) / 2);
+            return new ToolMouseEvent
+            {
+                X = (int)((clientX - offsetX) / scale),
+                Y = (int)((clientY - offsetY) / scale),
+                Button = button,
+                Modifiers = ModifierKeysToTool(ModifierKeys)
+            };
+        }
+
+        private static ToolModifiers ModifierKeysToTool(Keys keys)
+        {
+            var m = ToolModifiers.None;
+            if ((keys & Keys.Shift) != 0) m |= ToolModifiers.Shift;
+            if ((keys & Keys.Control) != 0) m |= ToolModifiers.Control;
+            if ((keys & Keys.Alt) != 0) m |= ToolModifiers.Alt;
+            return m;
+        }
+
+        /// <summary>用渲染引擎把当前文档画到画布（含激活工具的覆盖层）。</summary>
         private void RenderCanvas()
         {
             if (_canvas == null)
@@ -191,13 +232,81 @@ namespace Osiris.App.Workbench
                     SizeMode = PictureBoxSizeMode.Zoom,
                     BackColor = System.Drawing.Color.DimGray
                 };
+                _canvas.MouseDown += OnCanvasMouseDown;
+                _canvas.MouseMove += OnCanvasMouseMove;
+                _canvas.MouseUp += OnCanvasMouseUp;
                 _canvasArea.Controls.Add(_canvas);
             }
             using (var bmp = new Osiris.Engine.Skia.CanvasRenderer().Render(_document))
             {
-                var old = _canvas.Image;
-                _canvas.Image = ToGdiBitmap(bmp);
-                old?.Dispose();
+                // 覆盖层：激活工具自绘蚂蚁线等（直接画进位图，随重绘刷新）
+                if (_activeTool != null)
+                {
+                    using (var canvas = new SkiaSharp.SKCanvas(bmp))
+                        _activeTool.DrawOverlay(new SkiaToolOverlay(canvas));
+                }
+                SwapCanvasImage(ToGdiBitmap(bmp));
+            }
+        }
+
+        /// <summary>替换画布 Image（释放旧图）。</summary>
+        private void SwapCanvasImage(System.Drawing.Bitmap bmp)
+        {
+            var old = _canvas.Image;
+            _canvas.Image = bmp;
+            old?.Dispose();
+        }
+
+        private void OnCanvasMouseDown(object sender, MouseEventArgs e)
+            => SendMouse(e, down: true);
+
+        private void OnCanvasMouseMove(object sender, MouseEventArgs e)
+            => _activeTool?.MouseMove(MapToDocument(e.X, e.Y, ButtonOf(e)));
+
+        private void OnCanvasMouseUp(object sender, MouseEventArgs e)
+            => SendMouse(e, down: false);
+
+        private static ToolMouseButton ButtonOf(MouseEventArgs e)
+            => (e.Button & MouseButtons.Left) != 0 ? ToolMouseButton.Left
+             : (e.Button & MouseButtons.Middle) != 0 ? ToolMouseButton.Middle
+             : ToolMouseButton.Right;
+
+        /// <summary>按下/抬起转发给激活工具（壳只路由，不知工具语义）。</summary>
+        private void SendMouse(MouseEventArgs e, bool down)
+        {
+            if (_activeTool == null) return;
+            if ((e.Button & (MouseButtons.Left | MouseButtons.Middle | MouseButtons.Right)) == 0) return;
+            var ev = MapToDocument(e.X, e.Y, ButtonOf(e));
+            if (down) _activeTool.MouseDown(ev);
+            else _activeTool.MouseUp(ev);
+        }
+
+        /// <summary>IToolOverlay 的 Skia 实现：虚线蚂蚁线。</summary>
+        private sealed class SkiaToolOverlay : IToolOverlay
+        {
+            private readonly SkiaSharp.SKCanvas _canvas;
+
+            public SkiaToolOverlay(SkiaSharp.SKCanvas canvas) => _canvas = canvas;
+
+            public void DrawPolyline(IReadOnlyList<Point2> points, bool closed)
+            {
+                if (points == null || points.Count < 2) return;
+                using (var paint = new SkiaSharp.SKPaint
+                {
+                    Style = SkiaSharp.SKPaintStyle.Stroke,
+                    StrokeWidth = 1,
+                    IsAntialias = true,
+                    Color = SkiaSharp.SKColors.Black,
+                    PathEffect = SkiaSharp.SKPathEffect.CreateDash(new float[] { 4, 4 }, 0)
+                })
+                using (var path = new SkiaSharp.SKPath())
+                {
+                    path.MoveTo(points[0].X + 0.5f, points[0].Y + 0.5f);
+                    for (int i = 1; i < points.Count; i++)
+                        path.LineTo(points[i].X + 0.5f, points[i].Y + 0.5f);
+                    if (closed) path.Close();
+                    _canvas.DrawPath(path, paint);
+                }
             }
         }
 

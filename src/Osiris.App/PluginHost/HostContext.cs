@@ -16,11 +16,13 @@ namespace Osiris.App.PluginHost
         public IProgress Progress { get; }
         public CancellationToken Cancellation { get; }
         public IUiService Ui { get; }
+        public IServiceRegistry Services { get; }
 
         public HostContext(IPluginRegistry registry, IUiService ui = null)
         {
             Plugins = registry;
             Ui = ui;
+            Services = new ServiceRegistry();
             Progress = new NullProgress();
             Cancellation = CancellationToken.None;
         }

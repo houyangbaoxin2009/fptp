@@ -90,12 +90,17 @@ namespace Osiris.Cli
     /// <summary>CLI 宿主上下文（插件 Initialize 需要）。</summary>
     internal sealed class HostContext : IHostContext
     {
-        public HostContext(IPluginRegistry registry) { Plugins = registry; }
+        public HostContext(IPluginRegistry registry)
+        {
+            Plugins = registry;
+            Services = new ServiceRegistry();
+        }
 
         public OsirisDocument ActiveDocument { get; set; }
         public IPluginRegistry Plugins { get; }
         public IProgress Progress => null;
         public System.Threading.CancellationToken Cancellation => System.Threading.CancellationToken.None;
         public Osiris.Core.Ui.IUiService Ui => null;
+        public IServiceRegistry Services { get; }
     }
 }
