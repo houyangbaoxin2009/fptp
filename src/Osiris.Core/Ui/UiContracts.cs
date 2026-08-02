@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Osiris.Core.Ui
 {
@@ -48,7 +49,7 @@ namespace Osiris.Core.Ui
         }
     }
 
-    /// <summary>停靠面板贡献（图层面板/历史面板等）。</summary>
+    /// <summary>停靠面板内容工厂：模组返回任意内容（壳映射为控件）。</summary>
     public sealed class PanelContribution
     {
         public string Id { get; }
@@ -70,6 +71,24 @@ namespace Osiris.Core.Ui
         }
     }
 
+    /// <summary>
+    /// 列表面板内容（纯数据契约，不泄漏 WinForms）：历史面板等以列表展示的停靠面板。
+    /// 壳映射为列表控件；模组经 Items 提供数据、Changed 通知刷新、SelectedIndexChanged 感知选中。
+    /// </summary>
+    public sealed class ListPanelContent
+    {
+        /// <summary>列表项数据（每次刷新时壳调用）。</summary>
+        public Func<IReadOnlyList<string>> Items { get; set; }
+        /// <summary>当前选中索引（-1 = 无选中），点击跳转后壳回写。</summary>
+        public int SelectedIndex { get; set; } = -1;
+        /// <summary>选中变化回调（壳触发，模组据此跳转历史等）。</summary>
+        public Action<int> SelectedIndexChanged { get; set; }
+        /// <summary>数据变化通知（壳刷新列表）。</summary>
+        public event Action Changed;
+
+        public void NotifyChanged() => Changed?.Invoke();
+    }
+
     public enum PanelSide
     {
         Left,
@@ -82,6 +101,10 @@ namespace Osiris.Core.Ui
     {
         /// <summary>打开图片文档（壳实现，菜单由模组贡献）。</summary>
         public const string OpenDocument = "workbench.openDocument";
+        /// <summary>撤销（壳实现，操作当前文档历史）。</summary>
+        public const string Undo = "workbench.undo";
+        /// <summary>重做（壳实现，操作当前文档历史）。</summary>
+        public const string Redo = "workbench.redo";
     }
 
     /// <summary>UI 服务：模组在 Initialize 时通过此接口贡献 UI 资源。</summary>

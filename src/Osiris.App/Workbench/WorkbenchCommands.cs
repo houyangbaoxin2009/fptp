@@ -50,5 +50,35 @@ namespace Osiris.App.Workbench
                 }
             }
         }
+
+        /// <summary>撤销（操作当前文档历史栈，刷新画布由 History.Changed 事件驱动）。</summary>
+        internal sealed class UndoCommand : ICommand
+        {
+            private readonly WorkbenchForm _form;
+
+            public UndoCommand(WorkbenchForm form) { _form = form; }
+
+            public string Id => KnownCommands.Undo;
+            public string DisplayName => "撤销(&U)";
+
+            public bool CanExecute(object parameter) => _form.Document.History.CanUndo;
+
+            public void Execute(object parameter) => _form.Document.History.Undo(_form.Document);
+        }
+
+        /// <summary>重做（操作当前文档历史栈，刷新画布由 History.Changed 事件驱动）。</summary>
+        internal sealed class RedoCommand : ICommand
+        {
+            private readonly WorkbenchForm _form;
+
+            public RedoCommand(WorkbenchForm form) { _form = form; }
+
+            public string Id => KnownCommands.Redo;
+            public string DisplayName => "重做(&R)";
+
+            public bool CanExecute(object parameter) => _form.Document.History.CanRedo;
+
+            public void Execute(object parameter) => _form.Document.History.Redo(_form.Document);
+        }
     }
 }

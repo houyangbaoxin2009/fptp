@@ -29,7 +29,9 @@ namespace Osiris.App
             // 工作台壳：先建壳，模组经 Ui 服务贡献 UI 资源
             var form = new WorkbenchForm(null, 0);
             var registry = new PluginRegistry();
-            var context = new HostContext(registry, form.Ui);
+            var context = new HostContext(registry, form.Ui) { ActiveDocument = form.Document };
+            // 打开新文档后，ActiveDocument 跟随（模组命令始终操作当前文档）
+            form.DocumentChanged += () => context.ActiveDocument = form.Document;
 
             // 加载插件：优先程序集旁 plugins/，回退仓库根 plugins/bin
             var pluginCount = 0;
