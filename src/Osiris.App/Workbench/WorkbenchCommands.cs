@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using Osiris.Core.Document;
+using Osiris.Core.Filters;
+using Osiris.Core.Imaging;
+using Osiris.Core.Plugins;
 using Osiris.Core.Ui;
 
 namespace Osiris.App.Workbench
@@ -206,6 +211,185 @@ namespace Osiris.App.Workbench
                         MessageBox.Show(_form, "保存失败: " + ex.Message, "Osiris",
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
+                }
+            }
+        }
+
+        /// <summary>批量处理（1.x BatchBox 能力）：选目录 + 选项，后台逐张执行 裁切/灰度/换底/排版。</summary>
+        internal sealed class BatchCommand : ICommand
+        {
+            private readonly WorkbenchForm _form;
+
+            public BatchCommand(WorkbenchForm form) { _form = form; }
+
+            public string Id => KnownCommands.Batch;
+            public string DisplayName => "批量处理(&B)...";
+
+            public bool CanExecute(object parameter) => true;
+
+            public void Execute(object parameter)
+            {
+                using (var dlg = new BatchDialog())
+                {
+                    if (dlg.ShowDialog(_form) != DialogResult.OK) return;
+                    var options = dlg.Options;
+                    var inputDir = dlg.InputDir;
+                    var outputDir = dlg.OutputDir;
+
+                    // 收集全部滤镜（BatchProcessor 按 Id 后缀匹配）
+                    var filters = new List<IFilterProcessor>();
+                    var registry = _form.PluginRegistry;
+                    if (registry != null)
+                        foreach (var plugin in registry.Loaded)
+                            if (plugin is IFilterPlugin fp)
+                                filters.AddRange(fp.Filters);
+                    if (filters.Count == 0)
+                    {
+                        MessageBox.Show(_form, "未找到可用滤镜插件。", "Osiris",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    var codec = new Osiris.Engine.Skia.ImageCodecSkia();
+                    int done = 0;
+                    var total = Directory.GetFiles(inputDir, "*.*")
+                        .Where(BatchProcessor.IsImage).Count();
+                    _form.SetStatus("批量处理: 0/" + total);
+
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        try
+                        {
+                            var result = BatchProcessor.Run(
+                                inputDir, outputDir, options, filters,
+                                file =>
+                                {
+                                    using (var stream = File.OpenRead(file))
+                                        return codec.Read(stream, Path.GetExtension(file));
+                                },
+                                (surface, outFile) =>
+                                {
+                                    using (var stream = File.Create(outFile))
+                                        codec.Write(surface, stream, ".png");
+                                },
+                                null,
+                                (file, ok, ex) =>
+                                {
+                                    done++;
+                                    _form.SetStatus(string.Format("批量处理: {0}/{1} {2}", done, total,
+                                        Path.GetFileName(file)));
+                                });
+                            _form.BeginInvoke(new Action(() =>
+                            {
+                                _form.SetStatus(string.Format("批量完成: {0} 成功, {1} 失败", result.Succeeded, result.Failed));
+                                MessageBox.Show(_form,
+                                    string.Format("批量完成: {0} 成功, {1} 失败\n输出目录: {2}",
+                                        result.Succeeded, result.Failed, outputDir),
+                                    "Osiris",
+                                    result.Failed == 0 ? MessageBoxButtons.OK : MessageBoxButtons.OK,
+                                    result.Failed == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                            }));
+                        }
+                        catch (Exception ex)
+                        {
+                            _form.BeginInvoke(new Action(() =>
+                            {
+                                _form.SetStatus("批量处理失败");
+                                MessageBox.Show(_form, "批量处理失败: " + ex.Message, "Osiris",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }));
+                        }
+                    });
+                }
+            }
+        }
+
+        /// <summary>批量处理选项对话框：输入/输出目录 + 裁切/灰度/换底勾选 + 排版相纸下拉。</summary>
+        private sealed class BatchDialog : Form
+        {
+            private readonly TextBox _inputBox = new TextBox();
+            private readonly TextBox _outputBox = new TextBox();
+            private readonly CheckBox _crop = new CheckBox { Text = "智能裁切" };
+            private readonly CheckBox _gray = new CheckBox { Text = "灰度" };
+            private readonly CheckBox _bg = new CheckBox { Text = "换底色" };
+            private readonly ComboBox _paper = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+
+            public string InputDir => _inputBox.Text.Trim();
+            public string OutputDir => _outputBox.Text.Trim();
+
+            public BatchOptions Options => new BatchOptions
+            {
+                Crop = _crop.Checked,
+                Grayscale = _gray.Checked,
+                ReplaceBackground = _bg.Checked,
+                LayoutPaper = _paper.SelectedIndex > 0 ? (string)_paper.SelectedItem : null
+            };
+
+            public BatchDialog()
+            {
+                Text = "批量处理";
+                FormBorderStyle = FormBorderStyle.FixedDialog;
+                MaximizeBox = false;
+                MinimizeBox = false;
+                StartPosition = FormStartPosition.CenterParent;
+                Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+                ShowInTaskbar = false;
+
+                int labelX = 16, ctrlX = 90, ctrlW = 260, rowH = 34, padTop = 16;
+                int row = 0;
+
+                _inputBox.Location = new System.Drawing.Point(ctrlX, padTop + row * rowH);
+                _inputBox.Width = ctrlW;
+                var inBtn = new Button { Text = "浏览...", Location = new System.Drawing.Point(ctrlX + ctrlW + 6, padTop + row * rowH - 2), Width = 76 };
+                inBtn.Click += (s, e) => PickDir(_inputBox);
+                Controls.Add(new Label { Text = "输入目录", AutoSize = true, Location = new System.Drawing.Point(labelX, padTop + row * rowH + 6) });
+                Controls.Add(_inputBox);
+                Controls.Add(inBtn);
+                row++;
+
+                _outputBox.Location = new System.Drawing.Point(ctrlX, padTop + row * rowH);
+                _outputBox.Width = ctrlW;
+                var outBtn = new Button { Text = "浏览...", Location = new System.Drawing.Point(ctrlX + ctrlW + 6, padTop + row * rowH - 2), Width = 76 };
+                outBtn.Click += (s, e) => PickDir(_outputBox);
+                Controls.Add(new Label { Text = "输出目录", AutoSize = true, Location = new System.Drawing.Point(labelX, padTop + row * rowH + 6) });
+                Controls.Add(_outputBox);
+                Controls.Add(outBtn);
+                row++;
+
+                _crop.Checked = true;
+                _crop.Location = new System.Drawing.Point(ctrlX, padTop + row * rowH + 2);
+                _gray.Location = new System.Drawing.Point(ctrlX + 100, padTop + row * rowH + 2);
+                _bg.Location = new System.Drawing.Point(ctrlX + 190, padTop + row * rowH + 2);
+                Controls.Add(_crop);
+                Controls.Add(_gray);
+                Controls.Add(_bg);
+                row++;
+
+                _paper.Items.Add("不排版");
+                foreach (var name in LayoutProcessor.PaperPresets.Keys) _paper.Items.Add(name);
+                _paper.SelectedIndex = 0;
+                _paper.Location = new System.Drawing.Point(ctrlX, padTop + row * rowH);
+                _paper.Width = 120;
+                Controls.Add(new Label { Text = "排版相纸", AutoSize = true, Location = new System.Drawing.Point(labelX, padTop + row * rowH + 6) });
+                Controls.Add(_paper);
+                row++;
+
+                int btnY = padTop + row * rowH + 8;
+                var ok = new Button { Text = "开始", DialogResult = DialogResult.OK, Location = new System.Drawing.Point(ctrlX, btnY), Width = 90 };
+                var cancel = new Button { Text = "取消", DialogResult = DialogResult.Cancel, Location = new System.Drawing.Point(ctrlX + 104, btnY), Width = 90 };
+                Controls.Add(ok);
+                Controls.Add(cancel);
+                AcceptButton = ok;
+                CancelButton = cancel;
+                ClientSize = new System.Drawing.Size(ctrlX + ctrlW + 100, btnY + 40);
+            }
+
+            private void PickDir(TextBox box)
+            {
+                using (var dlg = new FolderBrowserDialog())
+                {
+                    if (System.IO.Directory.Exists(box.Text)) dlg.SelectedPath = box.Text;
+                    if (dlg.ShowDialog(this) == DialogResult.OK) box.Text = dlg.SelectedPath;
                 }
             }
         }

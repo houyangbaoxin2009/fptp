@@ -111,6 +111,8 @@ namespace Osiris.Core.Ui
         public const string SaveAs = "workbench.saveAs";
         /// <summary>打印（壳实现，合成当前文档按页面缩放居中打印）。</summary>
         public const string Print = "workbench.print";
+        /// <summary>批量处理（壳实现，目录批量执行滤镜链，复用 Core BatchProcessor）。</summary>
+        public const string Batch = "workbench.batch";
         /// <summary>撤销（壳实现，操作当前文档历史）。</summary>
         public const string Undo = "workbench.undo";
         /// <summary>重做（壳实现，操作当前文档历史）。</summary>

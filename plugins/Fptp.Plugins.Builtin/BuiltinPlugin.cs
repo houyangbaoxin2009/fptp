@@ -22,8 +22,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.6.0";
-        public string MinHostVersion => "2.0.6.0";
+        public string Version => "2.0.7.0";
+        public string MinHostVersion => "2.0.7.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
         {
@@ -43,6 +43,7 @@ namespace Fptp.Plugins.Builtin
             host.Ui.AddMenu(new MenuContribution("文件/保存", KnownCommands.Save, "Ctrl+S", 1));
             host.Ui.AddMenu(new MenuContribution("文件/另存为", KnownCommands.SaveAs, null, 2));
             host.Ui.AddMenu(new MenuContribution("文件/打印", KnownCommands.Print, "Ctrl+P", 3));
+            host.Ui.AddMenu(new MenuContribution("文件/批量处理", KnownCommands.Batch, null, 4));
 
             // 编辑菜单 → 撤销/重做（壳命令）
             host.Ui.AddMenu(new MenuContribution("编辑/撤销", KnownCommands.Undo, "Ctrl+Z", 1));

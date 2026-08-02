@@ -40,6 +40,9 @@ namespace Osiris.App.Workbench
         /// <summary>当前文档（打开新文档后替换）。</summary>
         public OsirisDocument Document => _document;
         public IUiService Ui => _ui;
+        /// <summary>已加载的插件注册表（批量处理等壳命令获取滤镜用；Program.cs 装配后设置）。</summary>
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public Osiris.Core.Plugins.IPluginRegistry PluginRegistry { get; set; }
         /// <summary>当前文档保存路径（未保存过为 null）。</summary>
         [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string CurrentPath { get; set; }
@@ -96,6 +99,7 @@ namespace Osiris.App.Workbench
             _ui.RegisterCommand(new WorkbenchCommands.SaveCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.SaveAsCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.PrintCommand(this));
+            _ui.RegisterCommand(new WorkbenchCommands.BatchCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.UndoCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.RedoCommand(this));
 
@@ -178,9 +182,14 @@ namespace Osiris.App.Workbench
             _ui.ApplyTo(this);
         }
 
-        /// <summary>状态栏消息。</summary>
+        /// <summary>状态栏消息（后台任务跨线程调用时自动切回 UI 线程）。</summary>
         internal void SetStatus(string message)
         {
+            if (_statusStrip.InvokeRequired)
+            {
+                _statusStrip.BeginInvoke(new Action(() => SetStatus(message)));
+                return;
+            }
             _statusStrip.Items[0].Text = message;
         }
 

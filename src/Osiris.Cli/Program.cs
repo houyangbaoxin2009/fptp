@@ -64,106 +64,68 @@ namespace Osiris.Cli
             return 0;
         }
 
-        /// <summary>批量处理：遍历输入目录图片，按选项依次执行 裁切/灰度/换底/排版，逐张失败不中断。</summary>
+        /// <summary>批量处理：复用 Core BatchProcessor（1.x BatchBox 能力），逐张失败不中断。</summary>
         private static int RunBatch(PluginRegistry registry, string[] args)
         {
             var inputDir = args[2];
             var outputDir = args[3];
-            bool doCrop = false, doGray = false, doBg = false;
-            string layoutPaper = null;
+            var options = new BatchOptions();
 
             for (int i = 4; i < args.Length; i++)
             {
                 switch (args[i])
                 {
-                    case "--crop": doCrop = true; break;
-                    case "--gray": doGray = true; break;
-                    case "--bg": doBg = true; break;
+                    case "--crop": options.Crop = true; break;
+                    case "--gray": options.Grayscale = true; break;
+                    case "--bg": options.ReplaceBackground = true; break;
                     case "--layout":
-                        if (i + 1 < args.Length) layoutPaper = args[++i];
+                        if (i + 1 < args.Length) options.LayoutPaper = args[++i];
                         break;
                 }
             }
 
-            if (!Directory.Exists(inputDir))
-            {
-                Console.Error.WriteLine("输入目录不存在: " + inputDir);
-                return 1;
-            }
-            Directory.CreateDirectory(outputDir);
-
-            // 收集滤镜（按 Id 后缀，避免依赖顺序）
+            // 收集全部滤镜（BatchProcessor 按 Id 后缀匹配）
             var filters = new List<IFilterProcessor>();
             foreach (var plugin in registry.Loaded)
                 if (plugin is IFilterPlugin fp)
                     filters.AddRange(fp.Filters);
-            IFilterProcessor Find(string id) => filters.Find(f => f.Id.EndsWith(id, StringComparison.OrdinalIgnoreCase));
-
-            var crop = doCrop ? Find("smartCrop") : null;
-            var gray = doGray ? Find("grayscale") : null;
-            var bg = doBg ? Find("replaceBackground") : null;
-            if (doCrop && crop == null) { Console.Error.WriteLine("未找到裁切滤镜"); return 1; }
-            if (doGray && gray == null) { Console.Error.WriteLine("未找到灰度滤镜"); return 1; }
-            if (doBg && bg == null) { Console.Error.WriteLine("未找到换底色滤镜"); return 1; }
-            if (layoutPaper != null && !LayoutProcessor.PaperPresets.ContainsKey(layoutPaper))
-            {
-                Console.Error.WriteLine("未知相纸预设: " + layoutPaper);
-                return 1;
-            }
-
-            var images = Directory.GetFiles(inputDir, "*.*")
-                .Where(f => IsImage(f))
-                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (images.Length == 0)
-            {
-                Console.WriteLine("输入目录没有图片");
-                return 0;
-            }
 
             var codec = new Osiris.Engine.Skia.ImageCodecSkia();
-            int ok = 0, failed = 0;
-            for (int i = 0; i < images.Length; i++)
+            int done = 0;
+            var total = Directory.GetFiles(inputDir, "*.*")
+                .Where(BatchProcessor.IsImage).Count();
+            try
             {
-                var file = images[i];
-                var outName = Path.GetFileNameWithoutExtension(file) + ".png";
-                var outFile = Path.Combine(outputDir, outName);
-                try
-                {
-                    PixelSurface cur;
-                    using (var stream = File.OpenRead(file))
-                        cur = codec.Read(stream, Path.GetExtension(file));
+                var result = BatchProcessor.Run(
+                    inputDir, outputDir, options, filters,
+                    file =>
+                    {
+                        using (var stream = File.OpenRead(file))
+                            return codec.Read(stream, Path.GetExtension(file));
+                    },
+                    (surface, outFile) =>
+                    {
+                        using (var stream = File.Create(outFile))
+                            codec.Write(surface, stream, ".png");
+                    },
+                    null,
+                    (file, ok, ex) =>
+                    {
+                        done++;
+                        if (ok)
+                            Console.WriteLine("[{0}/{1}] {2}", done, total, Path.GetFileName(file));
+                        else
+                            Console.Error.WriteLine("[{0}/{1}] 失败 {2}: {3}", done, total, Path.GetFileName(file), ex?.Message);
+                    });
 
-                    if (crop != null)
-                        cur = crop.Apply(cur, crop.Defaults, null, System.Threading.CancellationToken.None);
-                    if (gray != null)
-                        cur = gray.Apply(cur, gray.Defaults, null, System.Threading.CancellationToken.None);
-                    if (bg != null)
-                        cur = bg.Apply(cur, bg.Defaults, null, System.Threading.CancellationToken.None);
-                    if (layoutPaper != null)
-                        cur = LayoutProcessor.LayoutPreset(cur, layoutPaper).Paper;
-
-                    using (var stream = File.Create(outFile))
-                        codec.Write(cur, stream, ".png");
-                    ok++;
-                    Console.WriteLine("[{0}/{1}] {2}", i + 1, images.Length, Path.GetFileName(file));
-                }
-                catch (Exception ex)
-                {
-                    failed++;
-                    Console.Error.WriteLine("[{0}/{1}] 失败 {2}: {3}", i + 1, images.Length, Path.GetFileName(file), ex.Message);
-                }
+                Console.WriteLine("批量完成: {0} 成功, {1} 失败 → {2}", result.Succeeded, result.Failed, outputDir);
+                return result.Failed == 0 ? 0 : 2;
             }
-
-            Console.WriteLine("批量完成: {0} 成功, {1} 失败 → {2}", ok, failed, outputDir);
-            return failed == 0 ? 0 : 2;
-        }
-
-        private static bool IsImage(string path)
-        {
-            var ext = Path.GetExtension(path);
-            return ext != null && new[] { ".png", ".jpg", ".jpeg", ".bmp", ".webp" }
-                .Contains(ext, StringComparer.OrdinalIgnoreCase);
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine("批量处理失败: " + ex.Message);
+                return 1;
+            }
         }
 
         /// <summary>执行滤镜：读图 → 按 Id 后缀找滤镜 → 应用 → 写图（CLI 也是无 UI 宿主验证通道）。</summary>

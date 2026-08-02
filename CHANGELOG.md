@@ -5,6 +5,19 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
+## [2.0.7.0] - 2026-08-02
+
+### 新增
+- **批量处理**（1.x BatchBox 对应能力）：`Core.BatchProcessor` 抽取为 CLI/App 共享的批量处理引擎，遍历目录图片逐张执行 裁切/灰度/换底/排版 组合链，逐张失败不中断
+  - `BatchOptions`/`BatchResult`/`Run`/`IsImage`：选项组合、结果汇总、IO 经委托注入（`readImage`/`writeImage`），Core 零渲染后端依赖，CLI 与 App 各自提供 Skia 实现
+  - App 壳新增"文件/批量处理"命令：目录选择对话框（输入/输出目录 + 选项勾选 + 排版相纸下拉），后台线程执行不卡 UI，状态栏实时进度，完成弹窗汇总成功/失败数
+  - CLI `plugins batch <输入目录> <输出目录> [--crop] [--gray] [--bg] [--layout <相纸>]` 改为复用 Core `BatchProcessor.Run`（删除重复遍历/收集/写盘逻辑）
+- `WorkbenchForm.SetStatus` 线程安全：后台任务跨线程更新状态栏自动 `BeginInvoke` 切回 UI 线程
+- `WorkbenchForm.PluginRegistry`：壳命令（批量处理）从插件注册表收集滤镜
+
+### 变更
+- 版本号提升至 2.0.7.0（全部项目与内置模组同步）
+
 ## [2.0.6.0] - 2026-08-02
 
 ### 修复

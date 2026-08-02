@@ -42,6 +42,7 @@ namespace Osiris.App
             }
 
             // 模组全部加载后装配 UI
+            form.PluginRegistry = registry;
             form.RebuildUi();
             form.SetStatus("已加载模组: " + pluginCount);
 
