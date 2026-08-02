@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Osiris.App/Osiris.App.csproj" />
+    <Project Path="src/Osiris.Cli/Osiris.Cli.csproj" />
+    <Project Path="src/Osiris.Core/Osiris.Core.csproj" />
+    <Project Path="src/Osiris.Engine.Skia/Osiris.Engine.Skia.csproj" />
+    <Project Path="src/Osiris.Settings/Osiris.Settings.csproj" />
+  </Folder>
+</Solution>

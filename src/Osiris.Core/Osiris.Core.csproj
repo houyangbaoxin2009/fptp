@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Osiris.Core</RootNamespace>
+    <AssemblyName>Osiris.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- netstandard2.0 无内置 Span<T>，经 System.Memory 提供 -->
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+  </ItemGroup>
+
+</Project>

@@ -379,5 +379,5 @@ AGENTS.md
 
 # 推广文案与截图（仅本地，不入库）
 MARKETING.md
-docs/
+# docs/ 不再整体忽略：2.0 架构文档入库；PDF 由上方 *.pdf 规则忽略
 

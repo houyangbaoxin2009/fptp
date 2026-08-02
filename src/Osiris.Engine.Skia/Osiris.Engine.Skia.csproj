@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>Osiris.Engine.Skia</RootNamespace>
+    <AssemblyName>Osiris.Engine.Skia</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 锁 2.88.x：3.x 启用 DX12，Win7 有风险（Oracle 验证） -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Osiris.Core\Osiris.Core.csproj" />
+  </ItemGroup>
+
+</Project>
