@@ -271,7 +271,11 @@ namespace Osiris.App.Workbench
                     item.Tag = m.CommandId;
                     item.Click += (s, e) => Execute(m.CommandId, null);
                     if (!string.IsNullOrEmpty(m.ShortcutText))
+                    {
                         item.ShortcutKeyDisplayString = m.ShortcutText;
+                        // 解析真实快捷键并绑定（如 Ctrl+O、Ctrl+=、Ctrl+-），菜单显示与实际按键一致
+                        item.ShortcutKeys = ParseShortcut(m.ShortcutText);
+                    }
                 }
                 else
                 {
@@ -312,6 +316,49 @@ namespace Osiris.App.Workbench
                     if (c.Id == id) return c;
             }
             return null;
+        }
+
+        /// <summary>解析快捷键文本（"Ctrl+O"、"Ctrl+="、"Ctrl+-"、"Ctrl+0"）为 Keys 组合。
+        /// WinForms ShortcutKeys 要求带 Ctrl/Alt 修饰（裸键、纯 Shift 组合非法），不满足时返回 None（仅显示文本）。</summary>
+        private static Keys ParseShortcut(string text)
+        {
+            var parts = text.Split('+');
+            if (parts.Length == 0) return Keys.None;
+            var keys = Keys.None;
+            for (int i = 0; i < parts.Length - 1; i++)
+            {
+                switch (parts[i].Trim().ToUpperInvariant())
+                {
+                    case "CTRL": keys |= Keys.Control; break;
+                    case "SHIFT": keys |= Keys.Shift; break;
+                    case "ALT": keys |= Keys.Alt; break;
+                }
+            }
+            var key = parts[parts.Length - 1].Trim().ToUpperInvariant();
+            switch (key)
+            {
+                case "0": keys |= Keys.D0; break;
+                case "1": keys |= Keys.D1; break;
+                case "2": keys |= Keys.D2; break;
+                case "3": keys |= Keys.D3; break;
+                case "4": keys |= Keys.D4; break;
+                case "5": keys |= Keys.D5; break;
+                case "6": keys |= Keys.D6; break;
+                case "7": keys |= Keys.D7; break;
+                case "8": keys |= Keys.D8; break;
+                case "9": keys |= Keys.D9; break;
+                case "=": keys |= Keys.Oemplus; break;
+                case "+": keys |= Keys.Oemplus; break;
+                case "-": keys |= Keys.OemMinus; break;
+                default:
+                    if (key.Length == 1 && key[0] >= 'A' && key[0] <= 'Z')
+                        keys |= (Keys)(key[0] - 'A' + (int)Keys.A);
+                    else
+                        return Keys.None;
+                    break;
+            }
+            // 无 Ctrl/Alt 修饰的裸键/纯 Shift 组合 WinForms 不允许设为 ShortcutKeys
+            return (keys & (Keys.Control | Keys.Alt)) == 0 ? Keys.None : keys;
         }
 
         private void Execute(string commandId, object parameter)

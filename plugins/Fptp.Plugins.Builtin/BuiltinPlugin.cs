@@ -22,8 +22,8 @@ namespace Fptp.Plugins.Builtin
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.7.0";
-        public string MinHostVersion => "2.0.7.0";
+        public string Version => "2.0.8.0";
+        public string MinHostVersion => "2.0.8.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
         {
@@ -48,6 +48,12 @@ namespace Fptp.Plugins.Builtin
             // 编辑菜单 → 撤销/重做（壳命令）
             host.Ui.AddMenu(new MenuContribution("编辑/撤销", KnownCommands.Undo, "Ctrl+Z", 1));
             host.Ui.AddMenu(new MenuContribution("编辑/重做", KnownCommands.Redo, "Ctrl+Y", 2));
+
+            // 视图菜单 → 画布缩放（壳命令）
+            host.Ui.AddMenu(new MenuContribution("视图/放大", KnownCommands.ZoomIn, "Ctrl+=", 1));
+            host.Ui.AddMenu(new MenuContribution("视图/缩小", KnownCommands.ZoomOut, "Ctrl+-", 2));
+            host.Ui.AddMenu(new MenuContribution("视图/适应窗口", KnownCommands.ZoomFit, "Ctrl+0", 3));
+            host.Ui.AddMenu(new MenuContribution("视图/实际大小", KnownCommands.ZoomActual, "Ctrl+1", 4));
 
             // 贡献"图像"菜单 → 滤镜命令（壳自动创建中间节点）
             host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.grayscale", "灰度", _grayscale, null));

@@ -34,24 +34,30 @@ namespace Osiris.App.Workbench
                 })
                 {
                     if (dlg.ShowDialog(_form) != DialogResult.OK) return;
-                    try
+                    OpenFile(dlg.FileName);
+                }
+            }
+
+            /// <summary>打开图片为新文档（菜单/拖放共用入口）。</summary>
+            internal void OpenFile(string fileName)
+            {
+                try
+                {
+                    using (var stream = File.OpenRead(fileName))
                     {
-                        using (var stream = File.OpenRead(dlg.FileName))
-                        {
-                            var surface = new Osiris.Engine.Skia.ImageCodecSkia()
-                                .Read(stream, Path.GetExtension(dlg.FileName));
-                            var doc = new OsirisDocument(surface.Width, surface.Height);
-                            var layer = new Layer(Path.GetFileName(dlg.FileName), surface.Width, surface.Height);
-                            surface.Pixels.CopyTo(layer.Pixels.Pixels);
-                            doc.Layers.Add(layer);
-                            _form.LoadDocument(doc, Path.GetFileName(dlg.FileName), dlg.FileName);
-                        }
+                        var surface = new Osiris.Engine.Skia.ImageCodecSkia()
+                            .Read(stream, Path.GetExtension(fileName));
+                        var doc = new OsirisDocument(surface.Width, surface.Height);
+                        var layer = new Layer(Path.GetFileName(fileName), surface.Width, surface.Height);
+                        surface.Pixels.CopyTo(layer.Pixels.Pixels);
+                        doc.Layers.Add(layer);
+                        _form.LoadDocument(doc, Path.GetFileName(fileName), fileName);
                     }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show(_form, "打开失败: " + ex.Message, "Osiris",
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(_form, "打开失败: " + ex.Message, "Osiris",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -147,6 +153,50 @@ namespace Osiris.App.Workbench
                     _form.Document.History.Redo(_form.Document);
                 else
                     _form.RedoDocument();
+            }
+        }
+
+        /// <summary>画布视图缩放（放大/缩小/适应窗口/实际大小）。</summary>
+        internal sealed class ZoomCommand : ICommand
+        {
+            public enum ZoomAction { In, Out, Fit, Actual }
+
+            private readonly WorkbenchForm _form;
+            private readonly ZoomAction _action;
+
+            public ZoomCommand(WorkbenchForm form, ZoomAction action)
+            {
+                _form = form;
+                _action = action;
+            }
+
+            public string Id => _action switch
+            {
+                ZoomAction.In => KnownCommands.ZoomIn,
+                ZoomAction.Out => KnownCommands.ZoomOut,
+                ZoomAction.Fit => KnownCommands.ZoomFit,
+                _ => KnownCommands.ZoomActual
+            };
+
+            public string DisplayName => _action switch
+            {
+                ZoomAction.In => "放大(&I)",
+                ZoomAction.Out => "缩小(&O)",
+                ZoomAction.Fit => "适应窗口(&F)",
+                _ => "实际大小(&A)"
+            };
+
+            public bool CanExecute(object parameter) => true;
+
+            public void Execute(object parameter)
+            {
+                switch (_action)
+                {
+                    case ZoomAction.In: _form.ZoomIn(); break;
+                    case ZoomAction.Out: _form.ZoomOut(); break;
+                    case ZoomAction.Fit: _form.ZoomFitView(); break;
+                    default: _form.ZoomActual(); break;
+                }
             }
         }
 

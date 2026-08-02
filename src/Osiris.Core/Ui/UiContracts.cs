@@ -117,6 +117,14 @@ namespace Osiris.Core.Ui
         public const string Undo = "workbench.undo";
         /// <summary>重做（壳实现，操作当前文档历史）。</summary>
         public const string Redo = "workbench.redo";
+        /// <summary>放大画布（壳实现，Ctrl+滚轮亦可）。</summary>
+        public const string ZoomIn = "workbench.zoomIn";
+        /// <summary>缩小画布（壳实现，Ctrl+滚轮亦可）。</summary>
+        public const string ZoomOut = "workbench.zoomOut";
+        /// <summary>适应窗口（壳实现，默认视图）。</summary>
+        public const string ZoomFit = "workbench.zoomFit";
+        /// <summary>实际大小 100%（壳实现）。</summary>
+        public const string ZoomActual = "workbench.zoomActual";
     }
 
     /// <summary>UI 服务：模组在 Initialize 时通过此接口贡献 UI 资源。</summary>

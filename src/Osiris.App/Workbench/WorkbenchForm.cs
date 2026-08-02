@@ -28,10 +28,18 @@ namespace Osiris.App.Workbench
         private readonly SplitContainer _leftPanelArea;
         private readonly SplitContainer _rightPanelArea;
         private readonly Panel _canvasArea;
+        /// <summary>画布滚动容器（放大后超出可视区可滚动查看）。</summary>
+        private readonly Panel _scrollPanel;
         private readonly StatusStrip _statusStrip;
         private readonly ToolStrip _toolStrip;
         private readonly MenuStrip _menuStrip;
         private PictureBox _canvas;
+        /// <summary>状态栏缩放指示（适应窗口/百分比）。</summary>
+        private ToolStripStatusLabel _zoomStatus;
+        /// <summary>缩放比例（1.0 = 100%）。</summary>
+        private double _zoom = 1.0;
+        /// <summary>适应窗口模式（默认：画布随窗口自动缩放居中）。</summary>
+        private bool _zoomFit = true;
 
         internal MenuStrip MenuStrip => _menuStrip;
         internal ToolStrip ToolStrip => _toolStrip;
@@ -63,6 +71,12 @@ namespace Osiris.App.Workbench
             _toolStrip = new ToolStrip { Dock = DockStyle.Top };
             _statusStrip = new StatusStrip { Dock = DockStyle.Bottom };
             _statusStrip.Items.Add("已加载模组: " + pluginCount);
+            _zoomStatus = new ToolStripStatusLabel("适应窗口")
+            {
+                BorderSides = ToolStripStatusLabelBorderSides.Left,
+                Alignment = ToolStripItemAlignment.Right
+            };
+            _statusStrip.Items.Add(_zoomStatus);
 
             _root = new SplitContainer
             {
@@ -83,6 +97,8 @@ namespace Osiris.App.Workbench
                 Panel2MinSize = 120
             };
             _canvasArea = new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.DimGray };
+            _scrollPanel = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = System.Drawing.Color.DimGray };
+            _canvasArea.Controls.Add(_scrollPanel);
 
             _rightPanelArea.Panel1.Controls.Add(_canvasArea);
             _leftPanelArea.Panel2.Controls.Add(_rightPanelArea);
@@ -102,9 +118,45 @@ namespace Osiris.App.Workbench
             _ui.RegisterCommand(new WorkbenchCommands.BatchCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.UndoCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.RedoCommand(this));
+            _ui.RegisterCommand(new WorkbenchCommands.ZoomCommand(this, WorkbenchCommands.ZoomCommand.ZoomAction.In));
+            _ui.RegisterCommand(new WorkbenchCommands.ZoomCommand(this, WorkbenchCommands.ZoomCommand.ZoomAction.Out));
+            _ui.RegisterCommand(new WorkbenchCommands.ZoomCommand(this, WorkbenchCommands.ZoomCommand.ZoomAction.Fit));
+            _ui.RegisterCommand(new WorkbenchCommands.ZoomCommand(this, WorkbenchCommands.ZoomCommand.ZoomAction.Actual));
 
             // 历史变化 → 自动重绘画布（撤销/重做/滤镜入栈后像素已变）
             _document.History.Changed += OnHistoryChanged;
+
+            // 拖放图片文件直接打开
+            AllowDrop = true;
+            DragEnter += OnDragEnter;
+            DragDrop += OnDragDrop;
+        }
+
+        private void OnDragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                e.Effect = DragDropEffects.Copy;
+        }
+
+        private void OnDragDrop(object sender, DragEventArgs e)
+        {
+            var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+            if (files == null || files.Length == 0) return;
+            new WorkbenchCommands.OpenDocumentCommand(this).OpenFile(files[0]);
+        }
+
+        /// <summary>Ctrl+= / Ctrl+- 缩放（WinForms ShortcutKeys 不支持 OEM 键，经命令键处理）。</summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if ((keyData & Keys.Control) != 0)
+            {
+                switch (keyData & Keys.KeyCode)
+                {
+                    case Keys.Oemplus: ZoomIn(); return true;
+                    case Keys.OemMinus: ZoomOut(); return true;
+                }
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         /// <summary>历史变化统一回调（文档替换时重订阅）。</summary>
@@ -245,6 +297,25 @@ namespace Osiris.App.Workbench
         /// <summary>重绘画布（撤销/重做/文档变更后调用）。</summary>
         internal void RefreshCanvas() => RenderCanvas();
 
+        /// <summary>放大画布（视图菜单/Ctrl+滚轮）。</summary>
+        internal void ZoomIn() => SetZoom(_zoom * 1.25);
+
+        /// <summary>缩小画布（视图菜单/Ctrl+滚轮）。</summary>
+        internal void ZoomOut() => SetZoom(_zoom / 1.25);
+
+        /// <summary>适应窗口：画布等比例填满可视区并居中。</summary>
+        internal void ZoomFitView() { _zoomFit = true; ApplyCanvasLayout(); }
+
+        /// <summary>实际大小 100%。</summary>
+        internal void ZoomActual() { _zoomFit = false; _zoom = 1.0; ApplyCanvasLayout(); }
+
+        private void SetZoom(double zoom)
+        {
+            _zoom = Math.Max(0.05, Math.Min(32.0, zoom));
+            _zoomFit = false;
+            ApplyCanvasLayout();
+        }
+
         /// <summary>合成当前文档为 GDI+ 位图（保存/打印共用；调用方负责 Dispose）。</summary>
         internal System.Drawing.Bitmap RenderToGdiBitmap()
         {
@@ -262,21 +333,16 @@ namespace Osiris.App.Workbench
             RefreshCanvas();
         }
 
-        /// <summary>PictureBox Zoom 模式下，控件坐标 → 文档像素坐标。</summary>
+        /// <summary>PictureBox 画布坐标 → 文档像素坐标（画布尺寸=图片×缩放，等比例满铺无偏移）。</summary>
         private ToolMouseEvent MapToDocument(int clientX, int clientY, ToolMouseButton button)
         {
             var img = _canvas?.Image;
-            if (img == null || _canvas.ClientSize.Width == 0 || _canvas.ClientSize.Height == 0)
+            if (img == null || _canvas.Width == 0 || _canvas.Height == 0)
                 return new ToolMouseEvent { X = 0, Y = 0, Button = button };
-            double scale = Math.Min(
-                (double)_canvas.ClientSize.Width / img.Width,
-                (double)_canvas.ClientSize.Height / img.Height);
-            int offsetX = (int)((_canvas.ClientSize.Width - img.Width * scale) / 2);
-            int offsetY = (int)((_canvas.ClientSize.Height - img.Height * scale) / 2);
             return new ToolMouseEvent
             {
-                X = (int)((clientX - offsetX) / scale),
-                Y = (int)((clientY - offsetY) / scale),
+                X = (int)(clientX * (double)img.Width / _canvas.Width),
+                Y = (int)(clientY * (double)img.Height / _canvas.Height),
                 Button = button,
                 Modifiers = ModifierKeysToTool(ModifierKeys)
             };
@@ -298,14 +364,15 @@ namespace Osiris.App.Workbench
             {
                 _canvas = new PictureBox
                 {
-                    Dock = DockStyle.Fill,
                     SizeMode = PictureBoxSizeMode.Zoom,
                     BackColor = System.Drawing.Color.DimGray
                 };
                 _canvas.MouseDown += OnCanvasMouseDown;
                 _canvas.MouseMove += OnCanvasMouseMove;
                 _canvas.MouseUp += OnCanvasMouseUp;
-                _canvasArea.Controls.Add(_canvas);
+                _canvas.MouseWheel += OnCanvasMouseWheel;
+                _scrollPanel.Controls.Add(_canvas);
+                _scrollPanel.Resize += (s, e) => { if (_zoomFit) ApplyCanvasLayout(); };
             }
             using (var bmp = new Osiris.Engine.Skia.CanvasRenderer().Render(_document))
             {
@@ -316,6 +383,45 @@ namespace Osiris.App.Workbench
                         _activeTool.DrawOverlay(new SkiaToolOverlay(canvas));
                 }
                 SwapCanvasImage(ToGdiBitmap(bmp));
+            }
+            ApplyCanvasLayout();
+        }
+
+        /// <summary>Ctrl+滚轮缩放（不按住 Ctrl 时交回 AutoScroll 滚动）。</summary>
+        private void OnCanvasMouseWheel(object sender, MouseEventArgs e)
+        {
+            if ((ModifierKeys & Keys.Control) == 0) return;
+            ((HandledMouseEventArgs)e).Handled = true;
+            if (e.Delta > 0) ZoomIn();
+            else ZoomOut();
+        }
+
+        /// <summary>按当前视图模式布置画布：适应窗口等比例居中，或按缩放比例定尺寸并启用滚动。</summary>
+        private void ApplyCanvasLayout()
+        {
+            var img = _canvas?.Image;
+            if (img == null) return;
+            double scale = _zoomFit
+                ? Math.Min((double)_scrollPanel.ClientSize.Width / img.Width,
+                           (double)_scrollPanel.ClientSize.Height / img.Height)
+                : _zoom;
+            int w = Math.Max(1, (int)Math.Round(img.Width * scale));
+            int h = Math.Max(1, (int)Math.Round(img.Height * scale));
+            if (_zoomFit)
+            {
+                _canvas.Location = new System.Drawing.Point(
+                    Math.Max(0, (_scrollPanel.ClientSize.Width - w) / 2),
+                    Math.Max(0, (_scrollPanel.ClientSize.Height - h) / 2));
+                _canvas.Size = new System.Drawing.Size(w, h);
+                _scrollPanel.AutoScrollMinSize = System.Drawing.Size.Empty;
+                _zoomStatus.Text = "适应窗口 " + (int)Math.Round(scale * 100) + "%";
+            }
+            else
+            {
+                _canvas.Location = System.Drawing.Point.Empty;
+                _canvas.Size = new System.Drawing.Size(w, h);
+                _scrollPanel.AutoScrollMinSize = new System.Drawing.Size(w, h);
+                _zoomStatus.Text = (int)Math.Round(scale * 100) + "%";
             }
         }
 
