@@ -8,7 +8,7 @@ using Osiris.Core.Ui;
 namespace Osiris.App.Workbench
 {
     /// <summary>壳：只负责渲染模组注册的 UI 资源，不含任何业务逻辑。</summary>
-    public sealed class WorkbenchForm : Form
+    public sealed class WorkbenchForm : Form, IMessageFilter
     {
         private readonly WorkbenchUiService _ui;
         private OsirisDocument _document;
@@ -25,7 +25,6 @@ namespace Osiris.App.Workbench
 
         // 工作区容器：壳只提供空白区域，内容由面板/画布贡献填充
         private readonly SplitContainer _root;
-        private readonly SplitContainer _leftPanelArea;
         private readonly SplitContainer _rightPanelArea;
         private readonly Panel _canvasArea;
         /// <summary>画布滚动容器（放大后超出可视区可滚动查看）。</summary>
@@ -61,7 +60,7 @@ namespace Osiris.App.Workbench
         public WorkbenchForm(Osiris.Core.Plugins.IPluginRegistry registry, int pluginCount)
         {
             Text = "Osiris 2.0";
-            Size = new System.Drawing.Size(1100, 720);
+            Size = new System.Drawing.Size(1400, 900);
 
             _document = new OsirisDocument(1, 1);
             _ui = new WorkbenchUiService(this);
@@ -74,35 +73,32 @@ namespace Osiris.App.Workbench
             _zoomStatus = new ToolStripStatusLabel("适应窗口")
             {
                 BorderSides = ToolStripStatusLabelBorderSides.Left,
-                Alignment = ToolStripItemAlignment.Right
+                Alignment = ToolStripItemAlignment.Right,
+                IsLink = true
             };
+            _zoomStatus.Click += (s, e) => ToggleZoomFit();
             _statusStrip.Items.Add(_zoomStatus);
 
             _root = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 0
-            };
-            _leftPanelArea = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Vertical,
-                Panel1MinSize = 120
+                Panel1MinSize = 120,
+                Panel1Collapsed = true // 无左面板时画布占满
             };
             _rightPanelArea = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                Panel2MinSize = 120
+                Panel2MinSize = 120,
+                Panel2Collapsed = true // 无右面板时画布占满
             };
             _canvasArea = new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.DimGray };
             _scrollPanel = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = System.Drawing.Color.DimGray };
             _canvasArea.Controls.Add(_scrollPanel);
 
             _rightPanelArea.Panel1.Controls.Add(_canvasArea);
-            _leftPanelArea.Panel2.Controls.Add(_rightPanelArea);
-            _root.Panel1.Controls.Add(_leftPanelArea);
+            _root.Panel2.Controls.Add(_rightPanelArea);
 
             Controls.Add(_root);
             Controls.Add(_statusStrip);
@@ -130,7 +126,28 @@ namespace Osiris.App.Workbench
             AllowDrop = true;
             DragEnter += OnDragEnter;
             DragDrop += OnDragDrop;
+
+            // Ctrl+滚轮缩放：IMessageFilter 全局拦截（PictureBox 无焦点时 MouseWheel 不触发）
+            Application.AddMessageFilter(this);
+            FormClosed += (s, e) => Application.RemoveMessageFilter(this);
         }
+
+        /// <summary>
+        /// 全局消息过滤：Ctrl+滚轮缩放（以光标为中心）。PictureBox 的 MouseWheel 事件仅在
+        /// 控件有焦点时触发，不可靠；此处在消息层拦截，光标在画布区域内即缩放。
+        /// </summary>
+        public bool PreFilterMessage(ref Message m)
+        {
+            if (m.Msg != WM_MOUSEWHEEL) return false;
+            if ((ModifierKeys & Keys.Control) == 0) return false;
+            var pos = _scrollPanel.PointToClient(Cursor.Position);
+            if (!_scrollPanel.ClientRectangle.Contains(pos)) return false;
+            int delta = (short)((long)m.WParam >> 16);
+            ZoomAt(pos.X, pos.Y, delta > 0 ? 1.25 : 0.8);
+            return true;
+        }
+
+        private const int WM_MOUSEWHEEL = 0x020A;
 
         private void OnDragEnter(object sender, DragEventArgs e)
         {
@@ -177,17 +194,19 @@ namespace Osiris.App.Workbench
             switch (panel.Side)
             {
                 case PanelSide.Left:
-                    if (_leftPanelArea.Panel1.Controls.Count == 0)
+                    if (_root.Panel1.Controls.Count == 0)
                     {
-                        _leftPanelArea.Panel1.Controls.Add(host);
-                        _root.SplitterDistance = 220;
+                        _root.Panel1.Controls.Add(host);
+                        _root.Panel1Collapsed = false;
+                        _root.SplitterDistance = 180;
                     }
                     break;
                 case PanelSide.Right:
                     if (_rightPanelArea.Panel2.Controls.Count == 0)
                     {
                         _rightPanelArea.Panel2.Controls.Add(host);
-                        _rightPanelArea.SplitterDistance = _rightPanelArea.Width - 220;
+                        _rightPanelArea.Panel2Collapsed = false;
+                        _rightPanelArea.SplitterDistance = _rightPanelArea.Width - 180;
                     }
                     break;
                 case PanelSide.Bottom:
@@ -297,11 +316,11 @@ namespace Osiris.App.Workbench
         /// <summary>重绘画布（撤销/重做/文档变更后调用）。</summary>
         internal void RefreshCanvas() => RenderCanvas();
 
-        /// <summary>放大画布（视图菜单/Ctrl+滚轮）。</summary>
-        internal void ZoomIn() => SetZoom(_zoom * 1.25);
+        /// <summary>放大画布（视图菜单/工具栏：以视口中心缩放）。</summary>
+        internal void ZoomIn() => ZoomAt(_scrollPanel.ClientSize.Width / 2, _scrollPanel.ClientSize.Height / 2, 1.25);
 
-        /// <summary>缩小画布（视图菜单/Ctrl+滚轮）。</summary>
-        internal void ZoomOut() => SetZoom(_zoom / 1.25);
+        /// <summary>缩小画布（视图菜单/工具栏：以视口中心缩放）。</summary>
+        internal void ZoomOut() => ZoomAt(_scrollPanel.ClientSize.Width / 2, _scrollPanel.ClientSize.Height / 2, 0.8);
 
         /// <summary>适应窗口：画布等比例填满可视区并居中。</summary>
         internal void ZoomFitView() { _zoomFit = true; ApplyCanvasLayout(); }
@@ -309,11 +328,40 @@ namespace Osiris.App.Workbench
         /// <summary>实际大小 100%。</summary>
         internal void ZoomActual() { _zoomFit = false; _zoom = 1.0; ApplyCanvasLayout(); }
 
-        private void SetZoom(double zoom)
+        /// <summary>在 适应窗口 与 实际大小 之间切换（状态栏点击/画布双击）。</summary>
+        internal void ToggleZoomFit()
         {
-            _zoom = Math.Max(0.05, Math.Min(32.0, zoom));
+            if (_zoomFit) ZoomActual();
+            else ZoomFitView();
+        }
+
+        /// <summary>
+        /// 以光标(clientX, clientY，相对 _scrollPanel 客户区)为中心缩放 factor 倍。
+        /// 缩放前后光标下的文档像素保持不动（缩放锚定光标 + 视口跟随）。
+        /// </summary>
+        private void ZoomAt(int clientX, int clientY, double factor)
+        {
+            var img = _canvas?.Image;
+            if (img == null) return;
+            double scale = _zoomFit
+                ? Math.Min((double)_scrollPanel.ClientSize.Width / img.Width,
+                           (double)_scrollPanel.ClientSize.Height / img.Height)
+                : _zoom;
+            var sp = _scrollPanel.AutoScrollPosition; // 负值：内容被滚动的偏移
+            double offX = -sp.X, offY = -sp.Y;
+            // 光标下的文档坐标（画布内容原点 = 画布位置 + 滚动偏移）
+            double docX = (clientX + offX - _canvas.Location.X) / scale;
+            double docY = (clientY + offY - _canvas.Location.Y) / scale;
+
+            _zoom = Math.Max(0.05, Math.Min(32.0, scale * factor));
             _zoomFit = false;
-            ApplyCanvasLayout();
+            ApplyCanvasLayout(); // 新布局：画布原点 (0,0)，AutoScrollMinSize=图片×新缩放
+
+            // 视口跟随：让 docX 仍落在光标处 → 新滚动偏移 = docX*新缩放 - clientX
+            double newOffX = docX * _zoom - clientX;
+            double newOffY = docY * _zoom - clientY;
+            _scrollPanel.AutoScrollPosition = new System.Drawing.Point(
+                (int)Math.Round(-newOffX), (int)Math.Round(-newOffY));
         }
 
         /// <summary>合成当前文档为 GDI+ 位图（保存/打印共用；调用方负责 Dispose）。</summary>
@@ -370,7 +418,7 @@ namespace Osiris.App.Workbench
                 _canvas.MouseDown += OnCanvasMouseDown;
                 _canvas.MouseMove += OnCanvasMouseMove;
                 _canvas.MouseUp += OnCanvasMouseUp;
-                _canvas.MouseWheel += OnCanvasMouseWheel;
+                _canvas.DoubleClick += (s, e) => ToggleZoomFit();
                 _scrollPanel.Controls.Add(_canvas);
                 _scrollPanel.Resize += (s, e) => { if (_zoomFit) ApplyCanvasLayout(); };
             }
@@ -385,15 +433,6 @@ namespace Osiris.App.Workbench
                 SwapCanvasImage(ToGdiBitmap(bmp));
             }
             ApplyCanvasLayout();
-        }
-
-        /// <summary>Ctrl+滚轮缩放（不按住 Ctrl 时交回 AutoScroll 滚动）。</summary>
-        private void OnCanvasMouseWheel(object sender, MouseEventArgs e)
-        {
-            if ((ModifierKeys & Keys.Control) == 0) return;
-            ((HandledMouseEventArgs)e).Handled = true;
-            if (e.Delta > 0) ZoomIn();
-            else ZoomOut();
         }
 
         /// <summary>按当前视图模式布置画布：适应窗口等比例居中，或按缩放比例定尺寸并启用滚动。</summary>
