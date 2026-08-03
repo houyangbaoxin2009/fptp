@@ -171,6 +171,7 @@ namespace Osiris.App.Workbench
                 }
             }
             _pressPage = null;
+            _pressHost = null;
         }
 
         private void TabsMouseMove(DockHost host, MouseEventArgs e)
@@ -195,6 +196,12 @@ namespace Osiris.App.Workbench
 
         private void TabsMouseUp(DockHost host, MouseEventArgs e)
         {
+            // 无论是否进入拖拽都要收尾：清空按下状态并释放捕获。
+            // 否则点击 tab 后未拖动就释放，_pressHost/_pressPage 残留且 Capture 未释放，
+            // 之后仅鼠标悬停移动超过阈值便会误触发拖拽（面板意外迁移）。
+            _pressHost = null;
+            _pressPage = null;
+            if (host.Tabs.Capture) host.Tabs.Capture = false;
             if (!_dragging) return;
             var target = _lastTarget;
             _dragging = false;

@@ -210,6 +210,20 @@ namespace Fptp.Plugins.Builtin
                 p = user;
             }
             var result = _filter.Apply(layer.Pixels, p, _host.Progress, _host.Cancellation);
+
+            // 滤镜输出尺寸不同于原图层（第三方滤镜可能缩放画布）：
+            // PixelEditCommand 按原图层宽高回写 result.Data 会越界崩溃，
+            // 转生成新文档（画布=结果尺寸，与原文档并行可切换）。
+            if (result.Width != layer.Pixels.Width || result.Height != layer.Pixels.Height)
+            {
+                var resultDoc = new OsirisDocument(result.Width, result.Height);
+                var resultLayer = new Layer(_displayName, result.Width, result.Height);
+                System.Buffer.BlockCopy(result.Data, 0, resultLayer.Pixels.Data, 0, result.Data.Length);
+                resultDoc.Layers.Add(resultLayer);
+                _host.Ui?.LoadDocument(resultDoc, _displayName);
+                return;
+            }
+
             var cmd = new PixelEditCommand(_displayName, layer,
                 0, 0, layer.Pixels.Width, layer.Pixels.Height, result.Data);
             doc.History.Push(cmd, doc);

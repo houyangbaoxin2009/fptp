@@ -378,9 +378,14 @@ namespace Osiris.App.Workbench
                 : _zoom;
             var sp = _scrollPanel.AutoScrollPosition; // 负值：内容被滚动的偏移
             double offX = -sp.X, offY = -sp.Y;
-            // 光标下的文档坐标（画布内容原点 = 画布位置 + 滚动偏移）
-            double docX = (clientX + offX - _canvas.Location.X) / scale;
-            double docY = (clientY + offY - _canvas.Location.Y) / scale;
+            // 画布内容原点用"意图位置"（居中偏移，基于画布尺寸）——不能读 _canvas.Location：
+            // AutoScrollPosition setter 会移动子控件使 Location 漂移，缩放循环中越漂越远，
+            // 用它算出的 docX 出错，Math.Max 钳制后滚动位置被清零（缩小后跳回左上角）。
+            double locX = Math.Max(0, (_scrollPanel.ClientSize.Width - _canvas.Width) / 2.0);
+            double locY = Math.Max(0, (_scrollPanel.ClientSize.Height - _canvas.Height) / 2.0);
+            // 光标下的文档坐标（画布内容原点 = 画布居中偏移 + 滚动偏移）
+            double docX = (clientX + offX - locX) / scale;
+            double docY = (clientY + offY - locY) / scale;
 
             _zoom = Math.Max(0.05, Math.Min(32.0, scale * factor));
             _zoomFit = false;
@@ -394,8 +399,12 @@ namespace Osiris.App.Workbench
 
                 // 视口跟随：让 docX 仍落在光标处。
                 // 滚动偏移 = 画布居中偏移 + docX×新缩放 - 光标（AutoScrollPosition setter 取正值）
-                double newOffX = _canvas.Location.X + docX * _zoom - clientX;
-                double newOffY = _canvas.Location.Y + docY * _zoom - clientY;
+                // 居中偏移同样用意图位置：ApplyCanvasLayout 后 _canvas.Width 已是新尺寸，
+                // 且 Size 不受 AutoScrollPosition setter 移动影响，只有 Location 会漂移。
+                double newLocX = Math.Max(0, (_scrollPanel.ClientSize.Width - _canvas.Width) / 2.0);
+                double newLocY = Math.Max(0, (_scrollPanel.ClientSize.Height - _canvas.Height) / 2.0);
+                double newOffX = newLocX + docX * _zoom - clientX;
+                double newOffY = newLocY + docY * _zoom - clientY;
                 _scrollPanel.AutoScrollPosition = new System.Drawing.Point(
                     (int)Math.Round(Math.Max(0, newOffX)), (int)Math.Round(Math.Max(0, newOffY)));
                 _scrollPanel.PerformLayout(); // 应用滚动位置
@@ -476,7 +485,10 @@ namespace Osiris.App.Workbench
                 _canvas.DoubleClick += (s, e) => ToggleZoomFit();
                 EnableDoubleBuffered(_canvas);
                 _scrollPanel.Controls.Add(_canvas);
-                _scrollPanel.Resize += (s, e) => { if (_zoomFit) ApplyCanvasLayout(); };
+                // 非 fit 模式 resize 也必须重新布局：画布按当前缩放重新居中。
+                // 否则窗口放大后画布 < 视口时一直贴左上角，且随后缩放锚定用的"意图位置"
+                // （居中偏移）与实际画布位置不符，光标锚定偏差可达数百像素。
+                _scrollPanel.Resize += (s, e) => ApplyCanvasLayout();
             }
             using (var bmp = new Osiris.Engine.Skia.CanvasRenderer().Render(_document))
                 SwapCanvasImage(ToGdiBitmap(bmp));

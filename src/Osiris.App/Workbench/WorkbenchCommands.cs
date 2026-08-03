@@ -221,7 +221,17 @@ namespace Osiris.App.Workbench
                 if (string.IsNullOrEmpty(_form.CurrentPath))
                     new SaveAsCommand(_form).Execute(parameter);
                 else
-                    SaveTo(_form.CurrentPath);
+                {
+                    try
+                    {
+                        SaveTo(_form.CurrentPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(_form, "保存失败: " + ex.Message, "Osiris",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
             }
 
             /// <summary>把当前文档合成结果保存到指定路径。</summary>
@@ -306,6 +316,22 @@ namespace Osiris.App.Workbench
 
                     var codec = new Osiris.Engine.Skia.ImageCodecSkia();
                     int done = 0;
+
+                    // 校验输入目录存在，避免 Directory.GetFiles 抛 DirectoryNotFoundException 崩溃
+                    if (!Directory.Exists(inputDir))
+                    {
+                        MessageBox.Show(_form, "输入目录不存在: " + inputDir, "Osiris",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                    // 拒绝输入=输出：批量输出同名 .png 会覆盖源文件
+                    if (string.Equals(NormalizeDir(inputDir), NormalizeDir(outputDir), StringComparison.OrdinalIgnoreCase))
+                    {
+                        MessageBox.Show(_form, "输入目录与输出目录不能相同（避免覆盖源文件）。", "Osiris",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
                     var total = Directory.GetFiles(inputDir, "*.*")
                         .Where(BatchProcessor.IsImage).Count();
                     _form.SetStatus("批量处理: 0/" + total);
@@ -446,6 +472,14 @@ namespace Osiris.App.Workbench
                     if (dlg.ShowDialog(this) == DialogResult.OK) box.Text = dlg.SelectedPath;
                 }
             }
+        }
+
+        /// <summary>目录路径规范化（解析 . / .. / 尾部斜杠），供路径比较使用。</summary>
+        private static string NormalizeDir(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+            try { return Path.GetFullPath(path).TrimEnd('\\', '/'); }
+            catch { return path.TrimEnd('\\', '/'); }
         }
     }
 }

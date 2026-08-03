@@ -44,11 +44,21 @@ namespace Osiris.Engine.Skia
             var source = src;
             try
             {
-                // 颜色格式不一致时一次性转换到 BGRA8888 预乘
+                // 颜色格式不一致时一次性转换到 BGRA8888 预乘。
+                // 注意 Copy(SKColorType) 只换颜色类型、保留原 AlphaType：半透明 PNG 解码为
+                // Unpremul，若不指定 Premul，后续按预乘合成会得到错误的半透明颜色。
                 if (src.Info.ColorType != SKColorType.Bgra8888 || src.Info.AlphaType != SKAlphaType.Premul)
                 {
-                    source = src.Copy(SKColorType.Bgra8888);
-                    if (source == null) throw new InvalidDataException("像素格式转换失败");
+                    var info = new SKImageInfo(src.Width, src.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+                    source = new SKBitmap(info);
+                    using (var pixmap = src.PeekPixels())
+                    {
+                        if (!pixmap.ReadPixels(info, source.GetPixels(), source.RowBytes))
+                        {
+                            source.Dispose();
+                            throw new InvalidDataException("像素格式转换失败");
+                        }
+                    }
                 }
 
                 using (var pixmap = source.PeekPixels())
@@ -68,20 +78,15 @@ namespace Osiris.Engine.Skia
             }
         }
 
-        /// <summary>PixelSurface → SKBitmap（零拷贝视图，由调用方负责存活期）。</summary>
+        /// <summary>PixelSurface → SKBitmap（像素拷贝为 Skia 自有缓冲，编码期间安全）。</summary>
         private static SKBitmap CreateBitmap(PixelSurface surface)
         {
+            // 不能用 InstallPixels 零拷贝引用 surface.Data：byte[] 可被 GC 压缩移动，
+            // GCHandle 在 InstallPixels 后立即解 pin，而 bmp.Encode() 在之后才执行，
+            // 指针悬空导致批量编码时随机脏数据甚至崩溃。拷贝一次让 SKBitmap 自持像素。
             var info = new SKImageInfo(surface.Width, surface.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
             var bmp = new SKBitmap(info);
-            var handle = System.Runtime.InteropServices.GCHandle.Alloc(surface.Data, System.Runtime.InteropServices.GCHandleType.Pinned);
-            try
-            {
-                bmp.InstallPixels(info, handle.AddrOfPinnedObject(), surface.Stride, null, null);
-            }
-            finally
-            {
-                handle.Free();
-            }
+            System.Runtime.InteropServices.Marshal.Copy(surface.Data, 0, bmp.GetPixels(), surface.Data.Length);
             return bmp;
         }
 
