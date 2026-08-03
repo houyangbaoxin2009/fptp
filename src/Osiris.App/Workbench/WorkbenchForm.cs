@@ -23,10 +23,17 @@ namespace Osiris.App.Workbench
         private readonly List<Osiris.Core.Ui.ListPanelContent> _listPanels =
             new List<Osiris.Core.Ui.ListPanelContent>();
 
-        // 工作区容器：壳只提供空白区域，内容由面板/画布贡献填充
+        // 工作区容器：四边停靠区（Tab 合并）+ 中央画布
         private readonly SplitContainer _root;
-        private readonly SplitContainer _rightPanelArea;
+        private readonly SplitContainer _mid;
+        private readonly SplitContainer _centerColumn;
+        private readonly SplitContainer _canvasColumn;
         private readonly Panel _canvasArea;
+        private readonly DockHost _dockTop;
+        private readonly DockHost _dockLeft;
+        private readonly DockHost _dockBottom;
+        private readonly DockHost _dockRight;
+        private readonly DockManager _dockManager;
         /// <summary>画布滚动容器（放大后超出可视区可滚动查看）。</summary>
         private readonly Panel _scrollPanel;
         private readonly StatusStrip _statusStrip;
@@ -79,26 +86,56 @@ namespace Osiris.App.Workbench
             _zoomStatus.Click += (s, e) => ToggleZoomFit();
             _statusStrip.Items.Add(_zoomStatus);
 
+            // 四边停靠区 + 中央画布（嵌套 SplitContainer：上 | 左 | 画布列 | 右）
+            // 注意：Orientation.Vertical = 左右排列，Orientation.Horizontal = 上下排列
             _root = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                Panel1MinSize = 120,
+                Panel1Collapsed = true // 无上面板时画布占满
+            };
+            _mid = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
                 Panel1MinSize = 120,
                 Panel1Collapsed = true // 无左面板时画布占满
             };
-            _rightPanelArea = new SplitContainer
+            _centerColumn = new SplitContainer
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
                 Panel2MinSize = 120,
                 Panel2Collapsed = true // 无右面板时画布占满
             };
+            _canvasColumn = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                Panel2MinSize = 120,
+                Panel2Collapsed = true // 无下面板时画布占满
+            };
             _canvasArea = new Panel { Dock = DockStyle.Fill, BackColor = System.Drawing.Color.DimGray };
             _scrollPanel = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = System.Drawing.Color.DimGray };
+            EnableDoubleBuffered(_canvasArea);
+            EnableDoubleBuffered(_scrollPanel);
             _canvasArea.Controls.Add(_scrollPanel);
 
-            _rightPanelArea.Panel1.Controls.Add(_canvasArea);
-            _root.Panel2.Controls.Add(_rightPanelArea);
+            _dockTop = new DockHost(DockZone.Top, _root, true, 160);
+            _dockLeft = new DockHost(DockZone.Left, _mid, true, 200);
+            _dockBottom = new DockHost(DockZone.Bottom, _canvasColumn, false, 160);
+            _dockRight = new DockHost(DockZone.Right, _centerColumn, false, 200);
+            _dockManager = new DockManager(this, _dockTop, _dockLeft, _dockBottom, _dockRight);
+
+            _root.Panel1.Controls.Add(_dockTop.Tabs);
+            _root.Panel2.Controls.Add(_mid);
+            _mid.Panel1.Controls.Add(_dockLeft.Tabs);
+            _mid.Panel2.Controls.Add(_centerColumn);
+            _centerColumn.Panel1.Controls.Add(_canvasColumn);
+            _centerColumn.Panel2.Controls.Add(_dockRight.Tabs);
+            _canvasColumn.Panel1.Controls.Add(_canvasArea);
+            _canvasColumn.Panel2.Controls.Add(_dockBottom.Tabs);
 
             Controls.Add(_root);
             Controls.Add(_statusStrip);
@@ -107,8 +144,7 @@ namespace Osiris.App.Workbench
             MainMenuStrip = _menuStrip;
 
             // 先把内置命令注册进壳，再由模组贡献 UI 资源
-            _ui.RegisterCommand(new WorkbenchCommands.OpenDocumentCommand(this));
-            _ui.RegisterCommand(new WorkbenchCommands.SaveCommand(this));
+            _ui.RegisterCommand(new WorkbenchCommands.OpenDocumentCommand(this));            _ui.RegisterCommand(new WorkbenchCommands.SaveCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.SaveAsCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.PrintCommand(this));
             _ui.RegisterCommand(new WorkbenchCommands.BatchCommand(this));
@@ -178,7 +214,7 @@ namespace Osiris.App.Workbench
 
         /// <summary>历史变化统一回调（文档替换时重订阅）。</summary>
         private void OnHistoryChanged(object sender, EventArgs e) => RefreshCanvas();
-        /// <summary>供 UiService 使用的内部布局装配（面板按注册顺序加入对应区域）。</summary>
+        /// <summary>供 UiService 使用的内部布局装配（面板按注册顺序加入对应停靠区，同一区合并为 Tab）。</summary>
         internal void AddPanelInternal(Osiris.Core.Ui.PanelContribution panel)
         {
             var content = panel.ContentFactory?.Invoke();
@@ -188,30 +224,23 @@ namespace Osiris.App.Workbench
                 hostContent = CreateListPanel(lpc);
                 _listPanels.Add(lpc);
             }
-            var host = new Panel { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
-            if (hostContent != null) host.Controls.Add(hostContent);
+            if (hostContent == null) return;
 
-            switch (panel.Side)
+            var page = new TabPage(panel.Title ?? panel.Id) { Dock = DockStyle.Fill };
+            page.Controls.Add(hostContent);
+
+            var host = DockHostFor(panel.Side);
+            _dockManager.AddTab(host, page);
+        }
+
+        /// <summary>面板方位 → 停靠区。</summary>
+        private DockHost DockHostFor(Osiris.Core.Ui.PanelSide side)
+        {
+            switch (side)
             {
-                case PanelSide.Left:
-                    if (_root.Panel1.Controls.Count == 0)
-                    {
-                        _root.Panel1.Controls.Add(host);
-                        _root.Panel1Collapsed = false;
-                        _root.SplitterDistance = 180;
-                    }
-                    break;
-                case PanelSide.Right:
-                    if (_rightPanelArea.Panel2.Controls.Count == 0)
-                    {
-                        _rightPanelArea.Panel2.Controls.Add(host);
-                        _rightPanelArea.Panel2Collapsed = false;
-                        _rightPanelArea.SplitterDistance = _rightPanelArea.Width - 180;
-                    }
-                    break;
-                case PanelSide.Bottom:
-                    _canvasArea.Controls.Add(host);
-                    break;
+                case Osiris.Core.Ui.PanelSide.Left: return _dockLeft;
+                case Osiris.Core.Ui.PanelSide.Right: return _dockRight;
+                default: return _dockBottom;
             }
         }
 
@@ -355,14 +384,39 @@ namespace Osiris.App.Workbench
 
             _zoom = Math.Max(0.05, Math.Min(32.0, scale * factor));
             _zoomFit = false;
-            ApplyCanvasLayout(); // 新布局：画布原点 (0,0)，AutoScrollMinSize=图片×新缩放
+            // 关闭重绘：缩放全程（改尺寸+滚动跟随）不绘制，完成后一次性显示最终画面，
+            // 杜绝 AutoScrollMinSize 变化触发的滚动条重算导致的中间帧跳动（鬼畜）。
+            SetRedraw(_scrollPanel, false);
+            try
+            {
+                ApplyCanvasLayout(); // 新布局：画布居中，AutoScrollMinSize=图片×新缩放
+                _scrollPanel.PerformLayout(); // 布局+滚动条先重算完毕，滚动位置才不会被后续布局覆盖
 
-            // 视口跟随：让 docX 仍落在光标处 → 新滚动偏移 = docX*新缩放 - clientX
-            double newOffX = docX * _zoom - clientX;
-            double newOffY = docY * _zoom - clientY;
-            _scrollPanel.AutoScrollPosition = new System.Drawing.Point(
-                (int)Math.Round(-newOffX), (int)Math.Round(-newOffY));
+                // 视口跟随：让 docX 仍落在光标处。
+                // 滚动偏移 = 画布居中偏移 + docX×新缩放 - 光标（AutoScrollPosition setter 取正值）
+                double newOffX = _canvas.Location.X + docX * _zoom - clientX;
+                double newOffY = _canvas.Location.Y + docY * _zoom - clientY;
+                _scrollPanel.AutoScrollPosition = new System.Drawing.Point(
+                    (int)Math.Round(Math.Max(0, newOffX)), (int)Math.Round(Math.Max(0, newOffY)));
+                _scrollPanel.PerformLayout(); // 应用滚动位置
+            }
+            finally
+            {
+                SetRedraw(_scrollPanel, true);
+            }
+            _scrollPanel.Invalidate(); // 重绘最终画面
         }
+
+        /// <summary>WM_SETREDRAW：开/关控件重绘（缩放全程锁绘，完成一次性刷新防中间帧）。</summary>
+        private static void SetRedraw(System.Windows.Forms.Control control, bool on)
+        {
+            const int WM_SETREDRAW = 0x000B;
+            if (control.IsHandleCreated)
+                SendMessage(control.Handle, WM_SETREDRAW, (IntPtr)(on ? 1 : 0), IntPtr.Zero);
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
         /// <summary>合成当前文档为 GDI+ 位图（保存/打印共用；调用方负责 Dispose）。</summary>
         internal System.Drawing.Bitmap RenderToGdiBitmap()
@@ -405,7 +459,7 @@ namespace Osiris.App.Workbench
             return m;
         }
 
-        /// <summary>用渲染引擎把当前文档画到画布（含激活工具的覆盖层）。</summary>
+        /// <summary>用渲染引擎把当前文档画到画布（覆盖层由 Paint 事件绘制，不烧进位图）。</summary>
         private void RenderCanvas()
         {
             if (_canvas == null)
@@ -418,21 +472,34 @@ namespace Osiris.App.Workbench
                 _canvas.MouseDown += OnCanvasMouseDown;
                 _canvas.MouseMove += OnCanvasMouseMove;
                 _canvas.MouseUp += OnCanvasMouseUp;
+                _canvas.Paint += OnCanvasPaint;
                 _canvas.DoubleClick += (s, e) => ToggleZoomFit();
+                EnableDoubleBuffered(_canvas);
                 _scrollPanel.Controls.Add(_canvas);
                 _scrollPanel.Resize += (s, e) => { if (_zoomFit) ApplyCanvasLayout(); };
             }
             using (var bmp = new Osiris.Engine.Skia.CanvasRenderer().Render(_document))
-            {
-                // 覆盖层：激活工具自绘蚂蚁线等（直接画进位图，随重绘刷新）
-                if (_activeTool != null)
-                {
-                    using (var canvas = new SkiaSharp.SKCanvas(bmp))
-                        _activeTool.DrawOverlay(new SkiaToolOverlay(canvas));
-                }
                 SwapCanvasImage(ToGdiBitmap(bmp));
-            }
             ApplyCanvasLayout();
+        }
+
+        /// <summary>控件双缓冲（受保护属性经反射开启），消除缩放/滚动时的重绘闪烁。</summary>
+        private static void EnableDoubleBuffered(System.Windows.Forms.Control control)
+        {
+            typeof(System.Windows.Forms.Control).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(control, true, null);
+        }
+
+        /// <summary>画布表面覆盖层：激活工具自绘蚂蚁线等（GDI+ 缩放坐标，随 Invalidate 轻量重绘）。</summary>
+        private void OnCanvasPaint(object sender, PaintEventArgs e)
+        {
+            if (_activeTool == null) return;
+            var img = _canvas?.Image;
+            if (img == null || _canvas.Width == 0 || _canvas.Height == 0) return;
+            float scaleX = (float)_canvas.Width / img.Width;
+            float scaleY = (float)_canvas.Height / img.Height;
+            _activeTool.DrawOverlay(new GdiToolOverlay(e.Graphics, scaleX, scaleY));
         }
 
         /// <summary>按当前视图模式布置画布：适应窗口等比例居中，或按缩放比例定尺寸并启用滚动。</summary>
@@ -446,6 +513,9 @@ namespace Osiris.App.Workbench
                 : _zoom;
             int w = Math.Max(1, (int)Math.Round(img.Width * scale));
             int h = Math.Max(1, (int)Math.Round(img.Height * scale));
+            // 注意：不能用 SuspendLayout 包裹 AutoScrollMinSize——挂起期间改 MinSize 会在
+            // ResumeLayout 时被滚动条重算把 AutoScrollPosition 重置为 (0,0)，导致缩放后画布跳回原点（鬼畜）。
+            // 双缓冲已消除重绘闪烁，这里顺序设置属性即可。
             if (_zoomFit)
             {
                 _canvas.Location = new System.Drawing.Point(
@@ -457,7 +527,10 @@ namespace Osiris.App.Workbench
             }
             else
             {
-                _canvas.Location = System.Drawing.Point.Empty;
+                // 非 fit 模式：画布居中；超出视口时钳到 (0,0) 由滚动查看
+                _canvas.Location = new System.Drawing.Point(
+                    Math.Max(0, (_scrollPanel.ClientSize.Width - w) / 2),
+                    Math.Max(0, (_scrollPanel.ClientSize.Height - h) / 2));
                 _canvas.Size = new System.Drawing.Size(w, h);
                 _scrollPanel.AutoScrollMinSize = new System.Drawing.Size(w, h);
                 _zoomStatus.Text = (int)Math.Round(scale * 100) + "%";
@@ -476,7 +549,11 @@ namespace Osiris.App.Workbench
             => SendMouse(e, down: true);
 
         private void OnCanvasMouseMove(object sender, MouseEventArgs e)
-            => _activeTool?.MouseMove(MapToDocument(e.X, e.Y, ButtonOf(e)));
+        {
+            if (_activeTool == null) return;
+            _activeTool.MouseMove(MapToDocument(e.X, e.Y, ButtonOf(e)));
+            _canvas.Invalidate(); // 拖拽轨迹实时刷新蚂蚁线（仅重绘表面，不重渲染文档）
+        }
 
         private void OnCanvasMouseUp(object sender, MouseEventArgs e)
             => SendMouse(e, down: false);
@@ -492,35 +569,47 @@ namespace Osiris.App.Workbench
             if (_activeTool == null) return;
             if ((e.Button & (MouseButtons.Left | MouseButtons.Middle | MouseButtons.Right)) == 0) return;
             var ev = MapToDocument(e.X, e.Y, ButtonOf(e));
-            if (down) _activeTool.MouseDown(ev);
-            else _activeTool.MouseUp(ev);
+            if (down)
+            {
+                _canvas.Capture = true; // 捕获鼠标：拖出画布仍持续收集轨迹
+                _activeTool.MouseDown(ev);
+            }
+            else
+            {
+                _activeTool.MouseUp(ev);
+                _canvas.Capture = false;
+            }
+            _canvas.Invalidate();
         }
 
-        /// <summary>IToolOverlay 的 Skia 实现：虚线蚂蚁线。</summary>
-        private sealed class SkiaToolOverlay : IToolOverlay
+        /// <summary>IToolOverlay 的 GDI+ 实现：虚线蚂蚁线（坐标=文档像素×缩放）。</summary>
+        private sealed class GdiToolOverlay : IToolOverlay
         {
-            private readonly SkiaSharp.SKCanvas _canvas;
+            private readonly System.Drawing.Graphics _graphics;
+            private readonly float _scaleX;
+            private readonly float _scaleY;
 
-            public SkiaToolOverlay(SkiaSharp.SKCanvas canvas) => _canvas = canvas;
+            public GdiToolOverlay(System.Drawing.Graphics graphics, float scaleX, float scaleY)
+            {
+                _graphics = graphics;
+                _scaleX = scaleX;
+                _scaleY = scaleY;
+            }
 
             public void DrawPolyline(IReadOnlyList<Point2> points, bool closed)
             {
                 if (points == null || points.Count < 2) return;
-                using (var paint = new SkiaSharp.SKPaint
+                using (var pen = new System.Drawing.Pen(System.Drawing.Color.Black)
                 {
-                    Style = SkiaSharp.SKPaintStyle.Stroke,
-                    StrokeWidth = 1,
-                    IsAntialias = true,
-                    Color = SkiaSharp.SKColors.Black,
-                    PathEffect = SkiaSharp.SKPathEffect.CreateDash(new float[] { 4, 4 }, 0)
+                    DashStyle = System.Drawing.Drawing2D.DashStyle.Dash
                 })
-                using (var path = new SkiaSharp.SKPath())
                 {
-                    path.MoveTo(points[0].X + 0.5f, points[0].Y + 0.5f);
-                    for (int i = 1; i < points.Count; i++)
-                        path.LineTo(points[i].X + 0.5f, points[i].Y + 0.5f);
-                    if (closed) path.Close();
-                    _canvas.DrawPath(path, paint);
+                    var pts = new System.Drawing.PointF[points.Count + (closed ? 1 : 0)];
+                    for (int i = 0; i < points.Count; i++)
+                        pts[i] = new System.Drawing.PointF(
+                            (points[i].X + 0.5f) * _scaleX, (points[i].Y + 0.5f) * _scaleY);
+                    if (closed) pts[points.Count] = pts[0];
+                    _graphics.DrawLines(pen, pts);
                 }
             }
         }

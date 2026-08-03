@@ -121,6 +121,71 @@ namespace Osiris.App.Workbench
                             editors[d] = combo;
                             break;
                         }
+                        case FilterParameterKind.ColorPicker:
+                        {
+                            // 任意颜色：色块按钮，点击弹系统颜色对话框选任意色
+                            var box = new Panel
+                            {
+                                Location = new Point(ctrlX, padTop + row * rowH + 2),
+                                Size = new Size(24, 24),
+                                BorderStyle = BorderStyle.FixedSingle
+                            };
+                            var btn = new Button
+                            {
+                                Location = new Point(ctrlX + 30, padTop + row * rowH),
+                                Size = new Size(ctrlW - 30, 28),
+                                Text = "选择颜色...",
+                                UseVisualStyleBackColor = true
+                            };
+                            int cur = current.Get(d.Key, (int)Osiris.Core.Imaging.ColorUtil.PackBgra(0, 0, 0));
+                            box.BackColor = ColorUtilToDrawing(cur);
+                            btn.Click += (s, e) =>
+                            {
+                                using (var cd = new ColorDialog())
+                                {
+                                    cd.Color = ColorUtilToDrawing(cur);
+                                    if (cd.ShowDialog(dlg) == DialogResult.OK)
+                                    {
+                                        cur = PackFromDrawing(cd.Color);
+                                        box.BackColor = cd.Color;
+                                    }
+                                }
+                            };
+                            dlg.Controls.Add(box);
+                            dlg.Controls.Add(btn);
+                            editors[d] = box; // 值收集时读 box.BackColor
+                            break;
+                        }
+                        case FilterParameterKind.Image:
+                        {
+                            // 图片路径：文本框 + 浏览按钮
+                            var txt = new TextBox
+                            {
+                                Location = new Point(ctrlX, padTop + row * rowH),
+                                Width = ctrlW - 92,
+                                Text = current.Get<string>(d.Key, null) ?? ""
+                            };
+                            var browse = new Button
+                            {
+                                Location = new Point(ctrlX + ctrlW - 86, padTop + row * rowH),
+                                Size = new Size(86, 28),
+                                Text = "浏览..."
+                            };
+                            browse.Click += (s, e) =>
+                            {
+                                using (var ofd = new OpenFileDialog())
+                                {
+                                    ofd.Filter = "图片文件|*.png;*.jpg;*.jpeg;*.bmp;*.webp";
+                                    ofd.Title = "选择背景图片";
+                                    if (ofd.ShowDialog(dlg) == DialogResult.OK)
+                                        txt.Text = ofd.FileName;
+                                }
+                            };
+                            dlg.Controls.Add(txt);
+                            dlg.Controls.Add(browse);
+                            editors[d] = txt; // 值收集时读 txt.Text
+                            break;
+                        }
                         default: // Choice
                         {
                             var combo = new ComboBox
@@ -159,6 +224,14 @@ namespace Osiris.App.Workbench
                     {
                         result[d.Key] = (int)((NumericUpDown)pair.Value).Value;
                     }
+                    else if (d.Kind == FilterParameterKind.ColorPicker)
+                    {
+                        result[d.Key] = PackFromDrawing(((Panel)pair.Value).BackColor);
+                    }
+                    else if (d.Kind == FilterParameterKind.Image)
+                    {
+                        result[d.Key] = ((TextBox)pair.Value).Text;
+                    }
                     else
                     {
                         var combo = (ComboBox)pair.Value;
@@ -170,6 +243,16 @@ namespace Osiris.App.Workbench
         }
 
         private static int Clamp(int v, int min, int max) => v < min ? min : (v > max ? max : v);
+
+        /// <summary>BGRA 打包值 → System.Drawing.Color（色块预览用）。</summary>
+        private static Color ColorUtilToDrawing(int bgra)
+            => Color.FromArgb(Osiris.Core.Imaging.ColorUtil.R(bgra),
+                              Osiris.Core.Imaging.ColorUtil.G(bgra),
+                              Osiris.Core.Imaging.ColorUtil.B(bgra));
+
+        /// <summary>System.Drawing.Color → BGRA 打包值（ColorPicker 参数值）。</summary>
+        private static int PackFromDrawing(Color c)
+            => Osiris.Core.Imaging.ColorUtil.PackBgra(c.R, c.G, c.B);
 
         /// <summary>颜色下拉：填充选项文本并选中当前值，同步色块。</summary>
         private static void FillColorCombo(ComboBox combo, Panel preview, FilterParameterDescriptor d,

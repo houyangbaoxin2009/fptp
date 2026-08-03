@@ -18,16 +18,17 @@ namespace Fptp.Plugins.Builtin
         private readonly GrayscaleFilter _grayscale = new GrayscaleFilter();
         private readonly ReplaceBackgroundFilter _replaceBackground = new ReplaceBackgroundFilter();
         private readonly SmartCropFilter _smartCrop = new SmartCropFilter();
+        private readonly AnimeFilter _anime = new AnimeFilter();
         private readonly LassoTool _lasso = new LassoTool();
 
         public string Id => "fptp.builtin";
         public string Name => "内置模组包";
-        public string Version => "2.0.9.0";
-        public string MinHostVersion => "2.0.9.0";
+        public string Version => "2.0.10.0";
+        public string MinHostVersion => "2.0.10.0";
 
         public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
         {
-            _grayscale, _replaceBackground, _smartCrop
+            _grayscale, _replaceBackground, _smartCrop, _anime
         };
 
         public void Initialize(IHostContext host)
@@ -70,18 +71,23 @@ namespace Fptp.Plugins.Builtin
                 _replaceBackground, new Osiris.Core.Plugins.FilterParameters()));
             host.Ui.AddMenu(new MenuContribution("图像/换底色", "builtin.replaceBackground", null, 11));
 
+            // 动漫模式：照片转动漫风格（色块+描边）
+            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.anime", "动漫模式",
+                _anime, new Osiris.Core.Plugins.FilterParameters()));
+            host.Ui.AddMenu(new MenuContribution("图像/动漫模式", "builtin.anime", null, 12));
+
             // 智能裁切改变尺寸 → 生成新文档（画布=结果尺寸，不走 PixelEditCommand 避免越界）
             host.Ui.RegisterCommand(new GenerateDocumentCommand(host, "builtin.smartCrop", "智能裁切",
                 _smartCrop, new Osiris.Core.Plugins.FilterParameters()));
-            host.Ui.AddMenu(new MenuContribution("图像/智能裁切", "builtin.smartCrop", null, 12));
+            host.Ui.AddMenu(new MenuContribution("图像/智能裁切", "builtin.smartCrop", null, 13));
 
             // 排版输出：把当前照片网格居中排到相纸（5寸），生成新图层
             host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layout5", "5寸排版", "5寸"));
-            host.Ui.AddMenu(new MenuContribution("图像/排版输出/5寸排版", "builtin.layout5", null, 13));
+            host.Ui.AddMenu(new MenuContribution("图像/排版输出/5寸排版", "builtin.layout5", null, 14));
             host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layout6", "6寸排版", "6寸"));
-            host.Ui.AddMenu(new MenuContribution("图像/排版输出/6寸排版", "builtin.layout6", null, 14));
+            host.Ui.AddMenu(new MenuContribution("图像/排版输出/6寸排版", "builtin.layout6", null, 15));
             host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layoutA4", "A4排版", "A4"));
-            host.Ui.AddMenu(new MenuContribution("图像/排版输出/A4排版", "builtin.layoutA4", null, 15));
+            host.Ui.AddMenu(new MenuContribution("图像/排版输出/A4排版", "builtin.layoutA4", null, 16));
 
             // "选择"菜单 → 套索选框工具（切换激活/取消）
             host.Ui.RegisterCommand(new LassoToolCommand(host, _lasso));

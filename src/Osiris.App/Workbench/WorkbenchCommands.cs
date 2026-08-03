@@ -134,7 +134,11 @@ namespace Osiris.App.Workbench
             }
         }
 
-        /// <summary>重做：优先重做当前文档内历史；无历史时前进到下一个文档。</summary>
+        /// <summary>
+        /// 重做：与撤销严格反序——先前进到下一个文档（排版/裁切撤销后回原图的情形），
+        /// 无文档级可重做时再重放当前文档内历史。若文档内优先会误重放原文档
+        /// 旧命令（Ctrl+Y 看着没反应），撤销/重做顺序必须对称。
+        /// </summary>
         internal sealed class RedoCommand : ICommand
         {
             private readonly WorkbenchForm _form;
@@ -145,14 +149,14 @@ namespace Osiris.App.Workbench
             public string DisplayName => "重做(&R)";
 
             public bool CanExecute(object parameter)
-                => _form.Document.History.CanRedo || _form.CanRedoDocument;
+                => _form.CanRedoDocument || _form.Document.History.CanRedo;
 
             public void Execute(object parameter)
             {
-                if (_form.Document.History.CanRedo)
-                    _form.Document.History.Redo(_form.Document);
-                else
+                if (_form.CanRedoDocument)
                     _form.RedoDocument();
+                else if (_form.Document.History.CanRedo)
+                    _form.Document.History.Redo(_form.Document);
             }
         }
 

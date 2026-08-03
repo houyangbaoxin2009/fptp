@@ -45,16 +45,17 @@ namespace Fptp.Plugins.Builtin
         {
             _dragging = true;
             _points.Clear();
-            _points.Add(new Point2(e.X, e.Y));
+            _points.Add(ClampToDoc(e.X, e.Y));
         }
 
         public void MouseMove(ToolMouseEvent e)
         {
             if (!_dragging) return;
+            var p = ClampToDoc(e.X, e.Y);
             var last = _points[_points.Count - 1];
             // 去重相邻同点，防轨迹冗余
-            if (last.X == e.X && last.Y == e.Y) return;
-            _points.Add(new Point2(e.X, e.Y));
+            if (last.X == p.X && last.Y == p.Y) return;
+            _points.Add(p);
         }
 
         public void MouseUp(ToolMouseEvent e)
@@ -62,6 +63,16 @@ namespace Fptp.Plugins.Builtin
             if (!_dragging) return;
             _dragging = false;
             CommitSelection();
+        }
+
+        /// <summary>把坐标钳制到文档范围内（鼠标捕获后可能拖出画布，防越界写蒙版）。</summary>
+        private Point2 ClampToDoc(int x, int y)
+        {
+            var doc = _host?.ActiveDocument;
+            if (doc == null) return new Point2(x, y);
+            return new Point2(
+                Math.Max(0, Math.Min(x, doc.Width - 1)),
+                Math.Max(0, Math.Min(y, doc.Height - 1)));
         }
 
         /// <summary>闭合多边形 → 栅格化 → 以选区编辑命令入栈（构造快照 before，Execute 写入 after）。</summary>
@@ -74,7 +85,7 @@ namespace Fptp.Plugins.Builtin
             var polygon = new List<Point2>(_points);
             var first = polygon[0];
             polygon.Add(first);
-            _points.Clear();
+            // 不清空 _points：保留闭合多边形供 DrawOverlay 持续绘制选区蚂蚁线
 
             // 先栅格化到临时选区计算包围盒（选区编辑命令需区域快照）
             var temp = new Selection(doc.Width, doc.Height);

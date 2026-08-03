@@ -10,7 +10,11 @@ namespace Osiris.Core.Filters
         /// <summary>下拉选项（Choices/ChoiceValues）。</summary>
         Choice,
         /// <summary>颜色下拉（值经 ColorUtil.PackBgra 打包，壳可预览色块）。</summary>
-        Color
+        Color,
+        /// <summary>任意颜色（点击弹系统颜色对话框，值 PackBgra 打包）。</summary>
+        ColorPicker,
+        /// <summary>图片路径（点击浏览选图，值 string 路径；滤镜经 CodecRegistry 解码）。</summary>
+        Image
     }
 
     /// <summary>
