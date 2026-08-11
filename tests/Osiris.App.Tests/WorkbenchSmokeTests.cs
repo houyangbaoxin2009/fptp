@@ -1,9 +1,12 @@
 using System.IO;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.VisualTree;
 using Dock.Model.Core;
+using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
+using Osiris.Abstractions.Ui;
 using Osiris.App.PluginHost;
 using Osiris.App.ViewModels;
 using Osiris.App.Views;
@@ -228,6 +231,133 @@ public class WorkbenchSmokeTests
     }
 
     /// <summary>在停靠布局树中按 Id 查找 dockable（递归遍历 VisibleDockables）。</summary>
+    /// <summary>仓库 plugins/bin 定位（加载 fptm 扩展模块用）。</summary>
+    private static string PluginsBinPath
+    {
+        get
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir is not null)
+            {
+                string candidate = Path.Combine(dir.FullName, "plugins", "bin");
+                if (File.Exists(Path.Combine(candidate, "Fptp.Plugins.Builtin.dll")))
+                    return candidate;
+                dir = dir.Parent;
+            }
+            throw new InvalidOperationException("未找到仓库 plugins/bin 目录（需先构建 Fptp.Plugins.Builtin 项目）。");
+        }
+    }
+
+    [AvaloniaFact]
+    public void ToolActivation_LoadsFptmTools_ActivatesOnCanvasViewModel()
+    {
+        // 意图：工具激活链路（画笔失效回归）——加载 fptm 扩展模块 → 注册工具到 ToolHostService →
+        // ActivateTool 后画布 VM 的 ActiveTool 必须非空且为指定工具（画布事件路由依赖此链路）。
+        var registry = CreateTestRegistry(out string dir);
+        try
+        {
+            var services = new ServiceRegistry();
+            services.Register<IModuleRegistry>(registry);
+            var ui = new AppUiService();
+            var host = new AppHostContext(services, ui);
+
+            var core = new CoreModuleType();
+            core.Initialize(host);
+            registry.Register(new ModuleRecord("osiris.core", "核心模块", "2.1.0.0",
+                ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
+
+            // 加载扩展模块（fptm 提供 9 个工具）
+            var errors = new List<string>();
+            ModuleLoader.LoadFromDirectory(PluginsBinPath, registry, host,
+                (name, ex) => errors.Add($"{name}: {ex.Message}"));
+            Assert.Empty(errors);
+
+            var vm = new MainWindowViewModel(registry, services);
+            vm.Rebuild(ui);
+            Assert.NotNull(vm.CanvasViewModel); // 画布 VM 必须存在（ActivateTool 目标）
+
+            var toolHost = new ToolHostService(() => vm.CanvasViewModel);
+            foreach (var module in registry.GetInstances().OfType<IToolPlugin>())
+                toolHost.RegisterModule(module);
+            Assert.Equal(9, toolHost.Tools.Count); // fptm 9 个工具已注册
+
+            // 激活铅笔 → 画布 VM.ActiveTool 必须同步
+            toolHost.ActivateTool("pencil");
+            Assert.NotNull(vm.CanvasViewModel!.ActiveTool);
+            Assert.Equal("pencil", vm.CanvasViewModel!.ActiveTool!.Id);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { }
+        }
+    }
+
+    [AvaloniaFact]
+    public void PencilTool_DrawsOnCanvasClick_EndToEnd()
+    {
+        // 意图：画笔端到端回归（"各种笔完全没用"）——真实 MainWindow + Dock 渲染 →
+        // 激活铅笔 → headless 鼠标点击画布 → 断言首层像素被铅笔着色。
+        var registry = CreateTestRegistry(out string dir);
+        try
+        {
+            var services = new ServiceRegistry();
+            services.Register<IModuleRegistry>(registry);
+            var ui = new AppUiService();
+            var host = new AppHostContext(services, ui);
+
+            var core = new CoreModuleType();
+            core.Initialize(host);
+            registry.Register(new ModuleRecord("osiris.core", "核心模块", "2.1.0.0",
+                ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
+
+            var errors = new List<string>();
+            ModuleLoader.LoadFromDirectory(PluginsBinPath, registry, host,
+                (name, ex) => errors.Add($"{name}: {ex.Message}"));
+            Assert.Empty(errors);
+
+            var vm = new MainWindowViewModel(registry, services);
+            var window = new MainWindow(vm);
+            window.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            vm.Rebuild(ui);
+
+            var toolHost = new ToolHostService(() => vm.CanvasViewModel);
+            foreach (var module in registry.GetInstances().OfType<IToolPlugin>())
+                toolHost.RegisterModule(module);
+            services.Register<IToolHostService>(toolHost);
+            Assert.NotNull(vm.CanvasViewModel);
+
+            // 打开白底文档（DocumentService 由 CoreModule 注册）
+            var docs = services.Get<IDocumentService>() ?? throw new InvalidOperationException("无 IDocumentService");
+            docs.OpenDocument(Osiris.Abstractions.Document.PixelSurface.Create(64, 64));
+
+            // 激活铅笔并点击画布中央
+            toolHost.ActivateTool("pencil");
+            var canvas = window.GetVisualDescendants().OfType<CanvasControl>().FirstOrDefault();
+            Assert.NotNull(canvas);
+            Assert.NotNull(canvas!.ViewModel); // 绑定必须成功（否则 ActiveTool 路由失效）
+            Assert.NotNull(canvas.ViewModel!.ActiveTool);
+
+            // 画布视口 1:1 时控件坐标 ≈ 文档像素坐标；点击中心
+            double cx = canvas.Bounds.Width / 2, cy = canvas.Bounds.Height / 2;
+            window.MouseDown(new Avalonia.Point(cx, cy), Avalonia.Input.MouseButton.Left);
+            window.MouseUp(new Avalonia.Point(cx, cy), Avalonia.Input.MouseButton.Left);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            // 断言：文档首层中心像素被铅笔（黑色）着色（白色底 → 非白）
+            var doc = docs.Document!;
+            ReadOnlySpan<byte> row = doc.Layers[0].Pixels.Row(doc.Height / 2);
+            int i = doc.Width / 2 * 4;
+            Assert.False(row[i] == 255 && row[i + 1] == 255 && row[i + 2] == 255,
+                "点击画布中心后像素应被铅笔着色（仍为白色说明事件未到达工具）。");
+            window.Close();
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { }
+        }
+    }
+
     private static IDockable? FindDockable(IDockable root, string id)
     {
         if (root.Id == id)

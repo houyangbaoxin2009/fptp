@@ -73,7 +73,7 @@ public sealed class ToolState
     public static readonly string[] BrushToolOrder = ["pencil", "pen", "inkBrush", "brush", "bucket"];
 
     private readonly string?[] _presetNames = new string?[PresetCount];
-    private readonly uint[][] _presets = new uint[PresetCount][];
+    private readonly uint[]?[] _presets = new uint[]?[PresetCount];
 
     /// <summary>预设变化事件（保存/删除后 UI 刷新）。</summary>
     public event Action? PresetChanged;

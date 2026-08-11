@@ -103,7 +103,8 @@ public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
         // ---- 服务注册（插件互调：其他模块经 host.Services.Get<T>() 获取） ----
         host.Services.Register(new AppPaths());               // 应用路径（静态工具类，注册仅占位/发现用）
         var documents = new DocumentService();                 // 文档服务（Core 实现）
-        host.Services.Register(documents);
+        host.Services.Register(documents);                     // 具体类型（本模块命令用）
+        host.Services.Register<IDocumentService>(documents);   // 契约接口（扩展模块 fptm 等经接口编辑文档）
 
         // ---- UI 注册（无 UI 宿主（CLI/测试）时 Ui 为 null，跳过） ----
         if (host.Ui is { } ui)
