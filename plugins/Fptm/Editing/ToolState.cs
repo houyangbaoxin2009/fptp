@@ -64,6 +64,53 @@ public sealed class ToolState
     /// <summary>是否为绘制类工具（铅笔/钢笔/毛笔/刷子；滴管取色时以此决定目标工具）。</summary>
     public bool IsStrokeTool(string toolId) => toolId is "pencil" or "pen" or "inkBrush" or "brush";
 
+    // ---- 预设栏：保存/加载"当前全部画笔颜色"的整套配置（MC 物品栏预设式） ----
+
+    /// <summary>预设槽位数（与键盘数字键 1~9 对应，快捷键 Ctrl+B+1~9）。</summary>
+    public const int PresetCount = 9;
+
+    /// <summary>画笔工具顺序（预设内颜色排列固定：铅笔/钢笔/毛笔/刷子/颜料桶）。</summary>
+    public static readonly string[] BrushToolOrder = ["pencil", "pen", "inkBrush", "brush", "bucket"];
+
+    private readonly string?[] _presetNames = new string?[PresetCount];
+    private readonly uint[][] _presets = new uint[PresetCount][];
+
+    /// <summary>预设变化事件（保存/删除后 UI 刷新）。</summary>
+    public event Action? PresetChanged;
+
+    /// <summary>预设槽位名称（未使用返回 null）。</summary>
+    public string? GetPresetName(int index) => index >= 0 && index < PresetCount ? _presetNames[index] : null;
+
+    /// <summary>预设槽位颜色（5 个画笔色，顺序见 BrushToolOrder；未使用返回空数组）。</summary>
+    public uint[] GetPresetColors(int index)
+        => index >= 0 && index < PresetCount && _presets[index] is { } colors ? colors : [];
+
+    /// <summary>把当前全部画笔颜色保存为命名预设（覆盖指定槽位）。</summary>
+    public void SavePreset(int index, string name)
+    {
+        if (index < 0 || index >= PresetCount) return;
+        _presetNames[index] = string.IsNullOrWhiteSpace(name) ? $"预设 {index + 1}" : name.Trim();
+        _presets[index] = BrushToolOrder.Select(GetColor).ToArray();
+        PresetChanged?.Invoke();
+    }
+
+    /// <summary>应用预设：把预设的整套画笔颜色写回各画笔工具（触发颜色变化事件刷新 UI）。</summary>
+    public void ApplyPreset(int index)
+    {
+        if (index < 0 || index >= PresetCount || _presets[index] is not { } colors) return;
+        for (int i = 0; i < colors.Length && i < BrushToolOrder.Length; i++)
+            SetColor(BrushToolOrder[i], colors[i]);
+    }
+
+    /// <summary>清空预设槽位。</summary>
+    public void ClearPreset(int index)
+    {
+        if (index < 0 || index >= PresetCount) return;
+        _presetNames[index] = null;
+        _presets[index] = null;
+        PresetChanged?.Invoke();
+    }
+
     // ---- 颜料盘：9 槽 ----
 
     /// <summary>颜料盘 9 个颜色槽位（PackBgra）。</summary>
@@ -107,6 +154,30 @@ public sealed class ToolState
             double? c = registry.GetConfig<double>("fptm", $"slot{i + 1}", double.NaN);
             Slots[i] = c is double cv && double.IsFinite(cv) ? (uint)cv : DefaultPalette[i];
         }
+        // 预设栏：键 "preset{i}" 值 "名称|hex1,hex2,hex3,hex4,hex5"（5 个画笔色，顺序 BrushToolOrder）
+        for (int i = 0; i < PresetCount; i++)
+        {
+            string? raw = registry.GetConfig<string>("fptm", $"preset{i}", null);
+            if (raw is null) continue;
+            int bar = raw.IndexOf('|');
+            string name = bar > 0 ? raw[..bar] : $"预设 {i + 1}";
+            string[] hexParts = (bar >= 0 ? raw[(bar + 1)..] : raw).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var colors = new uint[BrushToolOrder.Length];
+            bool ok = true;
+            for (int c = 0; c < colors.Length; c++)
+            {
+                if (c >= hexParts.Length || !uint.TryParse(hexParts[c], System.Globalization.NumberStyles.HexNumber,
+                        System.Globalization.CultureInfo.InvariantCulture, out uint v))
+                {
+                    ok = false;
+                    break;
+                }
+                colors[c] = v;
+            }
+            if (!ok) continue;
+            _presetNames[i] = name;
+            _presets[i] = colors;
+        }
     }
 
     /// <summary>保存工具状态与颜料盘到注册表（设置面板编辑/颜料盘操作时调用，即时落盘）。</summary>
@@ -119,5 +190,16 @@ public sealed class ToolState
             registry.SetConfig("fptm", $"{key}Size", size);
         for (int i = 0; i < Slots.Length; i++)
             registry.SetConfig("fptm", $"slot{i + 1}", (double)Slots[i]);
+        // 预设栏：值 "名称|hex1,hex2,hex3,hex4,hex5"；空槽 SetConfig null 删除键
+        for (int i = 0; i < PresetCount; i++)
+        {
+            if (_presetNames[i] is not { } name || _presets[i] is not { } colors)
+            {
+                registry.SetConfig("fptm", $"preset{i}", null);
+                continue;
+            }
+            string hex = string.Join(",", colors.Select(c => c.ToString("X8")));
+            registry.SetConfig("fptm", $"preset{i}", $"{name}|{hex}");
+        }
     }
 }

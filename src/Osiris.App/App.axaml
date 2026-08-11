@@ -4,12 +4,30 @@
              x:Class="Osiris.App.App"
              RequestedThemeVariant="Light">
 
-  <!-- Fluent 主题：跨平台统一外观（暗/亮跟随系统） -->
+  <!-- 应用资源：Dock 内容回收键（Dock 12 的 ControlRecyclingDataTemplate 依赖——
+       缺失会导致 Tool/文档内容切换标签时不重建（内容区不更新）；官方 sample 无前缀写法） -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary>
+          <ControlRecycling x:Key="ControlRecyclingKey" />
+        </ResourceDictionary>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <!-- Fluent 主题：跨平台统一外观（浅色） -->
   <Application.Styles>
     <FluentTheme />
     <!-- Dock 停靠系统主题（VSCode/VS IDE 风格）。
          注：12.1.0.1 包无 presets/*.axaml（主题已编译进 dll），直接使用 DockFluentTheme 样式。 -->
     <dockTheme:DockFluentTheme DensityStyle="Normal" />
+
+    <!-- Dock 内容回收：Tool/文档内容随激活切换重建（官方 sample 必备配置） -->
+    <Style Selector="DockControl">
+      <Setter Property="(ControlRecyclingDataTemplate.ControlRecycling)"
+              Value="{StaticResource ControlRecyclingKey}" />
+    </Style>
   </Application.Styles>
 
 </Application>

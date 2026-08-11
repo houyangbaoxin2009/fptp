@@ -106,12 +106,105 @@ public sealed class BrushWindowView : UserControl
         saveRow.Children.Add(loadBtn);
         panel.Children.Add(saveRow);
 
+        // ---- 预设栏：保存/加载"当前全部画笔颜色"为命名预设（MC 物品栏预设式，快捷键 Ctrl+B+1~9） ----
+        panel.Children.Add(SectionLabel("预设栏（保存/加载全部画笔颜色，Ctrl+B+1~9）"));
+        _presetBox = new ComboBox { Width = 150 };
+        var presetRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var applyPreset = new Button { Content = "应用", MinWidth = 56 };
+        applyPreset.Click += (_, _) => ApplySelectedPreset();
+        var savePreset = new Button { Content = "保存", MinWidth = 56 };
+        savePreset.Click += (_, _) => SaveSelectedPreset();
+        var deletePreset = new Button { Content = "删除", MinWidth = 56 };
+        deletePreset.Click += (_, _) => DeleteSelectedPreset();
+        presetRow.Children.Add(_presetBox);
+        presetRow.Children.Add(applyPreset);
+        presetRow.Children.Add(savePreset);
+        presetRow.Children.Add(deletePreset);
+        panel.Children.Add(presetRow);
+
         RefreshColors();
         RefreshPalette();
+        RefreshPresetList();
         return panel;
     }
 
     private Border[] _paletteSwatches = [];
+    private ComboBox _presetBox = new();
+
+    /// <summary>刷新预设栏下拉列表（空槽显示"（空 n）"）。</summary>
+    private void RefreshPresetList()
+    {
+        _presetBox.Items.Clear();
+        for (int i = 0; i < Editing.ToolState.PresetCount; i++)
+            _presetBox.Items.Add(Editing.ToolState.Instance.GetPresetName(i) ?? $"（空 {i + 1}）");
+        _presetBox.SelectedIndex = 0;
+    }
+
+    /// <summary>应用选中预设（整套画笔颜色）到全部画笔工具。</summary>
+    private void ApplySelectedPreset()
+    {
+        int index = _presetBox.SelectedIndex;
+        if (index < 0) return;
+        Editing.ToolState.Instance.ApplyPreset(index);
+    }
+
+    /// <summary>把当前全部画笔颜色保存到选中预设槽（弹命名输入）。</summary>
+    private void SaveSelectedPreset()
+    {
+        int index = _presetBox.SelectedIndex;
+        if (index < 0) return;
+        string? name = Editing.ToolState.Instance.GetPresetName(index);
+        string? input = PromptText("保存预设", $"预设名称（槽 {index + 1}）：", name ?? $"预设 {index + 1}");
+        if (input is null) return;
+        Editing.ToolState.Instance.SavePreset(index, input);
+        IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
+        if (registry is not null)
+            Editing.ToolState.Instance.Save(registry);
+        RefreshPresetList();
+    }
+
+    /// <summary>清空选中预设槽。</summary>
+    private void DeleteSelectedPreset()
+    {
+        int index = _presetBox.SelectedIndex;
+        if (index < 0) return;
+        Editing.ToolState.Instance.ClearPreset(index);
+        IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
+        if (registry is not null)
+            Editing.ToolState.Instance.Save(registry);
+        RefreshPresetList();
+    }
+
+    /// <summary>文本输入对话框（命名预设等）；取消返回 null。</summary>
+    private static string? PromptText(string title, string label, string initial)
+    {
+        string? result = null;
+        var input = new TextBox { Text = initial, Width = 180, Margin = new Thickness(4) };
+        var dlg = new Window
+        {
+            Title = title,
+            Width = 320,
+            Height = 150,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+        };
+        var panel = new StackPanel { Margin = new Thickness(14), Spacing = 10 };
+        panel.Children.Add(new TextBlock { Text = label, FontSize = 11, Opacity = 0.7 });
+        panel.Children.Add(input);
+        var ok = new Button { Content = "确定", Width = 80, HorizontalAlignment = HorizontalAlignment.Right };
+        ok.Click += (_, _) =>
+        {
+            result = input.Text ?? "";
+            dlg.Close();
+        };
+        var cancel = new Button { Content = "取消", Width = 80, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(88, -34, 0, 0) };
+        cancel.Click += (_, _) => dlg.Close();
+        panel.Children.Add(ok);
+        panel.Children.Add(cancel);
+        dlg.Content = panel;
+        dlg.Show();
+        return result;
+    }
 
     private static TextBlock SectionLabel(string text) => new()
     {
@@ -220,6 +313,7 @@ public sealed class BrushWindowView : UserControl
             Editing.ToolState.Instance.Load(reg);
             RefreshColors();
             RefreshPalette();
+            RefreshPresetList();
         }
     }
 

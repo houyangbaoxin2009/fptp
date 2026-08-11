@@ -94,6 +94,15 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
             Hotkey("fptm.palette7", "颜料槽 7", "Ctrl+A+7"),
             Hotkey("fptm.palette8", "颜料槽 8", "Ctrl+A+8"),
             Hotkey("fptm.palette9", "颜料槽 9", "Ctrl+A+9"),
+            Hotkey("fptm.preset1", "预设 1", "Ctrl+B+1"),
+            Hotkey("fptm.preset2", "预设 2", "Ctrl+B+2"),
+            Hotkey("fptm.preset3", "预设 3", "Ctrl+B+3"),
+            Hotkey("fptm.preset4", "预设 4", "Ctrl+B+4"),
+            Hotkey("fptm.preset5", "预设 5", "Ctrl+B+5"),
+            Hotkey("fptm.preset6", "预设 6", "Ctrl+B+6"),
+            Hotkey("fptm.preset7", "预设 7", "Ctrl+B+7"),
+            Hotkey("fptm.preset8", "预设 8", "Ctrl+B+8"),
+            Hotkey("fptm.preset9", "预设 9", "Ctrl+B+9"),
         };
 
         return
@@ -142,6 +151,9 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
             // 颜料盘槽位命令（壳快捷键路由 Ctrl+A+1..9 执行：应用槽位色到当前画笔工具）
             for (int i = 0; i < Editing.ToolState.Instance.Slots.Length; i++)
                 ui.RegisterCommand(new Commands.PaletteSlotCommand(i));
+            // 预设槽位命令（壳快捷键路由 Ctrl+B+1..9 执行：应用整套画笔颜色预设）
+            for (int i = 0; i < Editing.ToolState.PresetCount; i++)
+                ui.RegisterCommand(new Commands.PresetSlotCommand(i));
 
             ui.AddPanel("操作", () => new Views.OperationWindowView(), DockSide.Right);
             ui.AddPanel("画笔", () => new Views.BrushWindowView(), DockSide.Right);
