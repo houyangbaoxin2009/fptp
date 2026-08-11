@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -6,6 +7,7 @@ using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Ui;
+using Osiris.CoreModule.ViewModels;
 using Osiris.Engine.Skia;
 using SkiaSharp;
 
@@ -24,19 +26,6 @@ namespace Osiris.CoreModule.Controls;
 /// </summary>
 public sealed class CanvasControl : Control
 {
-    // 缩放限幅：避免缩到无穷大/无穷小（0.05x ~ 64x）。
-    private const double MinScale = 0.05;
-    private const double MaxScale = 64.0;
-
-    // 文档模型与渲染状态
-    private OsirisDocument? _document;
-    private int _revision;
-    private IEditorTool? _activeTool;
-
-    // 视口状态：Offset = 文档原点在控件坐标中的位置，Scale = 放大倍数（1.0 = 100%）。
-    private double _scale = 1.0;
-    private Vector _offset;
-
     // 平移交互状态
     private bool _panning;          // 正在拖拽平移
     private bool _spacePressed;     // 空格键按住（空格+左键平移）
@@ -44,6 +33,20 @@ public sealed class CanvasControl : Control
 
     // 工具覆盖层代理：收集工具绘制的折线，渲染期统一以蚂蚁线画到 SKCanvas。
     private readonly CanvasOverlayProxy _overlayProxy = new();
+
+    /// <summary>
+    /// 画布视图模型（状态唯一数据源）。Dock 浮动/停靠移动画布时模板每次生成新的
+    /// CanvasControl 并绑定同一 VM——状态不丢、控件无双重父级（修复"画布浮动崩溃"）。
+    /// </summary>
+    public static readonly StyledProperty<CanvasDocumentViewModel?> ViewModelProperty =
+        AvaloniaProperty.Register<CanvasControl, CanvasDocumentViewModel?>(nameof(ViewModel));
+
+    /// <summary>画布视图模型：文档/视口/工具状态全自 VM 读取（SetCanvas 贡献的是 VM 而非控件实例）。</summary>
+    public CanvasDocumentViewModel? ViewModel
+    {
+        get => GetValue(ViewModelProperty);
+        set => SetValue(ViewModelProperty, value);
+    }
 
     public CanvasControl()
     {
@@ -53,55 +56,49 @@ public sealed class CanvasControl : Control
 
         KeyDown += (_, e) => { if (e.Key == Key.Space) _spacePressed = true; };
         KeyUp += (_, e) => { if (e.Key == Key.Space) _spacePressed = false; };
+
+        // 可视尺寸回写 VM（缩放适配/ZoomActual 用；Dock 浮动重建控件后自动回写）。
+        SizeChanged += (_, e) => { if (ViewModel is { } vm) vm.LastViewSize = e.NewSize; };
     }
 
-    /// <summary>当前渲染的文档（无文档时画布只显示空白底色）。</summary>
-    public OsirisDocument? Document
+    /// <inheritdoc />
+    /// ViewModel 变化时切换状态订阅：退订旧 VM、订阅新 VM（任何状态变化触发重绘），并回写可视尺寸。
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
-        get => _document;
-        set
+        base.OnPropertyChanged(change);
+        if (change.Property != ViewModelProperty)
+            return;
+
+        if (change.OldValue is CanvasDocumentViewModel oldVm)
+            oldVm.PropertyChanged -= OnVmPropertyChanged;
+        if (change.NewValue is CanvasDocumentViewModel newVm)
         {
-            if (ReferenceEquals(_document, value))
-                return;
-            _document = value;
-            InvalidateVisual();
+            newVm.PropertyChanged += OnVmPropertyChanged;
+            newVm.LastViewSize = Bounds.Size;
         }
+        InvalidateVisual();
     }
 
-    /// <summary>文档修订号：文档内容变化后宿主递增，触发画布重绘（架构第 7 节性能约定）。</summary>
-    public int Revision
-    {
-        get => _revision;
-        set
-        {
-            if (_revision == value)
-                return;
-            _revision = value;
-            InvalidateVisual();
-        }
-    }
+    /// <summary>VM 状态变化（文档/修订/缩放/偏移/工具）→ 重绘。</summary>
+    private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e) => InvalidateVisual();
+
+    /// <summary>当前渲染的文档（自 ViewModel；无 VM 时 null）。</summary>
+    public OsirisDocument? Document => ViewModel?.Document;
+
+    /// <summary>文档修订号：VM 内容变化递增，触发画布重绘（架构第 7 节性能约定）。</summary>
+    public int Revision => ViewModel?.Revision ?? 0;
 
     /// <summary>当前激活工具：鼠标事件经 ToolEvent 转发给宿主路由到该工具；渲染期调用其 DrawOverlay。</summary>
-    public IEditorTool? ActiveTool
-    {
-        get => _activeTool;
-        set
-        {
-            if (ReferenceEquals(_activeTool, value))
-                return;
-            _activeTool = value;
-            InvalidateVisual();
-        }
-    }
+    public IEditorTool? ActiveTool => ViewModel?.ActiveTool;
 
     /// <summary>工具覆盖层回调：工具经 DrawOverlay(overlay) 写入的折线由此代理收集并在渲染期绘制。</summary>
     public IToolOverlay Overlay => _overlayProxy;
 
-    /// <summary>当前缩放比例（1.0 = 实际大小）。</summary>
-    public double Scale => _scale;
+    /// <summary>当前缩放比例（1.0 = 实际大小；状态归 VM）。</summary>
+    public double Scale => ViewModel?.Scale ?? 1.0;
 
-    /// <summary>视口偏移：文档原点在控件坐标中的位置。</summary>
-    public Vector Offset => _offset;
+    /// <summary>视口偏移：文档原点在控件坐标中的位置（状态归 VM）。</summary>
+    public Vector Offset => new(ViewModel?.OffsetX ?? 0, ViewModel?.OffsetY ?? 0);
 
     /// <summary>
     /// 工具鼠标事件（文档像素坐标，已做逆视口变换）。
@@ -115,51 +112,28 @@ public sealed class CanvasControl : Control
     /// </summary>
     public void ZoomAt(Point controlPoint, double newScale)
     {
-        newScale = Math.Clamp(newScale, MinScale, MaxScale);
-        if (_scale <= 0)
-            return;
-
-        double ratio = newScale / _scale;
-        _offset = new Vector(
-            controlPoint.X - (controlPoint.X - _offset.X) * ratio,
-            controlPoint.Y - (controlPoint.Y - _offset.Y) * ratio);
-        _scale = newScale;
-        InvalidateVisual();
+        if (ViewModel is { } vm)
+            vm.ZoomAt(controlPoint.X, controlPoint.Y, newScale);
     }
 
-    /// <summary>缩放适配：整份文档居中填入控件可视区（等比缩放，留边距）。</summary>
+    /// <summary>缩放适配：整份文档居中填入控件可视区（等比缩放，留边距；状态归 VM）。</summary>
     public void ZoomFit()
     {
-        if (_document is null)
-            return;
-
-        Size size = Bounds.Size;
-        if (size.Width <= 0 || size.Height <= 0)
-            return;
-
-        const double margin = 16; // 画布四周留白（设备无关像素）
-        double availW = Math.Max(1.0, size.Width - margin * 2);
-        double availH = Math.Max(1.0, size.Height - margin * 2);
-
-        _scale = Math.Clamp(Math.Min(availW / _document.Width, availH / _document.Height), MinScale, MaxScale);
-        _offset = new Vector(
-            (size.Width - _document.Width * _scale) / 2,
-            (size.Height - _document.Height * _scale) / 2);
-        InvalidateVisual();
+        if (ViewModel is { } vm)
+        {
+            vm.LastViewSize = Bounds.Size; // 命令入口无 SizeChanged 兜底，此处显式回写
+            vm.ZoomFit();
+        }
     }
 
-    /// <summary>实际大小：Scale=1.0 并把文档居中。</summary>
+    /// <summary>实际大小：Scale=1.0 并把文档居中（状态归 VM）。</summary>
     public void ZoomActual()
     {
-        if (_document is null)
-            return;
-
-        _scale = 1.0;
-        Size size = Bounds.Size;
-        _offset = new Vector(
-            (size.Width - _document.Width) / 2,
-            (size.Height - _document.Height) / 2);
-        InvalidateVisual();
+        if (ViewModel is { } vm)
+        {
+            vm.LastViewSize = Bounds.Size;
+            vm.ZoomActual();
+        }
     }
 
     /// <inheritdoc />
@@ -167,7 +141,7 @@ public sealed class CanvasControl : Control
     /// （架构第 7 节：context.Custom(new CanvasDrawOperation(...))）。
     public override void Render(DrawingContext context)
         => context.Custom(new CanvasDrawOperation(
-            new Rect(Bounds.Size), _document, _offset, _scale, _activeTool, _overlayProxy));
+            new Rect(Bounds.Size), Document, Offset, Scale, ActiveTool, _overlayProxy));
 
     /// <inheritdoc />
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -200,13 +174,16 @@ public sealed class CanvasControl : Control
 
         Point pos = e.GetPosition(this);
 
-        // 平移拖拽：视口偏移随指针增量移动。
+        // 平移拖拽：视口偏移随指针增量移动（写入 VM，PropertyChanged 触发重绘）。
         if (_panning)
         {
             Point delta = pos - _lastPointer;
-            _offset = new Vector(_offset.X + delta.X, _offset.Y + delta.Y);
+            if (ViewModel is { } vm)
+            {
+                vm.OffsetX += delta.X;
+                vm.OffsetY += delta.Y;
+            }
             _lastPointer = pos;
-            InvalidateVisual();
             return;
         }
 
@@ -249,17 +226,17 @@ public sealed class CanvasControl : Control
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             double factor = e.Delta.Y > 0 ? 1.1 : 1.0 / 1.1;
-            ZoomAt(e.GetPosition(this), _scale * factor);
+            ZoomAt(e.GetPosition(this), Scale * factor);
             e.Handled = true;
         }
         // 无 Ctrl 的滚轮不做处理（保持 2.0 行为：仅 Ctrl+滚轮缩放）。
     }
 
     /// <summary>控件坐标 X → 文档像素坐标（逆视口变换：(px − Offset.X) / Scale）。</summary>
-    private int ToDocX(double px) => (int)Math.Round((px - _offset.X) / _scale);
+    private int ToDocX(double px) => (int)Math.Round((px - Offset.X) / Scale);
 
     /// <summary>控件坐标 Y → 文档像素坐标（逆视口变换）。</summary>
-    private int ToDocY(double py) => (int)Math.Round((py - _offset.Y) / _scale);
+    private int ToDocY(double py) => (int)Math.Round((py - Offset.Y) / Scale);
 
     /// <summary>Avalonia PointerUpdateKind → 契约 ToolMouseButton。</summary>
     private static ToolMouseButton ToButton(PointerUpdateKind kind) => kind switch

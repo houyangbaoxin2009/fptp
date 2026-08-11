@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Osiris.App.ViewModels"
+        xmlns:cm="using:Osiris.CoreModule.ViewModels"
+        xmlns:controls="using:Osiris.CoreModule.Controls"
         xmlns:dock="using:Dock.Avalonia.Controls"
         xmlns:mvvmDock="using:Dock.Model.Mvvm.Controls"
         x:Class="Osiris.App.Views.MainWindow"
@@ -16,12 +18,17 @@
       <Button Content="{Binding DisplayName}" Command="{Binding AvaloniaCommand}" Padding="10,2" Margin="2,0" />
     </DataTemplate>
     <!-- Dock 文档/工具内容模板：Dock 12 的 DocumentContentControl 以文档对象本身为内容，
-         此处按具体类型渲染其 Context（画布控件 / 模块面板内容）。 -->
+         此处按具体类型渲染其 Context（画布状态 VM / 模块面板内容）。 -->
     <DataTemplate DataType="mvvmDock:Document" x:DataType="mvvmDock:Document">
       <ContentControl Content="{Binding Context}" />
     </DataTemplate>
     <DataTemplate DataType="mvvmDock:Tool" x:DataType="mvvmDock:Tool">
       <ContentControl Content="{Binding Context}" />
+    </DataTemplate>
+    <!-- 画布文档模板：每次生成新 CanvasControl 绑定同一 VM（Dock 浮动/停靠重建不丢状态、无双父级）。
+         修复"画布浮动崩溃"：Context 传数据（VM）而非控件实例。 -->
+    <DataTemplate DataType="cm:CanvasDocumentViewModel" x:DataType="cm:CanvasDocumentViewModel">
+      <controls:CanvasControl ViewModel="{Binding}" />
     </DataTemplate>
   </Window.DataTemplates>
 

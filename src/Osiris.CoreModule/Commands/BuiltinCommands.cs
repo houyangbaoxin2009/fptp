@@ -1,11 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Ui;
 using Osiris.Core.Document;
-using Osiris.CoreModule.Controls;
 using Osiris.CoreModule.Services;
+using Osiris.CoreModule.ViewModels;
 using Osiris.Engine.Skia;
 
 namespace Osiris.CoreModule.Commands;
@@ -46,8 +47,8 @@ public static class KnownCommands
 /// </summary>
 internal sealed class CommandContext
 {
-    /// <summary>画布控件（Document 读写、ZoomFit/ZoomActual、Revision 刷新）。</summary>
-    public required CanvasControl Canvas { get; init; }
+    /// <summary>画布视图模型（Document 读写、ZoomFit/ZoomActual、Revision 刷新；状态唯一数据源）。</summary>
+    public required CanvasDocumentViewModel CanvasVm { get; init; }
 
     /// <summary>文档服务（Open/Undo/Redo 走 DocumentService）。</summary>
     public required DocumentService Documents { get; init; }
@@ -58,8 +59,9 @@ internal sealed class CommandContext
     /// <summary>当前文档来源路径（打开时记录；保存用原名）。null = 尚未保存过。</summary>
     public string? CurrentPath { get; set; }
 
-    /// <summary>从画布控件解析所属窗口（headless/无窗口环境返回 null，命令静默跳过）。</summary>
-    public Window? OwnerWindow => TopLevel.GetTopLevel(Canvas) as Window;
+    /// <summary>对话框宿主窗口：无画布控件引用，取应用主窗口（headless/无窗口环境返回 null，命令静默跳过）。</summary>
+    public Window? OwnerWindow
+        => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 }
 
 /// <summary>
@@ -93,10 +95,8 @@ internal sealed class OpenCommand : ICommand
             if (surface is null)
                 return;
 
-            // 3) 打开文档（背景层）并绑定画布 + 适配视图
+            // 3) 打开文档（背景层）；画布 VM 订阅 DocumentChanged 自动同步文档并缩放适配
             _ctx.Documents.OpenDocument(surface);
-            _ctx.Canvas.Document = _ctx.Documents.Document;
-            _ctx.Canvas.ZoomFit();
             _ctx.CurrentPath = path;
         }
         catch (Exception ex)
@@ -125,7 +125,7 @@ internal sealed class SaveCommand : ICommand
         try
         {
             // 无文档/无图层时无可保存内容
-            OsirisDocument? document = _ctx.Canvas.Document;
+            OsirisDocument? document = _ctx.CanvasVm.Document;
             if (document is null || document.Layers.Count == 0)
                 return;
 
@@ -170,7 +170,7 @@ internal sealed class ExportCommand : ICommand
     {
         try
         {
-            OsirisDocument? document = _ctx.Canvas.Document;
+            OsirisDocument? document = _ctx.CanvasVm.Document;
             if (document is null || document.Layers.Count == 0)
                 return;
 
@@ -204,8 +204,8 @@ internal sealed class UndoCommand : ICommand
 
     public void Execute(object? parameter)
     {
+        // DocumentService.Undo 触发 DocumentChanged → 画布 VM 自动 Revision++ 并缩放适配
         _ctx.Documents.Undo();
-        _ctx.Canvas.Revision++;
     }
 }
 
@@ -221,8 +221,8 @@ internal sealed class RedoCommand : ICommand
 
     public void Execute(object? parameter)
     {
+        // DocumentService.Redo 触发 DocumentChanged → 画布 VM 自动 Revision++ 并缩放适配
         _ctx.Documents.Redo();
-        _ctx.Canvas.Revision++;
     }
 }
 
@@ -236,7 +236,7 @@ internal sealed class ZoomFitCommand : ICommand
     public string Id => KnownCommands.ZoomFit;
     public string DisplayName => "缩放适应";
 
-    public void Execute(object? parameter) => _ctx.Canvas.ZoomFit();
+    public void Execute(object? parameter) => _ctx.CanvasVm.ZoomFit();
 }
 
 /// <summary>实际大小命令：画布 1:1 显示（Scale=1.0 居中）。</summary>
@@ -249,5 +249,5 @@ internal sealed class ZoomActualCommand : ICommand
     public string Id => KnownCommands.ZoomActual;
     public string DisplayName => "实际大小";
 
-    public void Execute(object? parameter) => _ctx.Canvas.ZoomActual();
+    public void Execute(object? parameter) => _ctx.CanvasVm.ZoomActual();
 }

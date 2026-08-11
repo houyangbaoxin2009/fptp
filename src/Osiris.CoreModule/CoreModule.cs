@@ -10,8 +10,8 @@ using Osiris.Abstractions.Ui;
 using Osiris.Core.Batch;
 using Osiris.Core.Document;
 using Osiris.CoreModule.Commands;
-using Osiris.CoreModule.Controls;
 using Osiris.CoreModule.Services;
+using Osiris.CoreModule.ViewModels;
 
 namespace Osiris.CoreModule;
 
@@ -111,14 +111,16 @@ public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
             var fileDialog = new AvaloniaFileDialogService();
             host.Services.Register<IFileDialogService>(fileDialog);
 
-            // 画布控件（架构第 7 节）：标准模块提供主画布。
-            var canvas = new CanvasControl();
-            ui.SetCanvas(canvas);
+            // 画布视图模型（架构第 7 节渲染协议）：画布状态唯一数据源，贡献给 Dock 模板绑定。
+            // 注意：不再直接贡献 CanvasControl 控件实例——Dock 浮动/移动画布时模板每次生成
+            // 新 CanvasControl 绑定同一 VM，避免同一控件被挂到两个父级（Avalonia 拒绝双父级崩溃）。
+            var canvasVm = new CanvasDocumentViewModel(documents);
+            ui.SetCanvas(canvasVm);
 
-            // 基础命令装配（共享上下文：画布 + 文档服务 + 文件对话框 + 当前路径）
+            // 基础命令装配（共享上下文：画布 VM + 文档服务 + 文件对话框 + 当前路径）
             var ctx = new CommandContext
             {
-                Canvas = canvas,
+                CanvasVm = canvasVm,
                 Documents = documents,
                 FileDialog = fileDialog,
             };

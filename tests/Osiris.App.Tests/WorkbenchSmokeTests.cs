@@ -11,6 +11,7 @@ using Osiris.Core.Plugins;
 using Osiris.Core.Storage;
 using Osiris.CoreModule;
 using Osiris.CoreModule.Controls;
+using Osiris.CoreModule.ViewModels;
 using CoreModuleType = Osiris.CoreModule.CoreModule;
 
 namespace Osiris.App.Tests;
@@ -62,7 +63,8 @@ public class WorkbenchSmokeTests
             Assert.Equal(3, vm.Menus[0].Children.Count);        // 打开 / 保存 / 导出
             Assert.Equal(2, vm.Menus[1].Children.Count);        // 撤销 / 重做
             Assert.Equal(2, vm.Menus[2].Children.Count);        // 缩放适应 / 实际大小
-            Assert.NotNull(ui.Canvas);                          // CoreModule SetCanvas 贡献
+            Assert.NotNull(ui.Canvas);                          // CoreModule SetCanvas 贡献（画布状态 VM）
+            Assert.IsType<CanvasDocumentViewModel>(ui.Canvas);
             Assert.Equal(ui.Canvas, vm.CanvasContent);
             Assert.Single(vm.RightPanels);                      // "图层"面板（默认右侧）
             Assert.Empty(vm.ToolbarItems);                      // CoreModule 未贡献工具栏
@@ -86,9 +88,11 @@ public class WorkbenchSmokeTests
             Assert.Equal("编辑", menuItems[1].Header);
             Assert.Equal("视图", menuItems[2].Header);
 
-            // DockControl 已装配且画布经停靠文档渲染进视觉树
+            // DockControl 已装配且画布经停靠文档渲染进视觉树（CanvasControl 由模板生成并绑定 VM）
             Assert.NotNull(win.GetVisualDescendants().OfType<Dock.Avalonia.Controls.DockControl>().FirstOrDefault());
-            Assert.NotNull(win.GetVisualDescendants().OfType<CanvasControl>().FirstOrDefault());
+            var canvasControl = win.GetVisualDescendants().OfType<CanvasControl>().FirstOrDefault();
+            Assert.NotNull(canvasControl);
+            Assert.Same(ui.Canvas, canvasControl.ViewModel);     // 模板生成的控件绑定同一画布 VM
             win.Close();
         }
         finally
@@ -160,6 +164,63 @@ public class WorkbenchSmokeTests
             var mgr2 = FindDockable(vm.DockFactory.Layout!, "moduleManager");
             Assert.NotNull(mgr2);
             Assert.NotSame(mgr, mgr2);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// 画布浮动崩溃回归测试：Dock 浮动/移动画布时模板每次生成新的 CanvasControl 并绑定同一 VM。
+    /// 同一 VM 生成两个 CanvasControl 各自挂载到不同父级（模拟浮动窗口 + 原停靠区共存），
+    /// 不得出现 "CanvasControl already has a visual parent" 双父级异常。
+    /// </summary>
+    [AvaloniaFact]
+    public void CanvasViewModel_SharedByMultipleControls_NoDoubleParentCrash()
+    {
+        var registry = CreateTestRegistry(out string dir);
+        try
+        {
+            var services = new ServiceRegistry();
+            services.Register<IModuleRegistry>(registry);
+            var ui = new AppUiService();
+            var host = new AppHostContext(services, ui);
+            var core = new CoreModuleType();
+            core.Initialize(host);
+            var vm = new MainWindowViewModel(registry, services);
+            vm.Rebuild(ui);
+
+            // 同一画布 VM（Dock 文档 Context）绑定两个控件实例——模拟 Dock 浮动语义：
+            // 模板每次重建 CanvasControl，共用状态，各挂各的父级（无双父级）。
+            var canvasVm = Assert.IsType<CanvasDocumentViewModel>(ui.Canvas);
+            var w1 = new Window { Content = new CanvasControl { ViewModel = canvasVm } };
+            var w2 = new Window { Content = new CanvasControl { ViewModel = canvasVm } };
+            w1.Show();
+            w2.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            // 两个控件都成功挂载（无异常），且共享同一状态源
+            Assert.NotNull(w1.Content);
+            Assert.NotNull(w2.Content);
+            Assert.Same(canvasVm, ((CanvasControl)w1.Content).ViewModel);
+            Assert.Same(canvasVm, ((CanvasControl)w2.Content).ViewModel);
+
+            // 状态经 VM 共享：一个控件改视口，另一个读同一值
+            canvasVm.ZoomAt(10, 10, 2.5);
+            Assert.Equal(2.5, ((CanvasControl)w1.Content).Scale);
+            Assert.Equal(2.5, ((CanvasControl)w2.Content).Scale);
+
+            // 模拟浮动：把 w1 的控件摘下来（Avalonia 会先移除旧父级）再挂到新父级——同一实例复用
+            var floating = (CanvasControl)w1.Content;
+            w1.Content = null;
+            w1.Close();
+            var w3 = new Window { Content = floating };
+            w3.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            Assert.True(floating.IsAttachedToVisualTree()); // 同一实例成功迁移挂载到新父级（无双父级异常）
+            w2.Close();
+            w3.Close();
         }
         finally
         {
