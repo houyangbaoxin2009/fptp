@@ -56,6 +56,17 @@ public sealed class BrushWindowView : UserControl
 
         // ---- 颜色区：每种画笔工具独立颜色 ----
         panel.Children.Add(SectionLabel("颜色（每工具独立）"));
+        // 滴管：取色到当前画笔工具（属于颜色操作，故置于颜色区）
+        var eyedropperRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        eyedropperRow.Children.Add(new TextBlock { Text = "滴管", Width = 56, VerticalAlignment = VerticalAlignment.Center });
+        var eyedropperBtn = new Button { Content = "取色", MinWidth = 72 };
+        eyedropperBtn.Click += (_, _) =>
+        {
+            Editing.ToolState.Instance.CurrentToolId = "eyedropper";
+            FptmModule.HostContext?.Services.Get<IToolHostService>()?.ActivateTool("eyedropper");
+        };
+        eyedropperRow.Children.Add(eyedropperBtn);
+        panel.Children.Add(eyedropperRow);
         panel.Children.Add(ColorRow("铅笔", "pencil"));
         panel.Children.Add(ColorRow("钢笔", "pen"));
         panel.Children.Add(ColorRow("毛笔", "inkBrush"));
@@ -191,16 +202,18 @@ public sealed class BrushWindowView : UserControl
         var panel = new StackPanel { Margin = new Thickness(14), Spacing = 10 };
         panel.Children.Add(new TextBlock { Text = label, FontSize = 11, Opacity = 0.7 });
         panel.Children.Add(input);
-        var ok = new Button { Content = "确定", Width = 80, HorizontalAlignment = HorizontalAlignment.Right };
+        var ok = new Button { Content = "确定", Width = 80 };
         ok.Click += (_, _) =>
         {
             result = input.Text ?? "";
             dlg.Close();
         };
-        var cancel = new Button { Content = "取消", Width = 80, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(88, -34, 0, 0) };
+        var cancel = new Button { Content = "取消", Width = 80 };
         cancel.Click += (_, _) => dlg.Close();
-        panel.Children.Add(ok);
-        panel.Children.Add(cancel);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(ok);
+        panel.Children.Add(buttons);
         dlg.Content = panel;
         dlg.Show();
         return result;
@@ -347,17 +360,19 @@ public sealed class BrushWindowView : UserControl
         var panel = new StackPanel { Margin = new Thickness(14), Spacing = 10 };
         panel.Children.Add(new TextBlock { Text = "颜色值（AARRGGBB，如 FF0000FF=蓝）", FontSize = 11, Opacity = 0.7 });
         panel.Children.Add(input);
-        var ok = new Button { Content = "确定", Width = 80, HorizontalAlignment = HorizontalAlignment.Right };
+        var ok = new Button { Content = "确定", Width = 80 };
         ok.Click += (_, _) =>
         {
             if (uint.TryParse(input.Text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint v))
                 result = v;
             dlg.Close();
         };
-        var cancel = new Button { Content = "取消", Width = 80, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(88, -34, 0, 0) };
+        var cancel = new Button { Content = "取消", Width = 80 };
         cancel.Click += (_, _) => dlg.Close();
-        panel.Children.Add(ok);
-        panel.Children.Add(cancel);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        buttons.Children.Add(cancel);
+        buttons.Children.Add(ok);
+        panel.Children.Add(buttons);
         dlg.Content = panel;
         dlg.Show(); // 独立非模态对话框（模块内自建，无宿主窗口依赖）
         return result;

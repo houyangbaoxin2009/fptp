@@ -23,7 +23,6 @@ public sealed class OperationWindowView : UserControl
         toolButtons.Children.Add(ToolButton("选取", "selectRect"));
         toolButtons.Children.Add(ToolButton("套索", "lasso"));
         toolButtons.Children.Add(ToolButton("智能框选", "magicWand"));
-        toolButtons.Children.Add(ToolButton("滴管", "eyedropper"));
         panel.Children.Add(toolButtons);
 
         // ---- 编辑区 ----

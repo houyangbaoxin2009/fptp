@@ -61,11 +61,12 @@ public sealed class EyedropperTool : IEditorTool
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public event Action? VisualChanged;
+    public event Action? VisualChanged { add { } remove { } } // 一次性操作无中间视觉状态
     
     public void Activate() { }
 
     /// <inheritdoc />
     public void Deactivate() { }
 }
+
 
