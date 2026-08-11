@@ -26,4 +26,21 @@ public class AbiRedLineTests
         Assert.DoesNotContain(references, r => r.Name == "Osiris.Core");
         Assert.Contains(references, r => r.Name == "Osiris.Abstractions");
     }
+
+    [Fact]
+    public void FptmAssembly_ReferencesOnlyAbstractions_NoForbiddenAssemblies()
+    {
+        // 意图：Fptm.dll（传统编辑模块）同样受 ABI 红线约束——
+        // 只允许引用 Osiris.Abstractions，禁止 SkiaSharp/Avalonia/Core/Engine.Skia。
+        string dllPath = System.IO.Path.Combine(PluginsBinLocator.Path, "Fptm", "Fptm.dll");
+        Assert.True(File.Exists(dllPath), $"插件 dll 不存在: {dllPath}");
+
+        AssemblyName[] references = Assembly.LoadFrom(dllPath).GetReferencedAssemblies();
+
+        Assert.DoesNotContain(references, r => r.Name == "SkiaSharp");
+        Assert.DoesNotContain(references, r => r.Name == "Avalonia");
+        Assert.DoesNotContain(references, r => r.Name == "Osiris.Core");
+        Assert.DoesNotContain(references, r => r.Name == "Osiris.Engine.Skia");
+        Assert.Contains(references, r => r.Name == "Osiris.Abstractions");
+    }
 }

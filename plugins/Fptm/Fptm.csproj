@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Fptm：传统编辑模块（老版 FPTP 功能集合，除滤镜）。
+    - 提供 9 个编辑工具（选取/套索/智能框选/滴管/铅笔/钢笔/毛笔/刷子/颜料桶）+ 编辑命令 + 颜料盘。
+    - 仅引用 Osiris.Abstractions（ABI 红线：不引用 Core/Engine/Skia/Avalonia）。
+    - 输出到 plugins/bin/Fptm/ 子目录：与 Fptp.Plugins.Builtin 的 module.json 同名文件隔离，
+      宿主 ModuleLoader.FindManifests 扫描"根 + 一级子目录"即可发现本模块清单。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Fptm</RootNamespace>
+    <AssemblyName>Fptm</AssemblyName>
+    <OutputPath>$(MSBuildThisFileDirectory)..\bin\Fptm\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="module.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -45,16 +45,59 @@ public class ModuleLoaderTests : IDisposable
 
     /// <summary>在 AssemblyLoadContext.All 中查找加载了 Fptp.Plugins.Builtin 的模块 ALC。</summary>
     private static Assembly? FindPluginAssembly()
+        => FindModuleAssembly("Fptp.Plugins.Builtin");
+
+    /// <summary>在模块 ALC 中按程序集名查找已加载的程序集。</summary>
+    private static Assembly? FindModuleAssembly(string assemblyName)
     {
         foreach (AssemblyLoadContext alc in AssemblyLoadContext.All)
         {
             if (alc.Name is null || !alc.Name.StartsWith("osiris-module:", StringComparison.Ordinal))
                 continue;
             foreach (Assembly assembly in alc.Assemblies)
-                if (assembly.GetName().Name == "Fptp.Plugins.Builtin")
+                if (assembly.GetName().Name == assemblyName)
                     return assembly;
         }
         return null;
+    }
+
+    [Fact]
+    public void LoadFromDirectory_LoadsFptmModule_NineEditorTools()
+    {
+        // 意图：fptm 模块（子目录 plugins/bin/Fptm/module.json）经 FindManifests
+        // 一级子目录扫描被加载；IToolPlugin.Tools 暴露 9 个编辑工具。
+        ModuleRegistry registry = CreateRegistry();
+        var context = new TestHostContext();
+        (int loaded, List<string> errors) = LoadPlugins(registry, context);
+
+        Assert.True(loaded >= 2, $"加载数应 ≥2（fptp.idphoto + fptm），实际 {loaded}");
+        Assert.Empty(errors);
+
+        ModuleRecord? record = registry.Get("fptm");
+        Assert.NotNull(record);
+        Assert.Equal(ModuleKind.Extension, record!.Kind);
+
+        Assembly? assembly = FindModuleAssembly("Fptm");
+        Assert.NotNull(assembly);
+        Type? pluginType = assembly!.GetTypes()
+            .FirstOrDefault(t => t.GetCustomAttribute<PluginExportAttribute>() is not null);
+        Assert.NotNull(pluginType);
+
+        var plugin = Activator.CreateInstance(pluginType!);
+        var tools = (IReadOnlyList<Osiris.Abstractions.Ui.IEditorTool>?)pluginType!.GetProperty("Tools")?.GetValue(plugin);
+        Assert.NotNull(tools);
+        Assert.Equal(9, tools!.Count);
+        // 覆盖用户要求的全部工具
+        string[] ids = tools.Select(t => t.Id).OrderBy(s => s).ToArray();
+        Assert.Contains("selectRect", ids);   // 选取
+        Assert.Contains("lasso", ids);        // 套索
+        Assert.Contains("magicWand", ids);    // 智能框选
+        Assert.Contains("eyedropper", ids);   // 滴管
+        Assert.Contains("pencil", ids);       // 铅笔
+        Assert.Contains("pen", ids);          // 钢笔
+        Assert.Contains("inkBrush", ids);     // 毛笔
+        Assert.Contains("brush", ids);        // 刷子
+        Assert.Contains("bucket", ids);       // 颜料桶
     }
 
     [Fact]

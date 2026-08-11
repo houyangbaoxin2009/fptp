@@ -10,9 +10,10 @@ namespace Osiris.Core.Document;
 /// - NewDocument/OpenDocument 建文档并清历史；
 /// - ApplyCommand 驱动命令执行 → 压栈 → 触发 DocumentChanged（壳据此刷新画布）；
 /// - Undo/Redo 经历史栈回退/重做并触发 DocumentChanged；
-/// - ReplaceLayer 为命令内部工具（COW 指针替换，零拷贝）。
+/// - ReplaceLayer 为命令内部工具（COW 指针替换，零拷贝）；
+/// - 实现契约 IDocumentService（经 Services 注册），扩展模块（fptm 等）经接口编辑文档，不直接引用本类。
 /// </summary>
-public sealed class DocumentService
+public sealed class DocumentService : IDocumentService
 {
     /// <summary>当前活动文档（无文档时为 null）。</summary>
     public OsirisDocument? Document { get; private set; }
@@ -82,6 +83,24 @@ public sealed class DocumentService
             History.Redo(document);
             DocumentChanged?.Invoke();
         }
+    }
+
+    /// <summary>
+    /// 应用图层像素变更（IDocumentService 契约入口，供扩展模块调用）：
+    /// 把图层从 oldLayer 替换为 newLayer，经历史栈（ApplyFilterCommand）可撤销/重做。
+    /// </summary>
+    public void ApplyLayerChange(string layerId, Layer oldLayer, Layer newLayer)
+        => ApplyCommand(new ApplyFilterCommand(this, layerId, oldLayer, newLayer));
+
+    /// <summary>
+    /// 设置文档选区（IDocumentService 契约入口，供扩展模块调用）：
+    /// null 表示清除选区；经历史栈（SelectionEditCommand，before=当前选区）可撤销/重做。
+    /// </summary>
+    public void SetSelection(Selection? selection)
+    {
+        if (Document is not { } document)
+            throw new InvalidOperationException("当前无文档，无法设置选区。");
+        ApplyCommand(new SelectionEditCommand(document.Selection, selection));
     }
 
     /// <summary>设置活动图层并触发通知。</summary>
