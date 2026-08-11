@@ -13,7 +13,7 @@
 - **撤销重做**：COW 不可变图层，命令级历史栈（零拷贝指针回退）
 - **批量处理**：GUI 与 CLI 复用同一批处理管线
 - **可卸载插件系统**：ALC 加载扩展模块，ABI 红线契约测试保证卸载承诺
-- **tie 语言预留**：模块开发未来迁移到自研 tie 语言（Leibniz = tie）；`tie:data` 将取代 JSON 配置（`IConfigStore` 格式中立）
+- **tie 语言预留**：模块开发未来迁移到自研 tie 语言；`tie:data` 将取代 JSON 配置（`IConfigStore` 格式中立）
 
 ## 解决方案结构
 
