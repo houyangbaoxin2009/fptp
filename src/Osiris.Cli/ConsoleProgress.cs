@@ -25,9 +25,9 @@ internal sealed class ConsoleProgress : IProgress
         lock (_lock)
         {
             if (rounded == _lastPercent)
-                return;     // 百分比未变化：跳过本次打印，防刷屏
+                return;     // 百分比未变化且消息未更新，跳过打印（避免刷屏）
             _lastPercent = rounded;
-            Console.Error.WriteLine($"[{rounded,3}%] {message}");
+            Console.Error.WriteLine($"{TerminalColor.Info($"[{rounded,3}%]")} {message}");
         }
     }
 }

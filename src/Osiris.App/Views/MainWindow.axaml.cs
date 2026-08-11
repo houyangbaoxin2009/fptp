@@ -19,6 +19,8 @@ public partial class MainWindow : Window
     public MainWindow(MainWindowViewModel viewModel) : this()
     {
         DataContext = viewModel;
+        // 窗口图标：荷鲁斯之眼 Logo（avares 资源，随程序集嵌入）
+        Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://Osiris.App/Assets/App.ico")));
     }
 
     /// <inheritdoc />

@@ -12,7 +12,14 @@
     <RootNamespace>Osiris.App</RootNamespace>
     <AssemblyName>Osiris.App</AssemblyName>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <!-- 应用图标：荷鲁斯之眼 Logo（Assets/App.ico，多尺寸 PNG 内嵌） -->
+    <ApplicationIcon>Assets\App.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Logo 资源：窗口图标（avares://Osiris.App/Assets/App.ico）与主图 -->
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Osiris.Core\Osiris.Core.csproj" />
