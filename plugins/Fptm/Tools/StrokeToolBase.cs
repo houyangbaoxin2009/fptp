@@ -71,10 +71,12 @@ public abstract class StrokeToolBase : IEditorTool
     /// <inheritdoc />
     public void MouseMove(ToolMouseEvent e)
     {
-        if (_editor is null) return;
+        if (_editor is null || _oldLayer is null) return;
         var to = new Point2(e.X, e.Y);
         StrokeLine(_editor, _last, to, StampSize, Color);
         _last = to;
+        // 实时反馈：把当前笔画状态提交为预览表面（不入历史），画布即时显示笔迹
+        Docs?.SetPreviewSurface(_oldLayer.Id, _editor.Commit());
     }
 
     /// <inheritdoc />
@@ -82,7 +84,7 @@ public abstract class StrokeToolBase : IEditorTool
     {
         if (_editor is null || _oldLayer is null) return;
         Layer newLayer = _oldLayer.WithPixels(_editor.Commit());
-        Docs?.ApplyLayerChange(_oldLayer.Id, _oldLayer, newLayer);
+        Docs?.ApplyLayerChange(_oldLayer.Id, _oldLayer, newLayer); // 最终提交（入历史，可撤销）
         _editor = null;
         _oldLayer = null;
     }

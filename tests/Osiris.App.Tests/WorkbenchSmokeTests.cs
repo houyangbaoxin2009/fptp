@@ -341,7 +341,16 @@ public class WorkbenchSmokeTests
             // 画布视口 1:1 时控件坐标 ≈ 文档像素坐标；点击中心
             double cx = canvas.Bounds.Width / 2, cy = canvas.Bounds.Height / 2;
             window.MouseDown(new Avalonia.Point(cx, cy), Avalonia.Input.MouseButton.Left);
-            window.MouseUp(new Avalonia.Point(cx, cy), Avalonia.Input.MouseButton.Left);
+            window.MouseMove(new Avalonia.Point(cx + 10, cy), Avalonia.Input.RawInputModifiers.None);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+            // 实时反馈断言：MouseMove 后（未 MouseUp）图层已含笔迹（预览通道生效）
+            var docAfterMove = docs.Document!;
+            ReadOnlySpan<byte> moved = docAfterMove.Layers[0].Pixels.Row(docAfterMove.Height / 2);
+            Assert.False(moved[docAfterMove.Width / 2 * 4] == 255,
+                "MouseMove 后（松手前）画布应实时显示笔迹（预览通道未生效）。");
+
+            window.MouseUp(new Avalonia.Point(cx + 10, cy), Avalonia.Input.MouseButton.Left);
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
             // 断言：文档首层中心像素被铅笔（黑色）着色（白色底 → 非白）

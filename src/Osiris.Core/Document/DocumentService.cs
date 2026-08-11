@@ -92,6 +92,17 @@ public sealed class DocumentService : IDocumentService
     public void ApplyLayerChange(string layerId, Layer oldLayer, Layer newLayer)
         => ApplyCommand(new ApplyFilterCommand(this, layerId, oldLayer, newLayer));
 
+    /// <inheritdoc />
+    /// 预览替换（绘制中实时反馈）：不入历史栈；surface 为 null 或图层不存在时不操作。
+    public void SetPreviewSurface(string layerId, PixelSurface? surface)
+    {
+        if (surface is null) return;
+        if (Document is not { } document) return;
+        int index = document.Layers.FindIndex(l => l.Id == layerId);
+        if (index < 0) return;
+        ReplaceLayer(layerId, document.Layers[index].WithPixels(surface));
+    }
+
     /// <summary>
     /// 设置文档选区（IDocumentService 契约入口，供扩展模块调用）：
     /// null 表示清除选区；经历史栈（SelectionEditCommand，before=当前选区）可撤销/重做。

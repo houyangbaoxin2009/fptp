@@ -20,6 +20,13 @@ public interface IDocumentService
     /// <summary>应用图层像素变更（oldLayer → newLayer，经历史栈，可撤销）。</summary>
     void ApplyLayerChange(string layerId, Layer oldLayer, Layer newLayer);
 
+    /// <summary>
+    /// 设置图层预览表面（绘制中实时反馈用）：把指定图层替换为预览像素并触发文档变更重绘，
+    /// **不入历史栈**（撤销语义不变）。工具在笔画进行中逐帧调用，MouseUp 时经 ApplyLayerChange 提交最终结果。
+    /// surface 为 null 时不操作（清除预览由最终提交覆盖）。
+    /// </summary>
+    void SetPreviewSurface(string layerId, PixelSurface? surface);
+
     /// <summary>设置文档选区（null=清除；经历史栈，可撤销）。</summary>
     void SetSelection(Selection? selection);
 
