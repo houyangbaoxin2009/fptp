@@ -1,62 +1,32 @@
-using System;
-using Osiris.Core.Document;
+using Osiris.Abstractions.Document;
 
-namespace Osiris.Core.History
+namespace Osiris.Core.History;
+
+/// <summary>
+/// 选区编辑命令：套索/矩形选框一笔 = 一个命令（不是每鼠标事件一个，符合架构 6 节约定）。
+/// before/after 为选区蒙版深拷贝（Selection.Clone），撤销/重做直接替换 document.Selection。
+/// </summary>
+public sealed class SelectionEditCommand : IUndoableCommand
 {
-    /// <summary>
-    /// 选区编辑命令：记录受影响区域 before/after 蒙版快照，撤销恢复、重做重放。
-    /// 与 PixelEditCommand 对称（区域快照控内存）；写入文档 Selection。
-    /// </summary>
-    public sealed class SelectionEditCommand : IUndoableCommand
+    private readonly Selection? _before;
+    private readonly Selection? _after;
+
+    /// <summary>构造：记录变换前后选区（null = 无选区）。</summary>
+    public SelectionEditCommand(Selection? before, Selection? after)
     {
-        private readonly OsirisDocument _doc;
-        private readonly int _x, _y, _width, _height;
-        private readonly byte[] _before;
-        private readonly byte[] _after;
-        private readonly int _rowBytes;
-
-        public string Name { get; }
-
-        /// <summary>
-        /// 构造前：调用方已把新蒙版写入文档选区（或经 after 提供），本命令构造时快照 before。
-        /// </summary>
-        public SelectionEditCommand(string name, OsirisDocument doc, int x, int y, int width, int height, byte[] after)
-        {
-            Name = name;
-            _doc = doc;
-            _x = x; _y = y; _width = width; _height = height;
-            _after = after;
-            _rowBytes = width;
-
-            _before = new byte[height * _rowBytes];
-            CopyRegion(doc.Selection, _before);
-        }
-
-        public void Execute(OsirisDocument doc) => Write(_after);
-
-        public void Undo(OsirisDocument doc) => Write(_before);
-
-        public void Redo(OsirisDocument doc) => Write(_after);
-
-        /// <summary>把快照写回选区蒙版（同名区域）。</summary>
-        private void Write(byte[] data)
-        {
-            var mask = _doc.Selection.Data;
-            var stride = _doc.Selection.Width;
-            var offset = (_y * stride) + _x;
-            for (int r = 0; r < _height; r++)
-                Buffer.BlockCopy(data, r * _rowBytes, mask, offset + r * stride, _rowBytes);
-            _doc.Selection.RefreshCount();
-        }
-
-        /// <summary>快照选区蒙版同名区域。</summary>
-        private void CopyRegion(Selection sel, byte[] buffer)
-        {
-            var mask = sel.Data;
-            var stride = sel.Width;
-            var offset = (_y * stride) + _x;
-            for (int r = 0; r < _height; r++)
-                Buffer.BlockCopy(mask, offset + r * stride, buffer, r * _rowBytes, _rowBytes);
-        }
+        _before = before;
+        _after = after;
     }
+
+    /// <inheritdoc />
+    public string Name { get; } = "修改选区";
+
+    /// <inheritdoc />
+    public void Execute(OsirisDocument document) => document.Selection = _after;
+
+    /// <inheritdoc />
+    public void Undo(OsirisDocument document) => document.Selection = _before;
+
+    /// <inheritdoc />
+    public void Redo(OsirisDocument document) => document.Selection = _after;
 }

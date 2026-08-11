@@ -1,17 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Osiris.Core：核心实现（无 UI 依赖）。
+    - 文档 / 历史（COW 不可变 Layer + 命令栈）/ 成像 / 滤镜实现 / 批处理管线 / SettingRegistry
+    - 仅引用 Abstractions（契约），被 App、Cli、测试共享。
+  -->
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
     <RootNamespace>Osiris.Core</RootNamespace>
     <AssemblyName>Osiris.Core</AssemblyName>
-    <Version>2.0.10.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- netstandard2.0 无内置 Span<T>，经 System.Memory 提供 -->
-    <PackageReference Include="System.Memory" Version="4.5.5" />
+    <ProjectReference Include="..\Osiris.Abstractions\Osiris.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,371 +1,238 @@
-using System;
-using System.Collections.Generic;
-using Osiris.Core.Document;
-using Osiris.Core.Filters;
-using Osiris.Core.History;
-using Osiris.Core.Imaging;
-using Osiris.Core.Plugins;
-using Osiris.Core.Ui;
+using Osiris.Abstractions;
+using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Modules;
+using Osiris.Abstractions.Plugins;
+using Osiris.Abstractions.Settings;
+using Osiris.Abstractions.Ui;
 
-namespace Fptp.Plugins.Builtin
+namespace Fptp.Plugins.Builtin;
+
+/// <summary>
+/// 内置证件照扩展模块（插件包）：向宿主贡献 4 个证件照滤镜 + 1 个设置组 + 命令菜单。
+/// - 滤镜：灰度 / 换底色 / 智能裁切 / 动漫模式（IFilterProcessor，纯 PixelSurface 像素循环）；
+/// - 设置：证件照设置组（换底色/动漫参数/排版相纸），经 ISettingProvider 即时 JSON 持久化；
+/// - 命令：图像菜单 4 个滤镜命令 + 文件菜单排版输出命令（经 IUiService 注册，无 UI 宿主跳过）。
+/// ABI 红线：仅引用 Osiris.Abstractions，不引用 SkiaSharp/Avalonia/Osiris.Core。
+/// </summary>
+[PluginExport]
+public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
 {
-    /// <summary>
-    /// 内置模组包：官方功能（滤镜 + UI 贡献），与第三方模组完全同级。
-    /// 演示工作台模式：模组在 Initialize 中贡献菜单/工具栏/命令/面板。
-    /// </summary>
-    public sealed class BuiltinPlugin : IFilterPlugin
+    /// <summary>模块 Id（module.json 与注册表一致）。</summary>
+    public const string ModuleId = "fptp.idphoto";
+
+    /// <summary>模块显示名。</summary>
+    public const string ModuleName = "证件照扩展模块";
+
+    /// <summary>模块版本（与 module.json 一致）。</summary>
+    public const string ModuleVersion = "2.1.0.0";
+
+    /// <summary>要求的最低宿主版本。</summary>
+    public const string HostVersion = "2.1.0.0";
+
+    /// <summary>滤镜参数键 → 设置项键映射（命令组装参数时，把设置面板当前值写入滤镜参数包）。</summary>
+    private static readonly (string ParamKey, string SettingKey)[] s_paramToSetting =
+    [
+        (ReplaceBackgroundFilter.ParamColor, "replaceBgColor"),
+        (ReplaceBackgroundFilter.ParamTolerance, "replaceBgTolerance"),
+        (AnimeFilter.ParamLevels, "animeLevels"),
+        (AnimeFilter.ParamOutline, "animeOutline"),
+    ];
+
+    // ---- 滤镜实例（命令与 Filters 列表共享同一实例）----
+    private readonly GrayscaleFilter _grayscale = new();
+    private readonly ReplaceBackgroundFilter _replaceBackground = new();
+    private readonly SmartCropFilter _smartCrop = new();
+    private readonly AnimeFilter _anime = new();
+
+    // ---- 设置项实例（宿主设置面板读写 Value 即 JSON 即时持久化；命令经此读当前值）----
+    private readonly ColorSettingItem _replaceBgColor = new(ReplaceBackgroundFilter.DefaultColor)
     {
-        private readonly GrayscaleFilter _grayscale = new GrayscaleFilter();
-        private readonly ReplaceBackgroundFilter _replaceBackground = new ReplaceBackgroundFilter();
-        private readonly SmartCropFilter _smartCrop = new SmartCropFilter();
-        private readonly AnimeFilter _anime = new AnimeFilter();
-        private readonly LassoTool _lasso = new LassoTool();
+        GroupId = ModuleId,
+        Key = "replaceBgColor",
+        Label = "换底色",
+        Description = "换底色滤镜使用的目标背景颜色",
+        Scope = SettingScope.User,
+    };
 
-        public string Id => "fptp.builtin";
-        public string Name => "内置模组包";
-        public string Version => "2.0.10.0";
-        public string MinHostVersion => "2.0.10.0";
-
-        public IReadOnlyList<IFilterProcessor> Filters => new IFilterProcessor[]
-        {
-            _grayscale, _replaceBackground, _smartCrop, _anime
-        };
-
-        public void Initialize(IHostContext host)
-        {
-            // 工具模组自身初始化（接收宿主；无 UI 宿主下仍可被脚本/CLI 激活）
-            _lasso.Initialize(host);
-
-            // UI 服务由壳提供；CLI 等无 UI 宿主下为 null，模组跳过 UI 注册
-            if (host.Ui == null) return;
-
-            // 贡献"文件"菜单 → 打开命令（命令由壳实现，Id 共享）
-            host.Ui.AddMenu(new MenuContribution("文件/打开", KnownCommands.OpenDocument, "Ctrl+O", 0));
-            host.Ui.AddMenu(new MenuContribution("文件/保存", KnownCommands.Save, "Ctrl+S", 1));
-            host.Ui.AddMenu(new MenuContribution("文件/另存为", KnownCommands.SaveAs, null, 2));
-            host.Ui.AddMenu(new MenuContribution("文件/打印", KnownCommands.Print, "Ctrl+P", 3));
-            host.Ui.AddMenu(new MenuContribution("文件/批量处理", KnownCommands.Batch, null, 4));
-
-            // 编辑菜单 → 撤销/重做（壳命令）
-            host.Ui.AddMenu(new MenuContribution("编辑/撤销", KnownCommands.Undo, "Ctrl+Z", 1));
-            host.Ui.AddMenu(new MenuContribution("编辑/重做", KnownCommands.Redo, "Ctrl+Y", 2));
-
-            // 视图菜单 → 画布缩放（壳命令）
-            host.Ui.AddMenu(new MenuContribution("视图/放大", KnownCommands.ZoomIn, "Ctrl+=", 1));
-            host.Ui.AddMenu(new MenuContribution("视图/缩小", KnownCommands.ZoomOut, "Ctrl+-", 2));
-            host.Ui.AddMenu(new MenuContribution("视图/适应窗口", KnownCommands.ZoomFit, "Ctrl+0", 3));
-            host.Ui.AddMenu(new MenuContribution("视图/实际大小", KnownCommands.ZoomActual, "Ctrl+1", 4));
-
-            // 工具栏 → 缩放按钮（放大/缩小/适应窗口/实际大小）
-            host.Ui.AddToolbar(new ToolbarContribution(KnownCommands.ZoomIn, null, 1));
-            host.Ui.AddToolbar(new ToolbarContribution(KnownCommands.ZoomOut, null, 2));
-            host.Ui.AddToolbar(new ToolbarContribution(KnownCommands.ZoomFit, null, 3));
-            host.Ui.AddToolbar(new ToolbarContribution(KnownCommands.ZoomActual, null, 4));
-
-            // 贡献"图像"菜单 → 滤镜命令（壳自动创建中间节点）
-            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.grayscale", "灰度", _grayscale, null));
-            host.Ui.AddMenu(new MenuContribution("图像/灰度", "builtin.grayscale", null, 10));
-            host.Ui.AddToolbar(new ToolbarContribution("builtin.grayscale", null, 10));
-
-            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.replaceBackground", "换底色",
-                _replaceBackground, new Osiris.Core.Plugins.FilterParameters()));
-            host.Ui.AddMenu(new MenuContribution("图像/换底色", "builtin.replaceBackground", null, 11));
-
-            // 动漫模式：照片转动漫风格（色块+描边）
-            host.Ui.RegisterCommand(new FptpFilterCommand(host, "builtin.anime", "动漫模式",
-                _anime, new Osiris.Core.Plugins.FilterParameters()));
-            host.Ui.AddMenu(new MenuContribution("图像/动漫模式", "builtin.anime", null, 12));
-
-            // 智能裁切改变尺寸 → 生成新文档（画布=结果尺寸，不走 PixelEditCommand 避免越界）
-            host.Ui.RegisterCommand(new GenerateDocumentCommand(host, "builtin.smartCrop", "智能裁切",
-                _smartCrop, new Osiris.Core.Plugins.FilterParameters()));
-            host.Ui.AddMenu(new MenuContribution("图像/智能裁切", "builtin.smartCrop", null, 13));
-
-            // 排版输出：把当前照片网格居中排到相纸（5寸），生成新图层
-            host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layout5", "5寸排版", "5寸"));
-            host.Ui.AddMenu(new MenuContribution("图像/排版输出/5寸排版", "builtin.layout5", null, 14));
-            host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layout6", "6寸排版", "6寸"));
-            host.Ui.AddMenu(new MenuContribution("图像/排版输出/6寸排版", "builtin.layout6", null, 15));
-            host.Ui.RegisterCommand(new LayoutCommand(host, "builtin.layoutA4", "A4排版", "A4"));
-            host.Ui.AddMenu(new MenuContribution("图像/排版输出/A4排版", "builtin.layoutA4", null, 16));
-
-            // "选择"菜单 → 套索选框工具（切换激活/取消）
-            host.Ui.RegisterCommand(new LassoToolCommand(host, _lasso));
-            host.Ui.AddMenu(new MenuContribution("选择/套索选框", "builtin.lasso", "L", 20));
-            host.Ui.AddToolbar(new ToolbarContribution("builtin.lasso", null, 20));
-
-            // 历史面板：展示当前文档撤销栈，点击跳转
-            host.Ui.AddPanel(new PanelContribution("builtin.history", "历史",
-                PanelSide.Left, () => CreateHistoryPanel(host), 0));
-        }
-
-        /// <summary>历史面板数据契约：动态绑定当前 ActiveDocument（文档切换后面板跟随），点击跳转到对应命令。</summary>
-        private static ListPanelContent CreateHistoryPanel(IHostContext host)
-        {
-            var panel = new ListPanelContent();
-            OsirisDocument bound = null;
-
-            void OnHistoryChanged(object s, EventArgs e) => BindAndRefresh();
-
-            // 重新绑定当前 ActiveDocument 的历史事件后刷新列表
-            void BindAndRefresh()
-            {
-                var doc = host.ActiveDocument;
-                if (!ReferenceEquals(bound, doc))
-                {
-                    if (bound != null) bound.History.Changed -= OnHistoryChanged;
-                    bound = doc;
-                    if (bound != null) bound.History.Changed += OnHistoryChanged;
-                }
-
-                var names = new List<string>();
-                if (bound != null)
-                    for (int i = 0; i <= bound.History.Cursor; i++)
-                        names.Add(bound.History.Commands[i].Name);
-                panel.SelectedIndex = bound != null ? bound.History.Cursor : -1;
-                panel.Items = () => names;
-                panel.NotifyChanged();
-            }
-
-            // 文档替换（打开/裁切/排版）后重绑定；壳在 SetDocument 中触发
-            panel.ActiveDocumentChanged += BindAndRefresh;
-            BindAndRefresh();
-
-            panel.SelectedIndexChanged = idx =>
-            {
-                var doc = host.ActiveDocument;
-                if (doc != null && idx >= 0 && idx <= doc.History.Cursor)
-                    doc.History.JumpTo(idx, doc);
-            };
-            return panel;
-        }
-    }
-
-    /// <summary>套索工具切换命令：激活/取消激活当前工具（壳只路由，状态由工具自持）。</summary>
-    internal sealed class LassoToolCommand : ICommand
+    private readonly NumberSettingItem _replaceBgTolerance = new(60, 10, 200, 5)
     {
-        private readonly IHostContext _host;
-        private readonly LassoTool _tool;
+        GroupId = ModuleId,
+        Key = "replaceBgTolerance",
+        Label = "换底容差",
+        Description = "换底色滤镜的背景判定容差（越大替换范围越广）",
+        Scope = SettingScope.User,
+    };
 
-        public LassoToolCommand(IHostContext host, LassoTool tool)
-        {
-            _host = host;
-            _tool = tool;
-        }
-
-        public string Id => "builtin.lasso";
-        public string DisplayName => "套索选框";
-
-        public bool CanExecute(object parameter)
-            => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
-
-        public void Execute(object parameter)
-        {
-            // 激活中 → 取消；否则激活。模组经 Ui 服务告知壳，壳只做路由。
-            _host.Ui?.ActivateTool(_tool.Active ? null : _tool);
-        }
-    }
-
-    /// <summary>
-    /// 通用滤镜命令：把滤镜应用到当前文档首图层（经历史栈入栈，可撤销）。
-    /// 参数经 FilterParameters 传入（默认用滤镜 Defaults，UI 设置面板可覆盖）。
-    /// </summary>
-    internal sealed class FptpFilterCommand : ICommand
+    private readonly NumberSettingItem _animeLevels = new(8, 2, 16, 1)
     {
-        private readonly IHostContext _host;
-        private readonly string _id;
-        private readonly string _displayName;
-        private readonly IFilterProcessor _filter;
-        private readonly Osiris.Core.Plugins.FilterParameters _overrides;
+        GroupId = ModuleId,
+        Key = "animeLevels",
+        Label = "动漫色彩层次",
+        Description = "动漫模式每通道量化级数（越大色彩层次越丰富）",
+        Scope = SettingScope.User,
+    };
 
-        public FptpFilterCommand(IHostContext host, string id, string displayName,
-                                 IFilterProcessor filter, Osiris.Core.Plugins.FilterParameters overrides)
-        {
-            _host = host;
-            _id = id;
-            _displayName = displayName;
-            _filter = filter;
-            _overrides = overrides;
-        }
-
-        public string Id => _id;
-        public string DisplayName => _displayName;
-
-        public bool CanExecute(object parameter)
-            => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
-
-        public void Execute(object parameter)
-        {
-            var doc = _host.ActiveDocument;
-            if (doc == null || doc.Layers.Count == 0) return;
-            var layer = doc.Layers[0];
-
-            // 合并参数：命令覆盖值优先，缺省用滤镜 Defaults
-            var p = MergeParameters(_filter.Defaults, _overrides);
-            // 有参数描述且 UI 宿主可用 → 弹参数对话框；取消则中止
-            if (_filter.Parameters.Count > 0 && _host.Ui != null)
-            {
-                var user = _host.Ui.PromptFilterParameters(_filter.Parameters, p);
-                if (user == null) return;
-                p = user;
-            }
-            var result = _filter.Apply(layer.Pixels, p, _host.Progress, _host.Cancellation);
-
-            // 滤镜输出尺寸不同于原图层（第三方滤镜可能缩放画布）：
-            // PixelEditCommand 按原图层宽高回写 result.Data 会越界崩溃，
-            // 转生成新文档（画布=结果尺寸，与原文档并行可切换）。
-            if (result.Width != layer.Pixels.Width || result.Height != layer.Pixels.Height)
-            {
-                var resultDoc = new OsirisDocument(result.Width, result.Height);
-                var resultLayer = new Layer(_displayName, result.Width, result.Height);
-                System.Buffer.BlockCopy(result.Data, 0, resultLayer.Pixels.Data, 0, result.Data.Length);
-                resultDoc.Layers.Add(resultLayer);
-                _host.Ui?.LoadDocument(resultDoc, _displayName);
-                return;
-            }
-
-            var cmd = new PixelEditCommand(_displayName, layer,
-                0, 0, layer.Pixels.Width, layer.Pixels.Height, result.Data);
-            doc.History.Push(cmd, doc);
-        }
-
-        /// <summary>合并滤镜默认参数与命令覆盖值（覆盖优先）。</summary>
-        internal static Osiris.Core.Plugins.FilterParameters MergeParameters(
-            Osiris.Core.Plugins.FilterParameters defaults,
-            Osiris.Core.Plugins.FilterParameters overrides)
-        {
-            var merged = new Osiris.Core.Plugins.FilterParameters();
-            if (defaults != null)
-                foreach (var k in defaults.Keys)
-                    merged[k] = defaults[k];
-            if (overrides != null)
-                foreach (var k in overrides.Keys)
-                    merged[k] = overrides[k];
-            return merged;
-        }
-    }
-
-    /// <summary>排版命令：把当前文档首图层照片网格居中排到相纸，结果作为新文档加载（相纸尺寸即画布）。</summary>
-    internal sealed class LayoutCommand : ICommand
+    private readonly NumberSettingItem _animeOutline = new(60, 0, 200, 5)
     {
-        private readonly IHostContext _host;
-        private readonly string _id;
-        private readonly string _displayName;
-        private readonly string _paperName;
+        GroupId = ModuleId,
+        Key = "animeOutline",
+        Label = "动漫描边强度",
+        Description = "动漫模式边缘描边强度（越大描边越少）",
+        Scope = SettingScope.User,
+    };
 
-        public LayoutCommand(IHostContext host, string id, string displayName, string paperName)
+    private readonly ChoiceSettingItem _layoutPaper = new(["5寸", "6寸", "A4"], "5寸")
+    {
+        GroupId = ModuleId,
+        Key = "layoutPaper",
+        Label = "排版相纸",
+        Description = "排版输出命令使用的相纸规格",
+        Scope = SettingScope.User,
+    };
+
+    // 宿主上下文（Initialize 注入；无 UI 宿主下仅贡献滤镜/设置）
+    private IHostContext? _host;
+
+    // 模块注册表服务（CoreModule 注册后经 Services 获取；null 表示未注册，跳过模块配置读取）
+    private IModuleRegistry? _registry;
+
+    /// <inheritdoc />
+    public string Id => ModuleId;
+
+    /// <inheritdoc />
+    public string Name => ModuleName;
+
+    /// <inheritdoc />
+    public string Version => ModuleVersion;
+
+    /// <inheritdoc />
+    public string MinHostVersion => HostVersion;
+
+    /// <inheritdoc />
+    public ModuleKind Kind => ModuleKind.Extension;
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> Dependencies => [];
+
+    /// <inheritdoc />
+    public IReadOnlyList<IFilterProcessor> Filters =>
+    [
+        _grayscale,
+        _replaceBackground,
+        _smartCrop,
+        _anime,
+    ];
+
+    /// <inheritdoc />
+    public IReadOnlyList<SettingGroup> Groups =>
+    [
+        new SettingGroup
         {
-            _host = host;
-            _id = id;
-            _displayName = displayName;
-            _paperName = paperName;
-        }
+            Id = ModuleId,
+            DisplayName = "证件照",
+            Items =
+            [
+                _replaceBgColor,
+                _replaceBgTolerance,
+                _animeLevels,
+                _animeOutline,
+                _layoutPaper,
+            ],
+        },
+    ];
 
-        public string Id => _id;
-        public string DisplayName => _displayName;
+    /// <summary>当前排版相纸名（布局命令读取）。</summary>
+    public string LayoutPaperName => _layoutPaper.Value;
 
-        public bool CanExecute(object parameter)
-            => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
+    /// <inheritdoc />
+    public void Initialize(IHostContext host)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        _host = host;
+        _registry = host.Services.Get<IModuleRegistry>();
 
-        public void Execute(object parameter)
-        {
-            var doc = _host.ActiveDocument;
-            if (doc == null || doc.Layers.Count == 0) return;
-            var layer = doc.Layers[0];
+        // 无 UI 宿主（CLI/测试）：仅贡献滤镜与设置，跳过命令菜单注册
+        if (host.Ui is not { } ui)
+            return;
 
-            var result = Osiris.Core.Imaging.LayoutProcessor.LayoutPreset(
-                layer.Pixels, _paperName, Osiris.Core.Imaging.LayoutProcessor.GuideLineStyle.Dash);
+        // 图像菜单：4 个滤镜命令（菜单路径如 "图像/灰度"，host 自动创建中间节点）
+        ui.RegisterCommand(new FilterCommand(host, this, _grayscale, "fptp.grayscale", "灰度"));
+        ui.AddMenu("图像/灰度", "fptp.grayscale", 10);
 
-            // 相纸是新文档（尺寸=相纸），消除渲染裁剪；原文档由历史保留可撤销回退
-            var paperDoc = new OsirisDocument(result.Paper.Width, result.Paper.Height);
-            var paperLayer = new Layer(_displayName, result.Paper.Width, result.Paper.Height);
-            System.Buffer.BlockCopy(result.Paper.Data, 0, paperLayer.Pixels.Data, 0, result.Paper.Data.Length);
-            paperDoc.Layers.Add(paperLayer);
-            _host.Ui?.LoadDocument(paperDoc, _displayName);
-        }
+        ui.RegisterCommand(new FilterCommand(host, this, _replaceBackground, "fptp.replaceBackground", "换底色"));
+        ui.AddMenu("图像/换底色", "fptp.replaceBackground", 11);
+
+        ui.RegisterCommand(new FilterCommand(host, this, _anime, "fptp.anime", "动漫模式"));
+        ui.AddMenu("图像/动漫模式", "fptp.anime", 12);
+
+        ui.RegisterCommand(new FilterCommand(host, this, _smartCrop, "fptp.smartCrop", "智能裁切"));
+        ui.AddMenu("图像/智能裁切", "fptp.smartCrop", 13);
+
+        // 文件菜单：排版输出（相纸规格来自设置项 layoutPaper）
+        ui.RegisterCommand(new LayoutCommand(host, this, "fptp.layout", "排版输出"));
+        ui.AddMenu("文件/排版输出", "fptp.layout", 20);
     }
 
     /// <summary>
-    /// 生成新文档命令：滤镜输出尺寸不同于原图层时使用（如智能裁切/排版）。
-    /// 结果作为新文档加载（画布=结果尺寸），原文档留在历史中。
+    /// 组装滤镜执行参数包（三级回退）：
+    /// 1) 滤镜 Defaults 打底；2) 用户设置项当前值覆盖（设置面板即时持久化的值）；
+    /// 3) 模块级配置覆盖（经 IModuleRegistry，宿主 Core 模块注册后生效，未注册则跳过）。
     /// </summary>
-    internal sealed class GenerateDocumentCommand : ICommand
+    public FilterParameters BuildParameters(IFilterProcessor filter)
     {
-        private readonly IHostContext _host;
-        private readonly string _id;
-        private readonly string _displayName;
-        private readonly IFilterProcessor _filter;
-        private readonly Osiris.Core.Plugins.FilterParameters _overrides;
+        ArgumentNullException.ThrowIfNull(filter);
 
-        public GenerateDocumentCommand(IHostContext host, string id, string displayName,
-                                       IFilterProcessor filter, Osiris.Core.Plugins.FilterParameters overrides)
+        // 1. Defaults 打底
+        var parameters = new FilterParameters();
+        foreach (string key in filter.Defaults.Keys)
+            parameters[key] = filter.Defaults[key];
+
+        // 2. 设置项覆盖（参数键 → 设置项当前值）
+        foreach ((string paramKey, string settingKey) in s_paramToSetting)
         {
-            _host = host;
-            _id = id;
-            _displayName = displayName;
-            _filter = filter;
-            _overrides = overrides;
+            SettingItem? item = FindSetting(settingKey);
+            if (item is null)
+                continue;
+            object? value = ConvertSettingToParam(paramKey, item);
+            if (value is not null)
+                parameters[paramKey] = value;
         }
 
-        public string Id => _id;
-        public string DisplayName => _displayName;
-
-        public bool CanExecute(object parameter)
-            => _host.ActiveDocument != null && _host.ActiveDocument.Layers.Count > 0;
-
-        public void Execute(object parameter)
+        // 3. 模块级配置覆盖（数值统一按 double 读取——SetConfig 归一化为 double 持久化）
+        if (_registry is { } registry)
         {
-            var doc = _host.ActiveDocument;
-            if (doc == null || doc.Layers.Count == 0) return;
-            var layer = doc.Layers[0];
-
-            var p = FptpFilterCommand.MergeParameters(_filter.Defaults, _overrides);
-            // 有参数描述且 UI 宿主可用 → 弹参数对话框；取消则中止
-            if (_filter.Parameters.Count > 0 && _host.Ui != null)
+            foreach ((string paramKey, _) in s_paramToSetting)
             {
-                var user = _host.Ui.PromptFilterParameters(_filter.Parameters, p);
-                if (user == null) return;
-                p = user;
+                double? config = registry.GetConfig<double>(ModuleId, paramKey);
+                if (config is null)
+                    continue;
+                parameters[paramKey] = paramKey == ReplaceBackgroundFilter.ParamColor
+                    ? (uint)Math.Clamp(config.Value, 0, uint.MaxValue)
+                    : (int)Math.Round(config.Value);
             }
-            var result = _filter.Apply(layer.Pixels, p, _host.Progress, _host.Cancellation);
-
-            var resultDoc = new OsirisDocument(result.Width, result.Height);
-            var resultLayer = new Layer(_displayName, result.Width, result.Height);
-            System.Buffer.BlockCopy(result.Data, 0, resultLayer.Pixels.Data, 0, result.Data.Length);
-            resultDoc.Layers.Add(resultLayer);
-            _host.Ui?.LoadDocument(resultDoc, _displayName);
         }
+
+        return parameters;
     }
 
-    /// <summary>灰度滤镜：BT.601 加权平均（纯 PixelSurface 实现，不依赖渲染后端）。</summary>
-    public sealed class GrayscaleFilter : IFilterProcessor
+    /// <summary>按键查设置项实例。</summary>
+    private SettingItem? FindSetting(string settingKey) => settingKey switch
     {
-        public string Id => "fptp.builtin.grayscale";
-        public string DisplayName => "灰度";
-        public FilterParameters Defaults => new FilterParameters();
-        public IReadOnlyList<FilterParameterDescriptor> Parameters =>
-            System.Array.Empty<FilterParameterDescriptor>();
+        "replaceBgColor" => _replaceBgColor,
+        "replaceBgTolerance" => _replaceBgTolerance,
+        "animeLevels" => _animeLevels,
+        "animeOutline" => _animeOutline,
+        "layoutPaper" => _layoutPaper,
+        _ => null,
+    };
 
-        public PixelSurface Apply(PixelSurface input, FilterParameters p, IProgress progress, System.Threading.CancellationToken ct)
-        {
-            var output = new PixelSurface(input.Width, input.Height);
-            var src = input.Pixels;
-            var dst = output.Pixels;
-            for (int i = 0; i + 3 < src.Length; i += 4)
-            {
-                ct.ThrowIfCancellationRequested();
-                var b = src[i];
-                var g = src[i + 1];
-                var r = src[i + 2];
-                var a = src[i + 3];
-                // BT.601 亮度，按 alpha 预乘处理
-                var gray = (byte)((r * 299 + g * 587 + b * 114) / 1000);
-                dst[i] = gray;
-                dst[i + 1] = gray;
-                dst[i + 2] = gray;
-                dst[i + 3] = a;
-            }
-            return output;
-        }
-    }
+    /// <summary>设置项当前值 → 滤镜参数值（数值项 double → int；颜色项原样 uint）。</summary>
+    private static object? ConvertSettingToParam(string paramKey, SettingItem item) => paramKey switch
+    {
+        ReplaceBackgroundFilter.ParamColor => ((ColorSettingItem)item).Value,
+        ReplaceBackgroundFilter.ParamTolerance => (int)Math.Round(((NumberSettingItem)item).Value),
+        AnimeFilter.ParamLevels => (int)Math.Round(((NumberSettingItem)item).Value),
+        AnimeFilter.ParamOutline => (int)Math.Round(((NumberSettingItem)item).Value),
+        _ => null,
+    };
 }

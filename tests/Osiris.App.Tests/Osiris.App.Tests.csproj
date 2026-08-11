@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Osiris.App.Tests：Avalonia 壳冒烟测试（Avalonia.Headless.XUnit，xUnit v3）。
+    - 窗口可开、命令可执行、设置面板 DataType 模板匹配断言
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Osiris.App.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Osiris.App\Osiris.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <!-- Avalonia.Headless.XUnit 12.x 依赖 xUnit v3：本测试项目必须用 xunit.v3，避免类型冲突 -->
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.1" />
+  </ItemGroup>
+
+</Project>

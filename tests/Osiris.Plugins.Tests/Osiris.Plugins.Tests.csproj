@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Osiris.Plugins.Tests：插件宿主测试（ALC 可卸载承诺的唯一证明）。
+    - 真实 ALC 加载 Fptp.Plugins.Builtin -> 跑滤镜 -> 卸载 -> WeakReference 断言可回收
+    - 契约测试：反射断言插件程序集不引用 SkiaSharp/Avalonia（ABI 红线）
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Osiris.Plugins.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Osiris.Core\Osiris.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

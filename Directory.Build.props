@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- 全解决方案公共属性：net10.0 单目标、现代 C#、中文注释约定 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>2.1.0.0</Version>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+</Project>

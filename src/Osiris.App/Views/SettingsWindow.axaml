@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Osiris.App.ViewModels"
+        xmlns:set="using:Osiris.Abstractions.Settings"
+        x:Class="Osiris.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="设置" Width="680" Height="480"
+        WindowStartupLocation="CenterOwner">
+
+  <!-- 设置控件模板：按 SettingItem 子类型隐式匹配（零转换器），编辑事件在 code-behind 即时保存 -->
+  <Window.DataTemplates>
+    <DataTemplate DataType="set:BoolSettingItem" x:DataType="set:BoolSettingItem">
+      <CheckBox IsChecked="{Binding Value}" Content="{Binding Label}" IsCheckedChanged="OnBoolChanged" />
+    </DataTemplate>
+    <DataTemplate DataType="set:NumberSettingItem" x:DataType="set:NumberSettingItem">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Width="150" />
+        <NumericUpDown Minimum="{Binding Min}" Maximum="{Binding Max}" Increment="{Binding Step}"
+                       Value="{Binding Value}" ValueChanged="OnNumberChanged" Width="180" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="set:TextSettingItem" x:DataType="set:TextSettingItem">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Width="150" />
+        <TextBox Text="{Binding Value}" LostFocus="OnTextLostFocus" Width="220" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="set:ChoiceSettingItem" x:DataType="set:ChoiceSettingItem">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Width="150" />
+        <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Value}"
+                  SelectionChanged="OnChoiceChanged" Width="160" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="set:ColorSettingItem" x:DataType="set:ColorSettingItem">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Width="150" />
+        <Button Content="选择颜色 (AARRGGBB)..." Click="OnColorClick" Width="170" />
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="set:FilePathSettingItem" x:DataType="set:FilePathSettingItem">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Width="150" />
+        <TextBox Text="{Binding Value}" LostFocus="OnTextLostFocus" Width="220" />
+      </StackPanel>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <Grid ColumnDefinitions="180,8,*">
+    <!-- 左导航：设置组 -->
+    <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}">
+      <ListBox.ItemTemplate>
+        <DataTemplate DataType="vm:SettingGroupViewModel" x:DataType="vm:SettingGroupViewModel">
+          <TextBlock Text="{Binding Group.DisplayName}" />
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+    <!-- 右侧：选中组的设置项 -->
+    <ScrollViewer Grid.Column="2">
+      <ItemsControl ItemsSource="{Binding SelectedGroup.Items}" Margin="14">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</Window>

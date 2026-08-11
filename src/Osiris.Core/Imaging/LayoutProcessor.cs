@@ -1,188 +1,149 @@
-using System;
-using System.Collections.Generic;
-using Osiris.Core.Imaging;
+using Osiris.Abstractions.Document;
 
-namespace Osiris.Core.Imaging
+namespace Osiris.Core.Imaging;
+
+/// <summary>
+/// 证件照排版处理器（2.0 GenSettings 排版能力的新架构重写）：
+/// 把单张照片按 columns×rows 网格排版到相纸（5寸/6寸/A4 预设），网格整体居中。
+/// 纯 PixelSurface 像素合成（预乘 BGRA 白底 + 照片逐行拷贝），零渲染后端依赖。
+/// 照片大于单元格时等比缩小保持清晰，透明照片像素直接拷贝（白底兜底）。
+/// </summary>
+public static class LayoutProcessor
 {
     /// <summary>
-    /// 证件照排版处理器（2.0 替代 1.x GenSettings 的排版能力，命名即职责）：
-    /// 把照片网格居中排列到相纸（5寸/6寸/A4/A5/自定义），可带虚线裁剪辅助线。
-    /// 纯 PixelSurface 合成，不依赖渲染后端。
+    /// 相纸尺寸预设（像素，300dpi 基准；调用方可按 dpi 参数缩放）：
+    /// 5寸 1270×889、6寸 1524×1016、A4 2480×3508（竖版 A4）。
     /// </summary>
-    public static class LayoutProcessor
+    public static readonly IReadOnlyDictionary<string, (int Width, int Height)> PaperPresets =
+        new Dictionary<string, (int Width, int Height)>(StringComparer.Ordinal)
+        {
+            ["5寸"] = (1270, 889),
+            ["6寸"] = (1524, 1016),
+            ["A4"] = (2480, 3508),
+        };
+
+    /// <summary>排版结果：白底相纸像素面 + 实际排版行列数。</summary>
+    public sealed record LayoutResult(PixelSurface Paper, int Columns, int Rows);
+
+    /// <summary>
+    /// 按预设相纸排版：照片等比缩小适应单元格（保持宽高比），网格居中，白底输出。
+    /// </summary>
+    /// <param name="photo">源照片（BGRA 预乘）。</param>
+    /// <param name="paperName">相纸预设名（"5寸"/"6寸"/"A4"）。</param>
+    /// <param name="columns">排版列数。</param>
+    /// <param name="rows">排版行数。</param>
+    /// <param name="gapPx">照片间间隙（像素）。</param>
+    /// <param name="dpi">输出分辨率（预设以 300dpi 定义，相纸按 dpi/300 缩放）。</param>
+    public static LayoutResult LayoutPreset(PixelSurface photo, string paperName, int columns, int rows, int gapPx = 8, int dpi = 300)
     {
-        // 相纸预设（1.x 尺寸：5寸 1500x1050 / 6寸 1800x1200 / A4 3508x2480 / A5 2480x1748）
-        public static readonly IReadOnlyDictionary<string, (int W, int H)> PaperPresets =
-            new Dictionary<string, (int, int)>
-            {
-                ["5寸"] = (1500, 1050),
-                ["6寸"] = (1800, 1200),
-                ["A4"] = (3508, 2480),
-                ["A5"] = (2480, 1748)
-            };
+        ArgumentNullException.ThrowIfNull(photo);
+        if (!PaperPresets.TryGetValue(paperName, out (int Width, int Height) preset))
+            throw new ArgumentException($"未知相纸预设: {paperName}（可选：{string.Join(" / ", PaperPresets.Keys)}）", nameof(paperName));
+        if (columns <= 0 || rows <= 0)
+            throw new ArgumentOutOfRangeException(nameof(columns), "排版行列数必须为正");
+        if (gapPx < 0)
+            throw new ArgumentOutOfRangeException(nameof(gapPx), "间隙不能为负");
 
-        /// <summary>照片间隙（像素，与 1.x 一致）。</summary>
-        public const int Gap = 40;
+        // 相纸按 dpi 缩放（预设定义于 300dpi）
+        double dpiScale = dpi / 300.0;
+        int paperWidth = Math.Max(1, (int)Math.Round(preset.Width * dpiScale));
+        int paperHeight = Math.Max(1, (int)Math.Round(preset.Height * dpiScale));
 
-        /// <summary>辅助线样式。</summary>
-        public enum GuideLineStyle { None = 0, Dash = 1, Solid = 2 }
+        // 单元格尺寸：相纸宽度去掉横向间隙后均分给每列（防 0 保护）
+        int cellWidth = Math.Max(1, (paperWidth - (columns - 1) * gapPx) / columns);
+        int cellHeight = Math.Max(1, (paperHeight - (rows - 1) * gapPx) / rows);
 
-        /// <summary>排版结果。</summary>
-        public sealed class LayoutResult
+        // 照片等比缩放适应单元格：仅缩小不放大（避免插值模糊降低清晰度）
+        double fit = Math.Min((double)cellWidth / photo.Width, (double)cellHeight / photo.Height);
+        PixelSurface scaled = fit < 1.0
+            ? ScaleBilinear(photo, Math.Max(1, (int)(photo.Width * fit)), Math.Max(1, (int)(photo.Height * fit)))
+            : photo;
+        int photoWidth = scaled.Width;
+        int photoHeight = scaled.Height;
+
+        // 网格整体居中：内容块 = 列×照片 + 间隙，起点 = (相纸 - 内容块)/2
+        int contentWidth = columns * photoWidth + (columns - 1) * gapPx;
+        int contentHeight = rows * photoHeight + (rows - 1) * gapPx;
+        int startX = Math.Max(0, (paperWidth - contentWidth) / 2);
+        int startY = Math.Max(0, (paperHeight - contentHeight) / 2);
+
+        // 白底相纸：预乘 BGRA 全 255 = 不透明白
+        PixelSurfaceEditor paper = PixelSurface.Create(paperWidth, paperHeight).CreateEditor();
+        paper.Pixels.Fill(255);
+
+        // 逐格拷贝照片（行间隔 gapPx，格内照片恰好填充槽位）
+        for (int row = 0; row < rows; row++)
         {
-            public PixelSurface Paper { get; set; }
-            public int Columns { get; set; }
-            public int Rows { get; set; }
-            public int Count => Columns * Rows;
-        }
-
-        /// <summary>
-        /// 排版单张照片到相纸：网格居中排列，可画辅助线。
-        /// </summary>
-        public static LayoutResult Layout(PixelSurface photo, int paperWidth, int paperHeight,
-                                          GuideLineStyle guideLine = GuideLineStyle.Dash)
-        {
-            if (photo == null) throw new ArgumentNullException(nameof(photo));
-            if (paperWidth <= 0 || paperHeight <= 0) throw new ArgumentOutOfRangeException(nameof(paperWidth), "相纸尺寸必须为正");
-
-            // 照片大于相纸时先等比缩小到相纸内（否则居中起点为负，BlockCopy 越界崩溃）
-            if (photo.Width > paperWidth || photo.Height > paperHeight)
+            for (int col = 0; col < columns; col++)
             {
-                double scale = Math.Min((double)paperWidth / photo.Width,
-                                        (double)paperHeight / photo.Height);
-                int sw = Math.Max(1, (int)(photo.Width * scale));
-                int sh = Math.Max(1, (int)(photo.Height * scale));
-                photo = ScaleBilinear(photo, sw, sh);
-            }
-
-            int photoW = photo.Width, photoH = photo.Height;
-            int cols = Math.Max(1, (paperWidth + Gap) / (photoW + Gap));
-            int rows = Math.Max(1, (paperHeight + Gap) / (photoH + Gap));
-
-            int contentWidth = cols * photoW + (cols - 1) * Gap;
-            int contentHeight = rows * photoH + (rows - 1) * Gap;
-            int startX = (paperWidth - contentWidth) / 2;
-            int startY = (paperHeight - contentHeight) / 2;
-
-            var paper = new PixelSurface(paperWidth, paperHeight);
-            FillWhite(paper);
-
-            for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                int x = startX + c * (photoW + Gap);
-                int y = startY + r * (photoH + Gap);
-                CopyPhoto(paper, photo, x, y);
-                if (guideLine != GuideLineStyle.None)
-                    DrawGuideRect(paper, x, y, photoW, photoH, guideLine == GuideLineStyle.Solid);
-            }
-
-            return new LayoutResult { Paper = paper, Columns = cols, Rows = rows };
-        }
-
-        /// <summary>按预设相纸排版。</summary>
-        public static LayoutResult LayoutPreset(PixelSurface photo, string paperName, GuideLineStyle guideLine = GuideLineStyle.Dash)
-        {
-            if (!PaperPresets.TryGetValue(paperName, out var size))
-                throw new ArgumentException("未知相纸预设: " + paperName, nameof(paperName));
-            return Layout(photo, size.W, size.H, guideLine);
-        }
-
-        private static void FillWhite(PixelSurface paper)
-        {
-            var d = paper.Data;
-            for (int i = 0; i < d.Length; i += 4)
-            {
-                d[i] = 255; d[i + 1] = 255; d[i + 2] = 255; d[i + 3] = 255;
+                int x = startX + col * (photoWidth + gapPx);
+                int y = startY + row * (photoHeight + gapPx);
+                CopyPhoto(paper, scaled, x, y);
             }
         }
 
-        /// <summary>整块拷贝照片到相纸（逐行 BlockCopy）。</summary>
-        private static void CopyPhoto(PixelSurface paper, PixelSurface photo, int dstX, int dstY)
+        return new LayoutResult(paper.Commit(), columns, rows);
+    }
+
+    /// <summary>整块拷贝照片到相纸（逐行拷贝；越界部分裁剪）。</summary>
+    private static void CopyPhoto(PixelSurfaceEditor paper, PixelSurface photo, int dstX, int dstY)
+    {
+        // 防御性裁剪到相纸边界（网格居中通常不越界）
+        int clipWidth = Math.Min(photo.Width, paper.Width - dstX);
+        int clipHeight = Math.Min(photo.Height, paper.Height - dstY);
+        if (clipWidth <= 0 || clipHeight <= 0)
+            return;
+
+        int rowBytes = clipWidth * 4;
+        for (int r = 0; r < clipHeight; r++)
+            photo.Row(r)[..rowBytes].CopyTo(paper.Row(dstY + r)[(dstX * 4)..]);
+    }
+
+    /// <summary>双线性插值缩放（BGRA 各通道独立插值；预乘像素直接插值保持一致性）。</summary>
+    private static PixelSurface ScaleBilinear(PixelSurface source, int outWidth, int outHeight)
+    {
+        PixelSurfaceEditor editor = PixelSurface.Create(outWidth, outHeight).CreateEditor();
+        Span<byte> dst = editor.Pixels;
+        double scaleX = (double)source.Width / outWidth;
+        double scaleY = (double)source.Height / outHeight;
+        ReadOnlySpan<byte> src = source.Pixels;
+
+        for (int y = 0; y < outHeight; y++)
         {
-            var src = photo.Data;
-            var dst = paper.Data;
-            var rowBytes = photo.Width * 4;
-            for (int r = 0; r < photo.Height; r++)
+            // 目标行中心反投影到源坐标，取四邻域加权
+            double sy = (y + 0.5) * scaleY - 0.5;
+            int y0 = Clamp((int)Math.Floor(sy), 0, source.Height - 1);
+            int y1 = Clamp(y0 + 1, 0, source.Height - 1);
+            double fy = Clamp01(sy - y0);
+
+            for (int x = 0; x < outWidth; x++)
             {
-                var srcOffset = r * photo.Stride;
-                var dstOffset = ((dstY + r) * paper.Stride) + (dstX * 4);
-                Buffer.BlockCopy(src, srcOffset, dst, dstOffset, rowBytes);
-            }
-        }
+                double sx = (x + 0.5) * scaleX - 0.5;
+                int x0 = Clamp((int)Math.Floor(sx), 0, source.Width - 1);
+                int x1 = Clamp(x0 + 1, 0, source.Width - 1);
+                double fx = Clamp01(sx - x0);
 
-        /// <summary>双线性缩放照片（照片大于相纸时降采样，BGRA 各通道插值）。</summary>
-        private static PixelSurface ScaleBilinear(PixelSurface src, int outW, int outH)
-        {
-            var output = new PixelSurface(outW, outH);
-            var srcData = src.Data;
-            var dstData = output.Data;
-            double scaleX = (double)src.Width / outW;
-            double scaleY = (double)src.Height / outH;
-
-            for (int y = 0; y < outH; y++)
-            {
-                double sy = (y + 0.5) * scaleY - 0.5;
-                int y0 = Clamp((int)Math.Floor(sy), 0, src.Height - 1);
-                int y1 = Clamp(y0 + 1, 0, src.Height - 1);
-                double fy = Clamp01(sy - y0);
-
-                for (int x = 0; x < outW; x++)
+                int outIndex = (y * outWidth + x) * 4;
+                for (int c = 0; c < 4; c++)
                 {
-                    double sx = (x + 0.5) * scaleX - 0.5;
-                    int x0 = Clamp((int)Math.Floor(sx), 0, src.Width - 1);
-                    int x1 = Clamp(x0 + 1, 0, src.Width - 1);
-                    double fx = Clamp01(sx - x0);
+                    // 2×2 双线性：先水平插值再垂直插值
+                    int s00 = (y0 * source.RowBytes + x0 * 4) + c;
+                    int s10 = (y0 * source.RowBytes + x1 * 4) + c;
+                    int s01 = (y1 * source.RowBytes + x0 * 4) + c;
+                    int s11 = (y1 * source.RowBytes + x1 * 4) + c;
 
-                    int o = (y * outW + x) * 4;
-                    for (int c = 0; c < 4; c++)
-                    {
-                        double v00 = srcData[(y0 * src.Width + x0) * 4 + c];
-                        double v10 = srcData[(y0 * src.Width + x1) * 4 + c];
-                        double v01 = srcData[(y1 * src.Width + x0) * 4 + c];
-                        double v11 = srcData[(y1 * src.Width + x1) * 4 + c];
-                        double top = v00 + (v10 - v00) * fx;
-                        double bot = v01 + (v11 - v01) * fx;
-                        dstData[o + c] = (byte)(top + (bot - top) * fy);
-                    }
+                    double top = src[s00] + (src[s10] - src[s00]) * fx;
+                    double bottom = src[s01] + (src[s11] - src[s01]) * fx;
+                    dst[outIndex + c] = (byte)(top + (bottom - top) * fy);
                 }
             }
-            return output;
         }
-
-        private static int Clamp(int v, int min, int max) => v < min ? min : (v > max ? max : v);
-
-        private static double Clamp01(double v) => v < 0 ? 0 : (v > 1 ? 1 : v);
-
-        /// <summary>画裁剪辅助线（浅灰 1px 矩形边框）。</summary>
-        private static void DrawGuideRect(PixelSurface paper, int x, int y, int w, int h, bool solid)
-        {
-            byte shade = 200;
-            int step = solid ? 1 : 8;   // 虚线：8px 段
-
-            // 四条边，逐段画
-            for (int px = x; px < x + w; px += 1)
-            {
-                if (!solid && (px - x) % step >= step / 2) continue;
-                SetPixel(paper, px, y, shade);
-                SetPixel(paper, px, y + h - 1, shade);
-            }
-            for (int py = y; py < y + h; py += 1)
-            {
-                if (!solid && (py - y) % step >= step / 2) continue;
-                SetPixel(paper, x, py, shade);
-                SetPixel(paper, x + w - 1, py, shade);
-            }
-        }
-
-        private static void SetPixel(PixelSurface surface, int x, int y, byte shade)
-        {
-            if (x < 0 || y < 0 || x >= surface.Width || y >= surface.Height) return;
-            int o = (y * surface.Stride) + (x * 4);
-            surface.Data[o] = shade;
-            surface.Data[o + 1] = shade;
-            surface.Data[o + 2] = shade;
-            surface.Data[o + 3] = 255;
-        }
+        return editor.Commit();
     }
+
+    /// <summary>钳制到 [min, max]。</summary>
+    private static int Clamp(int value, int min, int max) => value < min ? min : (value > max ? max : value);
+
+    /// <summary>钳制到 [0, 1]。</summary>
+    private static double Clamp01(double value) => value < 0 ? 0 : (value > 1 ? 1 : value);
 }

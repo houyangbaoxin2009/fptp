@@ -5,6 +5,32 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
+## [2.1.0.0] - 2026-08-11
+
+### 重大变更：Avalonia 跨平台完全重写
+
+抛弃 2.0（WinForms + net48 兼容）全部代码，用现代 .NET 栈完全推倒重写：
+
+### 新增
+- **Avalonia 12 跨平台 UI**：单一 `net10.0` TFM（弃 netstandard2.0 与 `net10.0-windows`），Win/macOS/Linux 一套代码；Skia 直绘画布（`ICustomDrawOperation + ISkiaSharpApiLeaseFeature` 零拷贝）
+- **模块化架构**：`Osiris.Abstractions`（纯契约，插件可见面）/ `Osiris.Core`（实现）/ `Osiris.Engine.Skia`（渲染）/ `Osiris.CoreModule`（标准模块）/ `Osiris.App`（壳）/ `Osiris.Cli`（模块化 CLI）六层分离
+- **界面完全由模块控制**：壳 = 模块运行时 + 空工作台框架（菜单栏/工具栏/停靠面板/画布宿主/状态栏全部来自模块贡献），零业务 UI
+- **模块注册表系统**：记录全部模块的信息与配置（JSON 即时持久化，`%APPDATA%/Fptp/`），支持启用/禁用/卸载
+- **模块分级与权限**：标准模块（内置，用户不可拆卸/更改文件，仅更新模块可改；但用户可改其设置）/ 扩展模块（用户可安装/卸载/更改）/ 更新模块（内置特殊权限，唯一可替换内置模块与写安全设置）
+- **设置分级**：用户设置 / 核心设置（用户可改）+ 安全设置（仅更新模块可改，`secure.json` 隔离存储）；设置面板按 SettingItem 类型自动生成控件（零转换器）
+- **ALC 可卸载插件系统**：扩展模块经独立 `AssemblyLoadContext(isCollectible)` 加载，支持卸载；ABI 红线（插件只引用 Abstractions，禁止 SkiaSharp/Avalonia）+ 契约测试（反射断言 + WeakReference 卸载断言）
+- **证件照扩展模块**：灰度 / 智能裁切 / 换底色 / 动漫模式 4 滤镜 + 排版 + 设置组 + module.json 清单（`plugins/Fptp.Plugins.Builtin`）
+- **CLI 模块化宿主**：与 GUI 共享同一注册表/权限/安全设置；模块经 `ICliCommandProvider` 贡献子命令，动态挂载
+- **COW 不可变图层**：历史栈命令级撤销（指针回退零拷贝），撤销深度 50
+- **批处理管线**：`BatchProcessor` 零 UI 依赖，GUI 与 CLI 复用（编解码/滤镜经委托注入）
+- **tie 语言预留（Leibniz = tie）**：模块描述数据化（module.json 含 Language/EntryPoint）、契约语言中立、`tie:data` 将全面取代 JSON（配置存储经 `IConfigStore` 格式中立抽象）
+- 测试：57 用例全绿（Core 35 / Plugins 8 / Engine 11 / App 3），含 ALC 卸载与 ABI 红线断言
+
+### 移除
+- WinForms 壳与 `net10.0-windows` TFM
+- net48/netstandard2.0 多目标（已取消 Win7 支持）
+- 旧命名（`Assalg`/`Prepalg` 等中文拼音拼接）与增量补丁式代码
+
 ## [2.0.10.0] - 2026-08-03
 
 ### 新增

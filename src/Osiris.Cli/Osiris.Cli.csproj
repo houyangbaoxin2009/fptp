@@ -1,28 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Osiris.Cli：命令行批处理（复用 Core 批处理管线，零 UI 依赖）。
+    - System.CommandLine 解析：batch 命令（目录批量执行裁切/换底/排版滤镜链）
+  -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net10.0;net48</TargetFrameworks>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
     <RootNamespace>Osiris.Cli</RootNamespace>
     <AssemblyName>Osiris.Cli</AssemblyName>
-    <Version>2.0.10.0</Version>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" Condition="'$(TargetFramework)' == 'net48'" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Osiris.Core\Osiris.Core.csproj" />
     <ProjectReference Include="..\Osiris.Engine.Skia\Osiris.Engine.Skia.csproj" />
-    <ProjectReference Include="..\Osiris.Settings\Osiris.Settings.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- 链接复用宿主插件加载器（条件编译在 Cli 各目标下各自生效） -->
-    <Compile Include="..\Osiris.App\PluginHost\PluginLoader.cs" Link="PluginHost\PluginLoader.cs" />
+    <PackageReference Include="System.CommandLine" Version="2.0.10" />
   </ItemGroup>
 
 </Project>

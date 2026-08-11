@@ -3,10 +3,17 @@
     <Project Path="plugins/Fptp.Plugins.Builtin/Fptp.Plugins.Builtin.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Osiris.Abstractions/Osiris.Abstractions.csproj" />
     <Project Path="src/Osiris.App/Osiris.App.csproj" />
     <Project Path="src/Osiris.Cli/Osiris.Cli.csproj" />
     <Project Path="src/Osiris.Core/Osiris.Core.csproj" />
+    <Project Path="src/Osiris.CoreModule/Osiris.CoreModule.csproj" />
     <Project Path="src/Osiris.Engine.Skia/Osiris.Engine.Skia.csproj" />
-    <Project Path="src/Osiris.Settings/Osiris.Settings.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Osiris.App.Tests/Osiris.App.Tests.csproj" />
+    <Project Path="tests/Osiris.Core.Tests/Osiris.Core.Tests.csproj" />
+    <Project Path="tests/Osiris.Engine.Skia.Tests/Osiris.Engine.Skia.Tests.csproj" />
+    <Project Path="tests/Osiris.Plugins.Tests/Osiris.Plugins.Tests.csproj" />
   </Folder>
 </Solution>

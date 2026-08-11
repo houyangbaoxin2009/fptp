@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Osiris.CoreModule：标准模块（随产品分发，静态引用，注册表登记 Kind=Standard，不可卸载）。
+    - 文档服务：DocumentService（打开/新建/保存文档，历史栈）
+    - 画布控件：CanvasControl（ICustomDrawOperation + ISkiaSharpApiLeaseFeature 零拷贝直绘）
+    - 基础命令：打开/保存/导出/撤销/重做/缩放/打印
+    - 服务贡献：FileDialogService / AppPaths 经 Services 注册
+    与其他模块同契约（IModule），但静态加载而非 ALC。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Osiris.CoreModule</RootNamespace>
+    <AssemblyName>Osiris.CoreModule</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+    <ProjectReference Include="..\Osiris.Core\Osiris.Core.csproj" />
+    <ProjectReference Include="..\Osiris.Engine.Skia\Osiris.Engine.Skia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+  </ItemGroup>
+
+</Project>

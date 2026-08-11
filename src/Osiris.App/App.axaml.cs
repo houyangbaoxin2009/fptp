@@ -1,0 +1,96 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
+using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Modules;
+using Osiris.Abstractions.Plugins;
+using Osiris.Core.Plugins;
+using Osiris.Core.Storage;
+using Osiris.CoreModule.Services;
+// CoreModule 类与其所在命名空间 Osiris.CoreModule 同名：简单名会被 Osiris 命名空间下的子命名空间遮蔽，
+// 故用别名（别名标识符不与任何命名空间冲突）。
+using CoreModuleType = Osiris.CoreModule.CoreModule;
+using Osiris.Engine.Skia;
+using Osiris.App.PluginHost;
+using Osiris.App.ViewModels;
+using Osiris.App.Views;
+
+namespace Osiris.App;
+
+/// <summary>
+/// 应用根：模块运行时组装。
+/// 壳只做：构建模块注册表（与 CLI 共享 %APPDATA%/Fptp）→ 加载标准模块（CoreModule 静态）→
+/// 加载扩展模块（ALC）→ 把模块贡献装配到空工作台。
+/// </summary>
+public partial class App : Application
+{
+    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+
+    public override void OnFrameworkInitializationCompleted()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            // 1. 模块基础设施：注册表 + 存储（与 CLI 共享同一注册表/配置/安全设置路径）
+            var store = new JsonConfigStore();
+            var registry = new ModuleRegistry(AppPaths.ModulesPath, AppPaths.SettingsPath, AppPaths.SecurePath, store);
+            ModuleKind? currentKind = null; // 模块加载期间的调用方 Kind（无越权）
+            var updater = new ModuleUpdater(registry, AppPaths.GetPluginDirectories(), () => currentKind);
+
+            // 2. 宿主服务注册
+            var services = new ServiceRegistry();
+            services.Register<IModuleRegistry>(registry);
+            services.Register<IModuleUpdater>(updater);
+            services.Register<Func<string, PixelSurface?>>(SkiaCodec.Decode);
+            services.Register<Func<string, PixelSurface, bool>>(SaveByExtension);
+
+            // 3. 工作台装配（壳零业务 UI）
+            var ui = new AppUiService();
+            var host = new AppHostContext(services, ui);
+            var viewModel = new MainWindowViewModel(registry, services);
+            var window = new MainWindow(viewModel);
+
+            // 4. 加载标准模块（随产品分发，静态引用；登记 Standard 记录）
+            var core = new CoreModuleType();
+            core.Initialize(host);
+            registry.Register(new ModuleRecord("osiris.core", "核心模块", "2.1.0.0",
+                ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
+
+            // 5. 加载扩展模块（可卸载 ALC；禁用/Removed/版本不符自动跳过）
+            foreach (var dir in AppPaths.GetPluginDirectories())
+            {
+                currentKind = null; // 加载期无特权调用
+                ModuleLoader.LoadFromDirectory(dir, registry, host,
+                    (name, ex) => Console.Error.WriteLine("模块加载失败 {0}: {1}", name, ex.Message));
+                currentKind = null;
+            }
+
+            // 6. 装配 UI：菜单/工具栏/面板/画布/状态栏
+            viewModel.Rebuild(ui);
+            // 进度回调用 Dispatcher 回 UI 线程更新状态栏（模块可能在工作线程上报）
+            host.Status.Changed += (percent, message) =>
+                Dispatcher.UIThread.Post(() => viewModel.StatusText = $"{message} ({percent:0}%)");
+
+            desktop.MainWindow = window;
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>按扩展名保存图片（.jpg/.jpeg → JPEG，其余 → PNG）。</summary>
+    private static bool SaveByExtension(string path, PixelSurface surface)
+    {
+        var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+        if (ext is ".jpg" or ".jpeg")
+        {
+            SkiaCodec.EncodeJpeg(surface, path);
+            return true;
+        }
+        if (ext is ".png" or "")
+        {
+            SkiaCodec.EncodePng(surface, path);
+            return true;
+        }
+        return false;
+    }
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Osiris.Abstractions：纯契约程序集（插件可见面）。
+    - 插件契约：IPlugin / IFilterProcessor / IEditorTool / ISettingProvider / IUiService
+    - 文档模型与像素表面：OsirisDocument / Layer / PixelSurface（供 IHostContext 暴露给插件）
+    - 设置描述符：SettingItem 类型树
+    ABI 红线：本程序集内禁止出现 SkiaSharp / Avalonia / WinForms 类型，
+    保证插件只依赖本契约、宿主与插件共享同一份程序集（ALC 类型同一性）。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Osiris.Abstractions</RootNamespace>
+    <AssemblyName>Osiris.Abstractions</AssemblyName>
+  </PropertyGroup>
+
+</Project>

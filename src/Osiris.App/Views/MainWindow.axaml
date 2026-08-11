@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Osiris.App.ViewModels"
+        x:Class="Osiris.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Osiris 2.1 - 模块化图像工作台"
+        Width="1200" Height="800"
+        MinWidth="900" MinHeight="600">
+
+  <!-- 工作台装配模板：全部由模块贡献驱动，壳零业务 UI（Avalonia 12 编译绑定强制，各模板需 x:DataType） -->
+  <Window.DataTemplates>
+    <!-- 工具栏按钮模板（按 DataType 隐式匹配） -->
+    <DataTemplate DataType="vm:CommandItemViewModel" x:DataType="vm:CommandItemViewModel">
+      <Button Content="{Binding DisplayName}" Command="{Binding AvaloniaCommand}" Padding="10,2" Margin="2,0" />
+    </DataTemplate>
+    <!-- 停靠面板模板 -->
+    <DataTemplate DataType="vm:PanelHostViewModel" x:DataType="vm:PanelHostViewModel">
+      <GroupBox Header="{Binding Title}" Margin="4">
+        <ContentControl Content="{Binding Content}" MinWidth="180" />
+      </GroupBox>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <DockPanel>
+    <!-- 顶部菜单栏：容器 Style 递归设置 MenuItem 属性（官方分层菜单模式，避免隐式模板把 MenuItem 包进容器 Header） -->
+    <Menu DockPanel.Dock="Top" ItemsSource="{Binding Menus}">
+      <Menu.Styles>
+        <Style Selector="MenuItem" x:DataType="vm:MenuNodeViewModel">
+          <Setter Property="Header" Value="{Binding Title}" />
+          <Setter Property="ItemsSource" Value="{Binding Children}" />
+          <Setter Property="Command" Value="{Binding AvaloniaCommand}" />
+        </Style>
+      </Menu.Styles>
+    </Menu>
+    <!-- 顶部工具栏（Avalonia 12 已移除 ToolBar 控件，用横向 ItemsControl 替代） -->
+    <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding ToolbarItems}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <!-- 底部状态栏（Avalonia 12 已移除 StatusBar 控件，用 Border 替代） -->
+    <Border DockPanel.Dock="Bottom" BorderBrush="#FF888888" BorderThickness="0,1,0,0">
+      <TextBlock Text="{Binding StatusText}" Margin="6,3" />
+    </Border>
+    <!-- 左侧停靠面板 -->
+    <ItemsControl DockPanel.Dock="Left" ItemsSource="{Binding LeftPanels}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate><StackPanel Orientation="Vertical" /></ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <!-- 底部停靠面板 -->
+    <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding BottomPanels}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <!-- 右侧停靠面板 -->
+    <ItemsControl DockPanel.Dock="Right" ItemsSource="{Binding RightPanels}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate><StackPanel Orientation="Vertical" /></ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <!-- 中央画布宿主（标准模块贡献） -->
+    <Border Background="#FF333333">
+      <ContentControl Content="{Binding CanvasContent}" />
+    </Border>
+  </DockPanel>
+</Window>

@@ -1,22 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Osiris.Engine.Skia：Skia 渲染引擎与编解码（无 Avalonia 依赖，可离屏测试）。
+    - 渲染器：文档合成到 SKSurface（App 画布与导出共用）
+    - 零拷贝视图：PixelSurface byte[] -> SKImage（SKData no-copy 包装）
+    - 编解码：SkiaCodec（导入/导出 PNG/JPEG 等）
+    SkiaSharp 版本必须与 Avalonia.Skia 12.1.1 对齐（3.119.4），避免类型分裂。
+  -->
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
     <RootNamespace>Osiris.Engine.Skia</RootNamespace>
     <AssemblyName>Osiris.Engine.Skia</AssemblyName>
-    <Version>2.0.10.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 锁 2.88.x：3.x 启用 DX12，Win7 有风险（Oracle 验证） -->
-    <PackageReference Include="SkiaSharp" Version="2.88.9" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
+    <ProjectReference Include="..\Osiris.Core\Osiris.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Osiris.Core\Osiris.Core.csproj" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.119.4" />
   </ItemGroup>
 
 </Project>

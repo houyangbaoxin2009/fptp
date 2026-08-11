@@ -1,20 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Fptp.Plugins.Builtin：内置证件照插件包（与第三方插件完全同级，狗食化 ALC 路径）。
+    - 仅引用 Osiris.Abstractions（ABI 红线：不得引用 SkiaSharp/Avalonia）
+    - 输出到仓库根 plugins/bin（宿主运行时扫描目录）
+  -->
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>disable</Nullable>
     <RootNamespace>Fptp.Plugins.Builtin</RootNamespace>
     <AssemblyName>Fptp.Plugins.Builtin</AssemblyName>
-    <Version>2.0.10.0</Version>
-    <!-- 插件输出到仓库根 plugins/bin（运行时宿主扫描目录） -->
     <OutputPath>$(MSBuildThisFileDirectory)..\bin\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <EnableDefaultItems>true</EnableDefaultItems>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Osiris.Core\Osiris.Core.csproj" />
+    <ProjectReference Include="..\..\src\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- module.json 插件清单随程序集复制到输出目录（宿主扫描 LoadPath 时读取） -->
+    <None Include="module.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
