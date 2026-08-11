@@ -112,7 +112,7 @@ public class ModuleRegistryTests : IDisposable
         public string Id => moduleId;
         public string Name => "测试设置提供者";
         public string Version => "1.0.0.0";
-        public string MinHostVersion => "2.1.0.0";
+        public string MinHostVersion => "1.0.0.0";
 
         public void Initialize(IHostContext host)
         {
@@ -148,3 +148,4 @@ public class ModuleRegistryTests : IDisposable
         }
     }
 }
+

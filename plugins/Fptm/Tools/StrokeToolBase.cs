@@ -33,10 +33,10 @@ public abstract class StrokeToolBase : IEditorTool
     public string Name => DisplayName;
 
     /// <inheritdoc />
-    public string Version => "2.1.0.0";
+    public string Version => "1.0.0.0";
 
     /// <inheritdoc />
-    public string MinHostVersion => "2.1.0.0";
+    public string MinHostVersion => "1.0.0.0";
 
     /// <inheritdoc />
     public event Action? VisualChanged;
@@ -267,3 +267,4 @@ public sealed class BrushTool : StrokeToolBase
     protected override void Stamp(PixelSurfaceEditor editor, int x, int y, double size, uint color)
         => InkBrushTool.SoftStamp(editor, x, y, size, color);
 }
+

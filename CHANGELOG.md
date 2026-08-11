@@ -5,7 +5,7 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
-## [2.1.0.0] - 2026-08-11
+## [1.0.0.0] - 2026-08-11
 
 ### 重大变更：Avalonia 跨平台完全重写
 
@@ -204,3 +204,4 @@
 [2.0.2.0]: https://github.com/houyangbaoxin2009/fptp/tree/osiris
 [2.0.1.0]: https://github.com/houyangbaoxin2009/fptp/tree/osiris
 [2.0.0.0]: https://github.com/houyangbaoxin2009/fptp/tree/osiris
+

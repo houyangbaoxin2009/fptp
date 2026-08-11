@@ -18,7 +18,8 @@ public class SkeletonSmokeTests
     [Fact]
     public void Engine_Assembly_Version_Is_2100()
     {
-        // 渲染引擎程序集版本应与产品版本 2.1.0.0 一致（Directory.Build.props 注入）
-        Assert.Equal("2.1.0.0", typeof(SkiaCodec).Assembly.GetName().Version?.ToString());
+        // 渲染引擎程序集版本应与产品版本 1.0.0.0 一致（Directory.Build.props 注入）
+        Assert.Equal("1.0.0.0", typeof(SkiaCodec).Assembly.GetName().Version?.ToString());
     }
 }
+

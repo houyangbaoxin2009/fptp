@@ -20,10 +20,10 @@ public sealed class PaintBucketTool : IEditorTool
     public string Name => DisplayName;
 
     /// <inheritdoc />
-    public string Version => "2.1.0.0";
+    public string Version => "1.0.0.0";
 
     /// <inheritdoc />
-    public string MinHostVersion => "2.1.0.0";
+    public string MinHostVersion => "1.0.0.0";
 
     /// <inheritdoc />
     public void Initialize(IHostContext host) => _host = host;
@@ -63,5 +63,6 @@ public sealed class PaintBucketTool : IEditorTool
     /// <inheritdoc />
     public void Deactivate() { }
 }
+
 
 

@@ -53,7 +53,7 @@ public class WorkbenchSmokeTests
             // 标准模块（CoreModule）：注册文档服务/画布/命令/菜单/图层面板
             var core = new CoreModuleType();
             core.Initialize(host);
-            registry.Register(new ModuleRecord("osiris.core", "核心模块", "2.1.0.0",
+            registry.Register(new ModuleRecord("osiris.core", "核心模块", "1.0.0.0",
                 ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
 
             // 工作台装配
@@ -263,7 +263,7 @@ public class WorkbenchSmokeTests
 
             var core = new CoreModuleType();
             core.Initialize(host);
-            registry.Register(new ModuleRecord("osiris.core", "核心模块", "2.1.0.0",
+            registry.Register(new ModuleRecord("osiris.core", "核心模块", "1.0.0.0",
                 ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
 
             // 加载扩展模块（fptm 提供 9 个工具）
@@ -307,7 +307,7 @@ public class WorkbenchSmokeTests
 
             var core = new CoreModuleType();
             core.Initialize(host);
-            registry.Register(new ModuleRecord("osiris.core", "核心模块", "2.1.0.0",
+            registry.Register(new ModuleRecord("osiris.core", "核心模块", "1.0.0.0",
                 ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
 
             var errors = new List<string>();
@@ -382,3 +382,4 @@ public class WorkbenchSmokeTests
         return null;
     }
 }
+

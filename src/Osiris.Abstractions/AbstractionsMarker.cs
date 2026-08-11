@@ -4,5 +4,6 @@ namespace Osiris.Abstractions;
 public static class AbstractionsMarker
 {
     /// <summary>程序集当前版本（宿主校验 MinHostVersion 用）。</summary>
-    public const string Version = "2.1.0.0";
+    public const string Version = "1.0.0.0";
 }
+

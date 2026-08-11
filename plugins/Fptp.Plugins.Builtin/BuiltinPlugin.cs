@@ -24,10 +24,10 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
     public const string ModuleName = "证件照扩展模块";
 
     /// <summary>模块版本（与 module.json 一致）。</summary>
-    public const string ModuleVersion = "2.1.0.0";
+    public const string ModuleVersion = "1.0.0.0";
 
     /// <summary>要求的最低宿主版本。</summary>
-    public const string HostVersion = "2.1.0.0";
+    public const string HostVersion = "1.0.0.0";
 
     /// <summary>滤镜参数键 → 设置项键映射（命令组装参数时，把设置面板当前值写入滤镜参数包）。</summary>
     private static readonly (string ParamKey, string SettingKey)[] s_paramToSetting =
@@ -236,3 +236,4 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
         _ => null,
     };
 }
+

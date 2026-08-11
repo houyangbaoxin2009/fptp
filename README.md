@@ -1,4 +1,6 @@
-# Osiris 2.1 — 模块化跨平台图像工作台
+# Osiris 1.0.0 — 模块化跨平台图像工作台
+
+> Osiris 是 FPTP 的第二代（2.x 产品线）；老版 FPTP 1.x（WinForms）已由本仓库 osiris 分支的 2.0 历史承接，Osiris 自身版本线为 1.x。
 
 基于 **.NET 10 + Avalonia 12** 完全重写的跨平台（Win / macOS / Linux）模块化图像编辑器。
 从 2.0（WinForms + net48）抛弃全部旧代码，按"PS 级模块化编辑器"架构重建。
@@ -66,3 +68,5 @@ dotnet run --project src/Osiris.Cli -- --help
 | MVVM | CommunityToolkit.Mvvm 8.4.2 |
 | CLI | System.CommandLine 2.0.10 |
 | 测试 | xUnit（App 用 v3）+ Avalonia.Headless.XUnit |
+
+

@@ -47,7 +47,7 @@ public static class ZeroCopyImage
 /// </summary>
 internal static class PixelSurfaceMemory
 {
-    // 契约已冻结：PixelSurface 内部缓冲字段名 _data 稳定（2.1.0.0）。
+    // 契约已冻结：PixelSurface 内部缓冲字段名 _data 稳定（1.0.0.0）。
     private static readonly FieldInfo DataField = typeof(PixelSurface)
         .GetField("_data", BindingFlags.Instance | BindingFlags.NonPublic)
         ?? throw new InvalidOperationException("PixelSurface._data 字段不存在，契约版本不匹配。");
@@ -55,3 +55,4 @@ internal static class PixelSurfaceMemory
     /// <summary>取回 PixelSurface 底层像素数组（零拷贝，不复制）。</summary>
     public static byte[] GetBackingArray(PixelSurface surface) => (byte[])DataField.GetValue(surface)!;
 }
+
