@@ -3,6 +3,7 @@
         xmlns:vm="using:Osiris.App.ViewModels"
         xmlns:cm="using:Osiris.CoreModule.ViewModels"
         xmlns:controls="using:Osiris.CoreModule.Controls"
+        xmlns:ui="using:Osiris.Abstractions.Ui"
         xmlns:dock="using:Dock.Avalonia.Controls"
         xmlns:mvvmDock="using:Dock.Model.Mvvm.Controls"
         x:Class="Osiris.App.Views.MainWindow"
@@ -29,6 +30,12 @@
          修复"画布浮动崩溃"：Context 传数据（VM）而非控件实例。 -->
     <DataTemplate DataType="cm:CanvasDocumentViewModel" x:DataType="cm:CanvasDocumentViewModel">
       <controls:CanvasControl ViewModel="{Binding}" />
+    </DataTemplate>
+    <!-- 模块面板/壳级工具窗口视图工厂模板：Context=PanelContentFactory（纯数据含视图工厂委托）→
+         LazyViewHost 首次挂载时调用工厂生成新视图实例——每次 Dock 浮动/停靠重建内容均为新实例，
+         规避控件实例跨窗口双父级崩溃；工厂捕获的模块共享状态（单例）保证新视图数据一致。 -->
+    <DataTemplate DataType="ui:PanelContentFactory" x:DataType="ui:PanelContentFactory">
+      <controls:LazyViewHost ViewFactory="{Binding ViewFactory}" />
     </DataTemplate>
   </Window.DataTemplates>
 

@@ -6,6 +6,7 @@ using Osiris.Abstractions.Ui;
 using Osiris.App.PluginHost;
 using Osiris.App.Views;
 using Osiris.Core.Plugins;
+using Osiris.CoreModule.ViewModels;
 
 namespace Osiris.App.ViewModels;
 
@@ -44,6 +45,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>画布宿主内容（标准模块 SetCanvas 贡献）。</summary>
     [ObservableProperty] private object? canvasContent;
 
+    /// <summary>画布视图模型（标准模块贡献的 CanvasDocumentViewModel；工具激活目标）。</summary>
+    [ObservableProperty] private CanvasDocumentViewModel? canvasViewModel;
+
     /// <summary>菜单树（顶部菜单栏数据源）。</summary>
     [ObservableProperty] private IReadOnlyList<MenuNodeViewModel> menus = [];
 
@@ -71,12 +75,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _ = DockFactory.Layout; // 强制创建布局（CreateLayout + InitLayout，供 DockControl 绑定）
     }
 
-    /// <summary>打开模块管理工具窗口（Dock 停靠，可拖拽/浮动；重复打开激活既有窗口）。</summary>
+    /// <summary>打开模块管理工具窗口（Dock 停靠，可拖拽/浮动；重复打开激活既有窗口；视图工厂防双父级）。</summary>
     [RelayCommand]
     private void OpenModuleManager()
     {
         DockFactory.ShowToolWindow("moduleManager", "模块管理",
-            new ModuleManagerView { DataContext = new ModuleManagerViewModel(Registry, _services) });
+            () => new ModuleManagerView { DataContext = new ModuleManagerViewModel(Registry, _services) });
     }
 
     /// <summary>
@@ -117,6 +121,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
             StatusText = string.Join("  |  ", ui.StatusItems.OrderBy(s => s.Order).Select(s => s.Text));
 
         // 停靠工作台：画布注入中央文档，模块面板注入对应停靠区
+        CanvasViewModel = ui.Canvas as CanvasDocumentViewModel;
         DockFactory.SetCanvasContext(ui.Canvas);
         foreach (var p in ui.Panels)
             DockFactory.AddToolPanel($"panel.{p.Title}", p.Title, p.Content, p.Side);

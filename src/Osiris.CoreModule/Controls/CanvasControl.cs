@@ -163,8 +163,11 @@ public sealed class CanvasControl : Control
         }
 
         // 其余左/右键 → 工具事件：控件坐标经逆视口变换得文档像素坐标。
-        ToolEvent?.Invoke(new ToolMouseEvent(
-            ToDocX(pos.X), ToDocY(pos.Y), ToButton(props.PointerUpdateKind), ToModifiers(e.KeyModifiers)));
+        var toolEvent = new ToolMouseEvent(
+            ToDocX(pos.X), ToDocY(pos.Y), ToButton(props.PointerUpdateKind), ToModifiers(e.KeyModifiers));
+        // 路由：优先交给激活工具（ViewModel.ActiveTool），同时保留 ToolEvent 供宿主订阅。
+        ViewModel?.ActiveTool?.MouseDown(toolEvent);
+        ToolEvent?.Invoke(toolEvent);
     }
 
     /// <inheritdoc />
@@ -192,7 +195,9 @@ public sealed class CanvasControl : Control
         ToolMouseButton button = props.IsMiddleButtonPressed ? ToolMouseButton.Middle
             : props.IsRightButtonPressed ? ToolMouseButton.Right
             : ToolMouseButton.Left;
-        ToolEvent?.Invoke(new ToolMouseEvent(ToDocX(pos.X), ToDocY(pos.Y), button, ToModifiers(e.KeyModifiers)));
+        var toolEvent = new ToolMouseEvent(ToDocX(pos.X), ToDocY(pos.Y), button, ToModifiers(e.KeyModifiers));
+        ViewModel?.ActiveTool?.MouseMove(toolEvent);
+        ToolEvent?.Invoke(toolEvent);
     }
 
     /// <inheritdoc />
@@ -211,10 +216,12 @@ public sealed class CanvasControl : Control
         }
 
         // 工具 Up 事件。
-        ToolEvent?.Invoke(new ToolMouseEvent(
+        var toolEvent = new ToolMouseEvent(
             ToDocX(pos.X), ToDocY(pos.Y),
             ToButton(e.GetCurrentPoint(this).Properties.PointerUpdateKind),
-            ToModifiers(e.KeyModifiers)));
+            ToModifiers(e.KeyModifiers));
+        ViewModel?.ActiveTool?.MouseUp(toolEvent);
+        ToolEvent?.Invoke(toolEvent);
     }
 
     /// <inheritdoc />

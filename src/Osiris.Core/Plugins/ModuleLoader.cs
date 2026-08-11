@@ -131,6 +131,7 @@ public static class ModuleLoader
             {
                 var module = (IModule)Activator.CreateInstance(type)!;
                 module.Initialize(context);                    // 注册命令/滤镜/设置组等服务
+                registry.RegisterInstance(module);             // 登记实例（宿主收集 IToolPlugin/IFilterPlugin 能力）
                 if (module is ISettingProvider provider)
                     registry.RegisterSettingProvider(provider); // GetConfig 回退默认值 / 级别校验数据源
                 loaded++;
@@ -183,6 +184,7 @@ public static class ModuleLoader
                         continue;
 
                     module.Initialize(context);
+                    registry.RegisterInstance(module);         // 登记实例（宿主收集 IToolPlugin/IFilterPlugin 能力）
                     if (module is ISettingProvider provider)
                         registry.RegisterSettingProvider(provider);
                     loaded++;

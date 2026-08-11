@@ -16,8 +16,17 @@ public interface IUiService
     /// <summary>贡献工具栏按钮（commandId 对应已注册命令；order 越小越靠前）。</summary>
     void AddToolbar(string commandId, int order);
 
-    /// <summary>贡献 dock 面板（content 为任意内容对象，宿主按类型渲染；side 指定停靠侧）。</summary>
+    /// <summary>
+    /// 贡献 dock 面板（content 为任意内容对象：宿主按类型渲染——若为已生成的控件实例，
+    /// Dock 浮动/移动时可能触发"双父级"崩溃；模块贡献 UI 视图请用 AddPanel(title, viewFactory, side) 工厂重载）。
+    /// </summary>
     void AddPanel(string title, object content, DockSide side = DockSide.Right);
+
+    /// <summary>
+    /// 贡献 dock 面板（视图工厂版）：每次 Dock 浮动/停靠重建内容时调用工厂生成**新的**控件实例，
+    /// 避免同一控件实例跨窗口双父级崩溃；工厂内捕获的模块状态（如 ToolState 单例）保证新视图共享数据。
+    /// </summary>
+    void AddPanel(string title, Func<object> viewFactory, DockSide side = DockSide.Right);
 
     /// <summary>贡献画布控件（content 为宿主画布实例；仅标准模块提供，后注册者覆盖）。</summary>
     void SetCanvas(object canvas);

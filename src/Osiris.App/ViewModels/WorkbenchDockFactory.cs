@@ -179,12 +179,25 @@ public sealed class WorkbenchDockFactory : Factory
         }
         if (existing is not null)
             _dockables.Remove(id);
+        ShowToolWindowCore(id, title, content);
+    }
 
+    /// <summary>
+    /// 打开壳级工具窗口（视图工厂版）：Context 传 PanelContentFactory（纯数据含工厂委托），
+    /// Dock 模板经 LazyViewHost 在每次浮动/停靠重建内容时生成**新**视图实例——规避控件双父级崩溃。
+    /// 壳级窗口（模块管理等）与模块面板统一走此模式。
+    /// </summary>
+    public void ShowToolWindow(string id, string title, Func<object> viewFactory)
+        => ShowToolWindow(id, title, new PanelContentFactory(viewFactory));
+
+    /// <summary>工具窗口核心：创建 Tool 并加入右侧停靠区。</summary>
+    private void ShowToolWindowCore(string id, string title, object context)
+    {
         var tool = new Tool
         {
             Id = id,
             Title = title,
-            Context = content,
+            Context = context,
             CanClose = true,
             CanFloat = true,
             CanPin = false,

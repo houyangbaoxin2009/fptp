@@ -42,8 +42,12 @@ internal sealed class AppUiService : IUiService
     /// <summary>贡献工具栏按钮。</summary>
     public void AddToolbar(string commandId, int order) => _toolbarItems.Add(new ToolbarContribution(commandId, order));
 
-    /// <summary>贡献停靠面板。</summary>
+    /// <summary>贡献停靠面板（内容对象版；控件实例在 Dock 浮动时可能双父级，优先用工厂版）。</summary>
     public void AddPanel(string title, object content, DockSide side = DockSide.Right) => _panels.Add(new PanelContribution(title, content, side));
+
+    /// <summary>贡献停靠面板（视图工厂版：每次 Dock 重建内容时生成新控件实例，规避双父级）。</summary>
+    public void AddPanel(string title, Func<object> viewFactory, DockSide side = DockSide.Right)
+        => _panels.Add(new PanelContribution(title, new PanelContentFactory(viewFactory), side));
 
     /// <summary>贡献画布控件（后注册覆盖）。</summary>
     public void SetCanvas(object canvas) => _canvas = canvas;

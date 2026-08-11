@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
+using Osiris.Abstractions.Ui;
 using Osiris.Core.Plugins;
 using Osiris.Core.Storage;
 using Osiris.CoreModule.Services;
@@ -50,6 +51,10 @@ public partial class App : Application
             var viewModel = new MainWindowViewModel(registry, services);
             var window = new MainWindow(viewModel);
 
+            // 工具宿主：聚合模块工具（IToolPlugin）并路由到画布（工具窗口点击即切换当前工具）
+            var toolHost = new ToolHostService(() => viewModel.CanvasViewModel);
+            services.Register<IToolHostService>(toolHost);
+
             // 壳级入口：模块管理 + 设置（壳的职责——模块运行时管理；不属任何模块）
             ui.RegisterCommand(new ShellCommand("osiris.shell.moduleManager", "模块管理(&M)...",
                 () => viewModel.OpenModuleManagerCommand.Execute(null)));
@@ -72,6 +77,10 @@ public partial class App : Application
                     (name, ex) => Console.Error.WriteLine("模块加载失败 {0}: {1}", name, ex.Message));
                 currentKind = null;
             }
+
+            // 模块全部加载后：收集各模块贡献的交互工具（IToolPlugin）到工具宿主
+            foreach (var module in registry.GetInstances().OfType<IToolPlugin>())
+                toolHost.RegisterModule(module);
 
             // 6. 装配 UI：菜单/工具栏/面板/画布/状态栏
             viewModel.Rebuild(ui);
