@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+    <!-- 算法库（ABI 红线允许：纯算法，零 UI/渲染依赖） -->
+    <ProjectReference Include="..\..\src\Osiris.Algorithms\Osiris.Algorithms.csproj" />
   </ItemGroup>
 
   <!-- 扩展模块 UI 视图：允许引用 Avalonia（托管控件层，经 ALC 转发到默认上下文，

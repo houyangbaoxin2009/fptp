@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Osiris.Algorithms：常用图像算法公共库（模块开发者可直接引用）。
+    - 零 UI/渲染依赖（仅引用 Abstractions 的 PixelSurface/Selection/Point2），ABI 红线允许扩展模块引用。
+    - ColorUtil：PackBgra/Premultiply 等像素基础（自 Core 迁移）
+    - GeometryAlgorithms：Bresenham、硬边/软边笔刷 stamp、多毛刷痕
+    - FloodFill：魔棒选区 + 区域填充（自 fptm 上移）
+    - Scaling：最近邻 / 双线性缩放
+    - ColorTransforms：灰度 / 色彩量化 / Sobel 边缘
+    tie 预留：TieHost（未来标准模块）经本库为 tie 滤镜脚本提供算法能力。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Osiris.Algorithms</RootNamespace>
+    <AssemblyName>Osiris.Algorithms</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

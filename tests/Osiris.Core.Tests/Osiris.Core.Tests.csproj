@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Osiris.Core\Osiris.Core.csproj" />
+    <ProjectReference Include="..\..\src\Osiris.Algorithms\Osiris.Algorithms.csproj" />
   </ItemGroup>
 
   <ItemGroup>

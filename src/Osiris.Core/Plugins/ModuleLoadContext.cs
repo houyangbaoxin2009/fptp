@@ -27,7 +27,7 @@ internal sealed class ModuleLoadContext : AssemblyLoadContext
     /// 插件目录不再重复解析，避免同一程序集两处加载导致类型分裂（ABI 红线）。
     /// </summary>
     public static readonly string[] SharedAssemblyPrefixes =
-        ["Osiris.Abstractions", "Osiris.Core", "SkiaSharp", "System.", "Avalonia"];
+        ["Osiris.Abstractions", "Osiris.Algorithms", "Osiris.Core", "SkiaSharp", "System.", "Avalonia"];
 
     /// <summary>判断程序集名是否属于共享前缀（宿主 ALC 负责解析）。</summary>
     public static bool IsSharedAssemblyName(string? name)

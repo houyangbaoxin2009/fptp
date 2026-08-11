@@ -145,6 +145,7 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
 
             ui.AddPanel("操作", () => new Views.OperationWindowView(), DockSide.Right);
             ui.AddPanel("画笔", () => new Views.BrushWindowView(), DockSide.Right);
+            ui.AddPanel("传统", () => new Views.TraditionalPanelView(), DockSide.Right);
         }
     }
 }

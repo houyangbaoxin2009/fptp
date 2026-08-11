@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+    <!-- 算法库：ColorUtil/几何/floodfill/缩放/色彩变换（自本层迁移，供扩展模块复用） -->
+    <ProjectReference Include="..\Osiris.Algorithms\Osiris.Algorithms.csproj" />
   </ItemGroup>
 
 </Project>

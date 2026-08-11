@@ -1,4 +1,4 @@
-using Osiris.Core.Imaging;
+using Osiris.Algorithms;
 using Xunit;
 
 namespace Osiris.Core.Tests;
