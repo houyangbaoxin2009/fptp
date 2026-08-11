@@ -79,12 +79,22 @@ public sealed partial class MainWindowViewModel : ObservableObject
             new ModuleManagerView { DataContext = new ModuleManagerViewModel(Registry, _services) });
     }
 
-    /// <summary>打开设置工具窗口（Dock 停靠，可拖拽/浮动；重复打开激活既有窗口）。</summary>
+    /// <summary>
+    /// 打开设置独立窗口（不可停靠工作区；非模态，CenterOwner）。
+    /// 独立窗口设计：规避 Dock 浮动设置的卡死问题，且设置不允许停靠到工作区。
+    /// </summary>
     [RelayCommand]
     private void OpenSettings()
     {
-        DockFactory.ShowToolWindow("settings", "设置",
-            new SettingsView { DataContext = new SettingsViewModel(Registry) });
+        if (Registry is not { } registry) return;
+        var owner = Avalonia.Application.Current?.ApplicationLifetime
+            is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime cdt ? cdt.MainWindow : null;
+        // Avalonia 12：Owner setter 受保护，经 Show(owner) 重载设置 Owner 并显示（CenterOwner 定位）
+        var dlg = new SettingsWindow(new SettingsViewModel(registry));
+        if (owner is not null)
+            dlg.Show(owner);
+        else
+            dlg.Show();
     }
 
     /// <summary>关闭壳级工具窗口（模块管理"关闭"按钮等经此从停靠布局移除）。</summary>

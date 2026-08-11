@@ -197,13 +197,14 @@ public sealed class WorkbenchDockFactory : Factory
         SetActiveDockable(tool);
     }
 
-    /// <summary>关闭工具窗口：从布局移除（Dock 移除后对象可回收）。</summary>
+    /// <summary>关闭工具窗口：从布局移除（Dock 移除后对象可回收）。
+    /// collapse=false：避免空停靠区被 Dock 折叠移除出布局（否则重开时 AddDockable 挂到孤儿 dock）。</summary>
     public void CloseToolWindow(string id)
     {
         if (!_dockables.TryGetValue(id, out var tool))
             return;
         if (tool.Owner is IDock parent)
-            RemoveDockable(tool, true);
+            RemoveDockable(tool, collapse: false);
         _dockables.Remove(id);
     }
 }

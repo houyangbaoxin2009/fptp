@@ -1,13 +1,16 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:Osiris.App.ViewModels"
-             xmlns:set="using:Osiris.Abstractions.Settings"
-             x:Class="Osiris.App.Views.SettingsView"
-             x:DataType="vm:SettingsViewModel">
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Osiris.App.ViewModels"
+        xmlns:set="using:Osiris.Abstractions.Settings"
+        x:Class="Osiris.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="设置"
+        Width="680" Height="480"
+        WindowStartupLocation="CenterOwner">
 
   <!-- 设置控件模板：按 SettingItem 子类型隐式匹配（零转换器），编辑事件即时保存。
        Avalonia 12：隐式模板须在 DataTemplates 集合，编译绑定需 x:DataType。 -->
-  <UserControl.DataTemplates>
+  <Window.DataTemplates>
     <DataTemplate DataType="set:BoolSettingItem" x:DataType="set:BoolSettingItem">
       <CheckBox IsChecked="{Binding Value}" Content="{Binding Label}" IsCheckedChanged="OnBoolChanged" />
     </DataTemplate>
@@ -43,7 +46,7 @@
         <TextBox Text="{Binding Value}" LostFocus="OnTextLostFocus" Width="220" />
       </StackPanel>
     </DataTemplate>
-  </UserControl.DataTemplates>
+  </Window.DataTemplates>
 
   <Grid ColumnDefinitions="180,8,*">
     <!-- 左导航：各模组设置组 -->
@@ -63,4 +66,4 @@
       </ItemsControl>
     </ScrollViewer>
   </Grid>
-</UserControl>
+</Window>

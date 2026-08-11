@@ -8,18 +8,22 @@ using Osiris.App.ViewModels;
 namespace Osiris.App.Views;
 
 /// <summary>
-/// 设置工具窗口：左侧导航（各模组设置组）+ 右侧该模组设置（DataType 模板零转换器）。
+/// 设置窗口（独立窗口，不可停靠工作区）：
+/// 左侧导航（各模组设置组）+ 右侧该模组设置（DataType 模板零转换器）。
 /// 编辑事件直接写注册表（即时 JSON 落盘）；Security 级项已在 ViewModel 过滤不展示。
-/// 作为 Dock 工具窗口停靠，可拖拽/浮动；DataContext 由壳注入 SettingsViewModel。
+/// 独立窗口设计：规避 Dock 浮动设置的卡死问题，且设置不允许停靠到工作区。
 /// </summary>
-public partial class SettingsView : UserControl
+public partial class SettingsWindow : Window
 {
     private bool _loading = true; // 初始化绑定触发的事件忽略
 
-    public SettingsView()
+    /// <summary>无参构造：Avalonia 运行时加载器要求。</summary>
+    public SettingsWindow() => InitializeComponent();
+
+    public SettingsWindow(SettingsViewModel viewModel) : this()
     {
-        InitializeComponent();
-        Loaded += (_, _) => _loading = false;
+        DataContext = viewModel;
+        Opened += (_, _) => _loading = false;
     }
 
     private SettingsViewModel? Vm => DataContext as SettingsViewModel;
@@ -56,7 +60,6 @@ public partial class SettingsView : UserControl
     {
         if (sender is not Button { DataContext: ColorSettingItem item }) return;
         var input = new TextBox { Text = item.Value.ToString("X8"), Width = 140 };
-        var owner = TopLevel.GetTopLevel(this) as Window;
         var dlg = new Window
         {
             Title = "输入颜色（AARRGGBB，如 FF0000FF=蓝）",
@@ -71,8 +74,7 @@ public partial class SettingsView : UserControl
         ok.Click += (_, _) => dlg.Close();
         panel.Children.Add(ok);
         dlg.Content = panel;
-        if (owner is not null) await dlg.ShowDialog(owner); // 等待对话框关闭后再解析保存
-        else dlg.Show();
+        await dlg.ShowDialog(this); // 等待对话框关闭后再解析保存
         if (uint.TryParse(input.Text, NumberStyles.HexNumber, null, out var argb))
             Vm?.Save(item, argb);
     }

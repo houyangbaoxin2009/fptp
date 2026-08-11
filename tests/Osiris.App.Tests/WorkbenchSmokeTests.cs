@@ -139,17 +139,16 @@ public class WorkbenchSmokeTests
             services.Register<IModuleRegistry>(registry);
             var vm = new MainWindowViewModel(registry, services);
 
-            // 打开模块管理/设置 → 作为 Dock 工具加入布局（可拖拽/浮动）
+            // 打开模块管理 → 作为 Dock 工具加入布局（可拖拽/浮动）
             vm.OpenModuleManagerCommand.Execute(null);
-            vm.OpenSettingsCommand.Execute(null);
             var mgr = FindDockable(vm.DockFactory.Layout!, "moduleManager");
-            var settings = FindDockable(vm.DockFactory.Layout!, "settings");
             Assert.NotNull(mgr);
-            Assert.NotNull(settings);
             Assert.Equal("模块管理", mgr!.Title);
-            Assert.Equal("设置", settings!.Title);
-            Assert.NotNull(mgr.Context);   // ModuleManagerView 已注入
-            Assert.NotNull(settings.Context); // SettingsView 已注入
+            Assert.NotNull(mgr.Context); // ModuleManagerView 已注入
+
+            // 设置改独立窗口：不再注册为 Dock 工具（不得停靠工作区）
+            vm.OpenSettingsCommand.Execute(null);
+            Assert.Null(FindDockable(vm.DockFactory.Layout!, "settings"));
 
             // 重复打开不重建（激活既有）
             vm.OpenModuleManagerCommand.Execute(null);
