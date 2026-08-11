@@ -18,6 +18,12 @@
     <ProjectReference Include="..\..\src\Osiris.Abstractions\Osiris.Abstractions.csproj" />
   </ItemGroup>
 
+  <!-- 扩展模块 UI 视图：允许引用 Avalonia（托管控件层，经 ALC 转发到默认上下文，
+       类型同一性与宿主一致；仍禁止 SkiaSharp/Core/Engine——见 ABI 红线测试） -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include="module.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

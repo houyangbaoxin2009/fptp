@@ -84,10 +84,14 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
         ];
     }
 
+    /// <summary>宿主上下文（窗口视图经此访问服务：工具激活/注册表/命令）。静态供模块内视图访问。</summary>
+    public static IHostContext? HostContext { get; private set; }
+
     /// <inheritdoc />
     public void Initialize(IHostContext host)
     {
         ArgumentNullException.ThrowIfNull(host);
+        HostContext = host;
 
         // 注入宿主到全部工具（工具不独立走插件加载器，由宿主模块统一提供上下文）
         foreach (IEditorTool tool in Tools)
@@ -98,13 +102,16 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
         if (registry is not null)
             Editing.ToolState.Instance.Load(registry);
 
-        // 注册编辑命令（操作窗口按钮经命令 Id 触发；不挂菜单——由窗口 UI 呈现）
+        // 注册编辑命令 + 工具窗口面板（操作窗口/画笔窗口：视图工厂——每次 Dock 浮动重建新实例，防双父级）
         if (host.Ui is { } ui)
         {
             ui.RegisterCommand(new Commands.CopyCommand(host));
             ui.RegisterCommand(new Commands.PasteCommand(host));
             ui.RegisterCommand(new Commands.UndoCommand(host));
             ui.RegisterCommand(new Commands.RedoCommand(host));
+
+            ui.AddPanel("操作", () => new Views.OperationWindowView(), DockSide.Right);
+            ui.AddPanel("画笔", () => new Views.BrushWindowView(), DockSide.Right);
         }
     }
 }
