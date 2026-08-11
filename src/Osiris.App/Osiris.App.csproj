@@ -33,7 +33,23 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
     <!-- Avalonia 12：Diagnostics 已并入主包（11.x 独立包停更），无需显式引用 -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <!-- VSCode/VS 风格停靠系统（拖拽停靠/浮动/标签化） -->
+    <PackageReference Include="Dock.Avalonia" Version="12.1.0.1" />
+    <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.1" />
   </ItemGroup>
+
+  <!--
+    扩展模块随发行复制：构建后把仓库根 plugins/bin/（内置扩展模块输出目录）
+    复制到输出目录 plugins/（AppPaths.GetPluginDirectories 的程序集旁目录），
+    保证 dotnet run / 发布产物运行时能发现扩展模块。
+  -->
+  <Target Name="CopyPluginsToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <PluginFiles Include="$(MSBuildThisFileDirectory)..\..\plugins\bin\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PluginFiles)" DestinationFiles="@(PluginFiles->'$(OutDir)plugins\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

@@ -2,7 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
-using Osiris.App.Views;
 using Osiris.Core.Plugins;
 
 namespace Osiris.App.ViewModels;
@@ -57,17 +56,6 @@ public sealed partial class ModuleManagerViewModel : ObservableObject
         {
         }
         RefreshSelected();
-    }
-
-    /// <summary>打开设置窗口（该模块或全部模块的设置组）。</summary>
-    [RelayCommand]
-    private void EditSettings()
-    {
-        var owner = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime cdt
-            ? cdt.MainWindow : null;
-        var dlg = new SettingsWindow(new SettingsViewModel(_registry));
-        if (owner is not null) dlg.ShowDialog(owner);
-        else dlg.Show();
     }
 
     /// <summary>刷新选中模块记录（操作后 ModuleRecord 以 with 派生新实例）。</summary>

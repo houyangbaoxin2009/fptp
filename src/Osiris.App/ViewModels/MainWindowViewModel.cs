@@ -35,6 +35,12 @@ public sealed partial class MainWindowViewModel : ObservableObject
     private readonly ModuleRegistry _registry;
     private readonly IServiceRegistry _services;
 
+    /// <summary>模块注册表（壳级工具窗口构造 VM 用；构造注入，非空）。</summary>
+    public ModuleRegistry Registry { get; }
+
+    /// <summary>VSCode/VS 风格停靠工厂（画布 + 工具窗口可拖拽停靠/浮动/标签化）。</summary>
+    public WorkbenchDockFactory DockFactory { get; }
+
     /// <summary>画布宿主内容（标准模块 SetCanvas 贡献）。</summary>
     [ObservableProperty] private object? canvasContent;
 
@@ -59,19 +65,30 @@ public sealed partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(ModuleRegistry registry, IServiceRegistry services)
     {
         _registry = registry;
+        Registry = registry;
         _services = services;
+        DockFactory = new WorkbenchDockFactory();
+        _ = DockFactory.Layout; // 强制创建布局（CreateLayout + InitLayout，供 DockControl 绑定）
     }
 
-    /// <summary>打开模块管理窗口（模块列表 + 设置入口）。</summary>
+    /// <summary>打开模块管理工具窗口（Dock 停靠，可拖拽/浮动；重复打开激活既有窗口）。</summary>
     [RelayCommand]
     private void OpenModuleManager()
     {
-        var owner = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime cdt
-            ? cdt.MainWindow : null;
-        var dlg = new ModuleManagerWindow(new ModuleManagerViewModel(_registry, _services));
-        if (owner is not null) dlg.ShowDialog(owner);
-        else dlg.Show();
+        DockFactory.ShowToolWindow("moduleManager", "模块管理",
+            new ModuleManagerView { DataContext = new ModuleManagerViewModel(Registry, _services) });
     }
+
+    /// <summary>打开设置工具窗口（Dock 停靠，可拖拽/浮动；重复打开激活既有窗口）。</summary>
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        DockFactory.ShowToolWindow("settings", "设置",
+            new SettingsView { DataContext = new SettingsViewModel(Registry) });
+    }
+
+    /// <summary>关闭壳级工具窗口（模块管理"关闭"按钮等经此从停靠布局移除）。</summary>
+    public void CloseToolWindow(string id) => DockFactory.CloseToolWindow(id);
 
     /// <summary>从模块贡献装配工作台（模块全部加载后由壳调用一次；AppUiService 为程序集内部类型，本方法同程序集可见即可）。</summary>
     internal void Rebuild(AppUiService ui)
@@ -88,6 +105,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
         BottomPanels = ui.Panels.Where(p => p.Side == DockSide.Bottom).Select(ToHost).ToList();
         if (ui.StatusItems.Count > 0)
             StatusText = string.Join("  |  ", ui.StatusItems.OrderBy(s => s.Order).Select(s => s.Text));
+
+        // 停靠工作台：画布注入中央文档，模块面板注入对应停靠区
+        DockFactory.SetCanvasContext(ui.Canvas);
+        foreach (var p in ui.Panels)
+            DockFactory.AddToolPanel($"panel.{p.Title}", p.Title, p.Content, p.Side);
     }
 
     private static PanelHostViewModel ToHost(PanelContribution p) => new(p.Title, p.Content, p.Side);

@@ -1,14 +1,13 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:Osiris.App.ViewModels"
-        xmlns:set="using:Osiris.Abstractions.Settings"
-        x:Class="Osiris.App.Views.SettingsWindow"
-        x:DataType="vm:SettingsViewModel"
-        Title="设置" Width="680" Height="480"
-        WindowStartupLocation="CenterOwner">
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Osiris.App.ViewModels"
+             xmlns:set="using:Osiris.Abstractions.Settings"
+             x:Class="Osiris.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
 
-  <!-- 设置控件模板：按 SettingItem 子类型隐式匹配（零转换器），编辑事件在 code-behind 即时保存 -->
-  <Window.DataTemplates>
+  <!-- 设置控件模板：按 SettingItem 子类型隐式匹配（零转换器），编辑事件即时保存。
+       Avalonia 12：隐式模板须在 DataTemplates 集合，编译绑定需 x:DataType。 -->
+  <UserControl.DataTemplates>
     <DataTemplate DataType="set:BoolSettingItem" x:DataType="set:BoolSettingItem">
       <CheckBox IsChecked="{Binding Value}" Content="{Binding Label}" IsCheckedChanged="OnBoolChanged" />
     </DataTemplate>
@@ -44,10 +43,10 @@
         <TextBox Text="{Binding Value}" LostFocus="OnTextLostFocus" Width="220" />
       </StackPanel>
     </DataTemplate>
-  </Window.DataTemplates>
+  </UserControl.DataTemplates>
 
   <Grid ColumnDefinitions="180,8,*">
-    <!-- 左导航：设置组 -->
+    <!-- 左导航：各模组设置组 -->
     <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}">
       <ListBox.ItemTemplate>
         <DataTemplate DataType="vm:SettingGroupViewModel" x:DataType="vm:SettingGroupViewModel">
@@ -55,7 +54,7 @@
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
-    <!-- 右侧：选中组的设置项 -->
+    <!-- 右侧：选中模组的设置 -->
     <ScrollViewer Grid.Column="2">
       <ItemsControl ItemsSource="{Binding SelectedGroup.Items}" Margin="14">
         <ItemsControl.ItemsPanel>
@@ -64,4 +63,4 @@
       </ItemsControl>
     </ScrollViewer>
   </Grid>
-</Window>
+</UserControl>

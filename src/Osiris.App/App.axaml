@@ -1,11 +1,15 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dockTheme="using:Dock.Avalonia.Themes.Fluent"
              x:Class="Osiris.App.App"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Light">
 
   <!-- Fluent 主题：跨平台统一外观（暗/亮跟随系统） -->
   <Application.Styles>
     <FluentTheme />
+    <!-- Dock 停靠系统主题（VSCode/VS IDE 风格）。
+         注：12.1.0.1 包无 presets/*.axaml（主题已编译进 dll），直接使用 DockFluentTheme 样式。 -->
+    <dockTheme:DockFluentTheme DensityStyle="Normal" />
   </Application.Styles>
 
 </Application>

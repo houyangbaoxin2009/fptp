@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Osiris.Abstractions.Modules;
@@ -7,14 +8,13 @@ using Osiris.App.ViewModels;
 
 namespace Osiris.App.Views;
 
-/// <summary>模块管理窗口：列表 + 启用/禁用/卸载/配置（权限由 Core 注册表强制）。</summary>
-public partial class ModuleManagerWindow : Window
+/// <summary>
+/// 模块管理工具窗口：列表 + 启用/禁用/卸载（权限由 Core 注册表强制）。
+/// 作为 Dock 工具窗口停靠，可拖拽/浮动/标签化；DataContext 由壳注入 ModuleManagerViewModel。
+/// </summary>
+public partial class ModuleManagerView : UserControl
 {
-    public ModuleManagerWindow(ModuleManagerViewModel viewModel)
-    {
-        InitializeComponent();
-        DataContext = viewModel;
-    }
+    public ModuleManagerView() => InitializeComponent();
 
     /// <summary>卸载前确认（扩展模块），确认后执行卸载。</summary>
     private async void OnUninstallClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -25,15 +25,21 @@ public partial class ModuleManagerWindow : Window
             vm.UninstallConfirmedCommand.Execute(null);
     }
 
-    private void OnCloseClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
+    /// <summary>关闭工具窗口：从停靠布局移除（经 DockFactory）。</summary>
+    private void OnCloseClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime cdt &&
+            cdt.MainWindow?.DataContext is MainWindowViewModel vm)
+            vm.CloseToolWindow("moduleManager");
+    }
 
     /// <summary>
-    /// 轻量确认对话框（Avalonia 无内置 MessageBox，代码构造）。
+    /// 轻量确认对话框（UserControl 无 ShowDialog，经顶层窗口宿主）。
     /// ShowDialog 为异步任务，须 await 等待关闭后再返回结果。
     /// </summary>
     private async Task<bool> ShowConfirmAsync(string message)
     {
-        var result = false;
+        var owner = TopLevel.GetTopLevel(this) as Window;
         var dlg = new Window
         {
             Title = "确认卸载",
@@ -52,14 +58,16 @@ public partial class ModuleManagerWindow : Window
             HorizontalAlignment = HorizontalAlignment.Right,
         };
         var ok = new Button { Content = "确定卸载", Width = 90 };
-        ok.Click += (_, _) => { result = true; dlg.Close(); };
         var cancel = new Button { Content = "取消", Width = 80 };
-        cancel.Click += (_, _) => dlg.Close();
+        var tcs = new TaskCompletionSource<bool>();
+        ok.Click += (_, _) => { tcs.TrySetResult(true); dlg.Close(); };
+        cancel.Click += (_, _) => { tcs.TrySetResult(false); dlg.Close(); };
         btns.Children.Add(ok);
         btns.Children.Add(cancel);
         panel.Children.Add(btns);
         dlg.Content = panel;
-        await dlg.ShowDialog(this); // 等待对话框关闭
-        return result;
+        if (owner is not null) await dlg.ShowDialog(owner);
+        else dlg.Show();
+        return await tcs.Task;
     }
 }

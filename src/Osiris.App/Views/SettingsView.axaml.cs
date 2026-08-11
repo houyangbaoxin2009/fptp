@@ -8,18 +8,18 @@ using Osiris.App.ViewModels;
 namespace Osiris.App.Views;
 
 /// <summary>
-/// 设置窗口：左导航设置组 + 右侧自动生成控件（DataType 模板零转换器）。
-/// 控件事件直接写注册表（即时 JSON 落盘）；Security 级项已在 ViewModel 过滤不展示。
+/// 设置工具窗口：左侧导航（各模组设置组）+ 右侧该模组设置（DataType 模板零转换器）。
+/// 编辑事件直接写注册表（即时 JSON 落盘）；Security 级项已在 ViewModel 过滤不展示。
+/// 作为 Dock 工具窗口停靠，可拖拽/浮动；DataContext 由壳注入 SettingsViewModel。
 /// </summary>
-public partial class SettingsWindow : Window
+public partial class SettingsView : UserControl
 {
     private bool _loading = true; // 初始化绑定触发的事件忽略
 
-    public SettingsWindow(SettingsViewModel viewModel)
+    public SettingsView()
     {
         InitializeComponent();
-        DataContext = viewModel;
-        Opened += (_, _) => _loading = false;
+        Loaded += (_, _) => _loading = false;
     }
 
     private SettingsViewModel? Vm => DataContext as SettingsViewModel;
@@ -56,6 +56,7 @@ public partial class SettingsWindow : Window
     {
         if (sender is not Button { DataContext: ColorSettingItem item }) return;
         var input = new TextBox { Text = item.Value.ToString("X8"), Width = 140 };
+        var owner = TopLevel.GetTopLevel(this) as Window;
         var dlg = new Window
         {
             Title = "输入颜色（AARRGGBB，如 FF0000FF=蓝）",
@@ -70,7 +71,8 @@ public partial class SettingsWindow : Window
         ok.Click += (_, _) => dlg.Close();
         panel.Children.Add(ok);
         dlg.Content = panel;
-        await dlg.ShowDialog(this); // 等待对话框关闭后再解析保存
+        if (owner is not null) await dlg.ShowDialog(owner); // 等待对话框关闭后再解析保存
+        else dlg.Show();
         if (uint.TryParse(input.Text, NumberStyles.HexNumber, null, out var argb))
             Vm?.Save(item, argb);
     }

@@ -1,6 +1,7 @@
 using System.IO;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using Dock.Model.Core;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.App.PluginHost;
@@ -9,6 +10,7 @@ using Osiris.App.Views;
 using Osiris.Core.Plugins;
 using Osiris.Core.Storage;
 using Osiris.CoreModule;
+using Osiris.CoreModule.Controls;
 using CoreModuleType = Osiris.CoreModule.CoreModule;
 
 namespace Osiris.App.Tests;
@@ -65,9 +67,15 @@ public class WorkbenchSmokeTests
             Assert.Single(vm.RightPanels);                      // "图层"面板（默认右侧）
             Assert.Empty(vm.ToolbarItems);                      // CoreModule 未贡献工具栏
 
+            // ---- Dock 停靠布局断言：画布注入中央文档、模块面板注入右侧停靠区 ----
+            Assert.NotNull(vm.DockFactory.Layout);
+            Assert.Equal(ui.Canvas, FindDockable(vm.DockFactory.Layout, "osiris.canvas")?.Context);
+            Assert.NotNull(FindDockable(vm.DockFactory.Layout, "panel.图层"));
+
             // ---- 窗口渲染断言（Menu 容器 Style 方案是否真实生成菜单项）----
             var win = new MainWindow(vm);
             win.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs(); // 冲刷 Dock 延迟内容物化队列
             var menu = win.GetVisualDescendants().OfType<Menu>().FirstOrDefault();
             Assert.NotNull(menu);
             Assert.Equal(3, menu.Items.Count);                  // 顶层数据项已绑定
@@ -77,6 +85,10 @@ public class WorkbenchSmokeTests
             Assert.Equal("文件", menuItems[0].Header);          // Style Setter 的 Header 绑定已生效
             Assert.Equal("编辑", menuItems[1].Header);
             Assert.Equal("视图", menuItems[2].Header);
+
+            // DockControl 已装配且画布经停靠文档渲染进视觉树
+            Assert.NotNull(win.GetVisualDescendants().OfType<Dock.Avalonia.Controls.DockControl>().FirstOrDefault());
+            Assert.NotNull(win.GetVisualDescendants().OfType<CanvasControl>().FirstOrDefault());
             win.Close();
         }
         finally
@@ -111,5 +123,63 @@ public class WorkbenchSmokeTests
         {
             try { Directory.Delete(dir, recursive: true); } catch { }
         }
+    }
+
+    [AvaloniaFact]
+    public void DockToolWindows_OpenAndClose_AsDockableTools()
+    {
+        var registry = CreateTestRegistry(out string dir);
+        try
+        {
+            var services = new ServiceRegistry();
+            services.Register<IModuleRegistry>(registry);
+            var vm = new MainWindowViewModel(registry, services);
+
+            // 打开模块管理/设置 → 作为 Dock 工具加入布局（可拖拽/浮动）
+            vm.OpenModuleManagerCommand.Execute(null);
+            vm.OpenSettingsCommand.Execute(null);
+            var mgr = FindDockable(vm.DockFactory.Layout!, "moduleManager");
+            var settings = FindDockable(vm.DockFactory.Layout!, "settings");
+            Assert.NotNull(mgr);
+            Assert.NotNull(settings);
+            Assert.Equal("模块管理", mgr!.Title);
+            Assert.Equal("设置", settings!.Title);
+            Assert.NotNull(mgr.Context);   // ModuleManagerView 已注入
+            Assert.NotNull(settings.Context); // SettingsView 已注入
+
+            // 重复打开不重建（激活既有）
+            vm.OpenModuleManagerCommand.Execute(null);
+            Assert.Same(mgr, FindDockable(vm.DockFactory.Layout!, "moduleManager"));
+
+            // 关闭 → 从布局移除
+            vm.CloseToolWindow("moduleManager");
+            Assert.Null(FindDockable(vm.DockFactory.Layout!, "moduleManager"));
+
+            // 再次打开 → 重建新窗口
+            vm.OpenModuleManagerCommand.Execute(null);
+            var mgr2 = FindDockable(vm.DockFactory.Layout!, "moduleManager");
+            Assert.NotNull(mgr2);
+            Assert.NotSame(mgr, mgr2);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { }
+        }
+    }
+
+    /// <summary>在停靠布局树中按 Id 查找 dockable（递归遍历 VisibleDockables）。</summary>
+    private static IDockable? FindDockable(IDockable root, string id)
+    {
+        if (root.Id == id)
+            return root;
+        if (root is IDock dock && dock.VisibleDockables is not null)
+        {
+            foreach (var child in dock.VisibleDockables)
+            {
+                if (FindDockable(child, id) is { } found)
+                    return found;
+            }
+        }
+        return null;
     }
 }

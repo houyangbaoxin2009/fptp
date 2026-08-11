@@ -50,6 +50,14 @@ public partial class App : Application
             var viewModel = new MainWindowViewModel(registry, services);
             var window = new MainWindow(viewModel);
 
+            // 壳级入口：模块管理 + 设置（壳的职责——模块运行时管理；不属任何模块）
+            ui.RegisterCommand(new ShellCommand("osiris.shell.moduleManager", "模块管理(&M)...",
+                () => viewModel.OpenModuleManagerCommand.Execute(null)));
+            ui.RegisterCommand(new ShellCommand("osiris.shell.settings", "设置(&S)...",
+                () => viewModel.OpenSettingsCommand.Execute(null)));
+            ui.AddMenu("工具/模块管理", "osiris.shell.moduleManager", 9998);
+            ui.AddMenu("工具/设置", "osiris.shell.settings", 9999);
+
             // 4. 加载标准模块（随产品分发，静态引用；登记 Standard 记录）
             var core = new CoreModuleType();
             core.Initialize(host);
@@ -93,4 +101,28 @@ public partial class App : Application
         }
         return false;
     }
+}
+
+/// <summary>
+/// 壳级命令：lambda 包装（模块管理/设置等壳自身入口，非模块贡献）。
+/// 实现 Abstractions 命令契约，供工作台菜单绑定。
+/// </summary>
+internal sealed class ShellCommand : Osiris.Abstractions.Ui.ICommand
+{
+    private readonly string _id;
+    private readonly string _displayName;
+    private readonly Action _action;
+
+    public ShellCommand(string id, string displayName, Action action)
+    {
+        _id = id;
+        _displayName = displayName;
+        _action = action;
+    }
+
+    public string Id => _id;
+
+    public string DisplayName => _displayName;
+
+    public void Execute(object? parameter) => _action();
 }
