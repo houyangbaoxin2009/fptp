@@ -16,7 +16,7 @@ namespace Osiris.Core.Plugins;
 public static class ModuleLoader
 {
     /// <summary>宿主版本（MinHostVersion 校验基准，与 Directory.Build.props 的 Version 对齐）。</summary>
-    public const string HostVersion = "1.0.0.0";
+    public const string HostVersion = "1.0.0";
 
     /// <summary>模块清单文件名（语言中立数据源，见架构 4.7 节）。</summary>
     private const string ManifestFileName = "module.json";
@@ -293,4 +293,5 @@ public static class ModuleLoader
         string Id, string Name, string Version, ModuleKind Kind, ModuleType Type,
         ScriptLanguage Language, string? EntryPoint, string? MinHostVersion);
 }
+
 

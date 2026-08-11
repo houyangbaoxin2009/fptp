@@ -30,7 +30,7 @@ public class ModuleRegistryTests : IDisposable
 
     /// <summary>构造一个模块记录（默认 Extension，可按需指定分级）。</summary>
     private static ModuleRecord NewRecord(string id, ModuleKind kind = ModuleKind.Extension) =>
-        new(id, $"模块{id}", "1.0.0.0", kind, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, $"{id}.dll", null);
+        new(id, $"模块{id}", "1.0.0", kind, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, $"{id}.dll", null);
 
     [Fact]
     public void Register_SetConfig_NewInstanceLoads_Restores()
@@ -111,8 +111,8 @@ public class ModuleRegistryTests : IDisposable
     {
         public string Id => moduleId;
         public string Name => "测试设置提供者";
-        public string Version => "1.0.0.0";
-        public string MinHostVersion => "1.0.0.0";
+        public string Version => "1.0.0";
+        public string MinHostVersion => "1.0.0";
 
         public void Initialize(IHostContext host)
         {
@@ -148,4 +148,5 @@ public class ModuleRegistryTests : IDisposable
         }
     }
 }
+
 

@@ -1,12 +1,13 @@
 {
   "id": "fptm",
   "name": "FPTM",
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "kind": "extension",
   "type": "native",
   "language": "dotnet",
   "entryPoint": "Fptm.dll",
-  "minHostVersion": "1.0.0.0",
+  "minHostVersion": "1.0.0",
   "dependencies": []
 }
+
 

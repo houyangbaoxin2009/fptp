@@ -32,10 +32,10 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
     public string Name => "传统编辑模块";
 
     /// <inheritdoc />
-    public string Version => "1.0.0.0";
+    public string Version => "1.0.0";
 
     /// <inheritdoc />
-    public string MinHostVersion => "1.0.0.0";
+    public string MinHostVersion => "1.0.0";
 
     /// <inheritdoc />
     public ModuleKind Kind => ModuleKind.Extension;
@@ -161,4 +161,5 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
         }
     }
 }
+
 

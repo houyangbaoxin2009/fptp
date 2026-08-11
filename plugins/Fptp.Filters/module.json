@@ -1,12 +1,13 @@
 {
   "id": "fptp.filters",
   "name": "滤镜模块",
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "kind": "extension",
   "type": "native",
   "language": "dotnet",
   "entryPoint": "Fptp.Filters.dll",
-  "minHostVersion": "1.0.0.0",
+  "minHostVersion": "1.0.0",
   "dependencies": []
 }
+
 

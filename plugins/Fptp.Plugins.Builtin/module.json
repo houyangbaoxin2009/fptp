@@ -1,12 +1,13 @@
 {
   "id": "fptp.idphoto",
   "name": "证件照扩展模块",
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "kind": "extension",
   "type": "native",
   "language": "dotnet",
   "entryPoint": "Fptp.Plugins.Builtin.dll",
-  "minHostVersion": "1.0.0.0",
+  "minHostVersion": "1.0.0",
   "dependencies": []
 }
+
 

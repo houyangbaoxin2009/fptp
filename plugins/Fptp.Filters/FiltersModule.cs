@@ -23,10 +23,10 @@ public sealed class FiltersModule : IModule
     public string Name => "滤镜模块";
 
     /// <inheritdoc />
-    public string Version => "1.0.0.0";
+    public string Version => "1.0.0";
 
     /// <inheritdoc />
-    public string MinHostVersion => "1.0.0.0";
+    public string MinHostVersion => "1.0.0";
 
     /// <inheritdoc />
     public ModuleKind Kind => ModuleKind.Extension;
@@ -44,4 +44,5 @@ public sealed class FiltersModule : IModule
             ui.AddPanel("滤镜", () => new Views.FilterWindowView(), DockSide.Right);
     }
 }
+
 

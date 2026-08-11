@@ -35,11 +35,11 @@ public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
     /// <summary>模块显示名。</summary>
     public string Name => "核心模块";
 
-    /// <summary>模块版本（与产品 1.0.0.0 对齐）。</summary>
-    public string Version => "1.0.0.0";
+    /// <summary>模块版本（与产品 1.0.0 对齐）。</summary>
+    public string Version => "1.0.0";
 
     /// <summary>要求的最低宿主版本。</summary>
-    public string MinHostVersion => "1.0.0.0";
+    public string MinHostVersion => "1.0.0";
 
     /// <summary>模块分级：标准模块（内置，用户不可卸载）。</summary>
     public ModuleKind Kind => ModuleKind.Standard;
@@ -384,4 +384,5 @@ public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
         return text;
     }
 }
+
 

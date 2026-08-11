@@ -78,7 +78,7 @@ public partial class App : Application
             // 4. 加载标准模块（随产品分发，静态引用；登记 Standard 记录）
             var core = new CoreModuleType();
             core.Initialize(host);
-            registry.Register(new ModuleRecord("osiris.core", "核心模块", "1.0.0.0",
+            registry.Register(new ModuleRecord("osiris.core", "核心模块", "1.0.0",
                 ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
 
             // 5. 加载扩展模块（可卸载 ALC；禁用/Removed/版本不符自动跳过）
@@ -147,4 +147,5 @@ internal sealed class ShellCommand : Osiris.Abstractions.Ui.ICommand
 
     public void Execute(object? parameter) => _action();
 }
+
 

@@ -16,10 +16,16 @@ public class SkeletonSmokeTests
     }
 
     [Fact]
-    public void Engine_Assembly_Version_Is_2100()
+    public void Engine_Assembly_Version_Is_100()
     {
-        // 渲染引擎程序集版本应与产品版本 1.0.0.0 一致（Directory.Build.props 注入）
-        Assert.Equal("1.0.0.0", typeof(SkiaCodec).Assembly.GetName().Version?.ToString());
+        // 渲染引擎程序集版本应与产品版本 1.0.0 一致（Directory.Build.props 注入）；
+        // 注意 System.Version 三段式 ToString() 会补零为四段（1.0.0.0），故按主/次/修订比较。
+        var v = typeof(SkiaCodec).Assembly.GetName().Version;
+        Assert.NotNull(v);
+        Assert.Equal(1, v!.Major);
+        Assert.Equal(0, v.Minor);
+        Assert.Equal(0, v.Build);
     }
 }
+
 
