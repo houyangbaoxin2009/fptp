@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Fptp.Filters：滤镜模块（内置滤镜集合 + 可停靠滤镜窗口）。
+    - 滤镜窗口：左侧内置滤镜列表（聚合全部 IFilterPlugin 模块的滤镜），右侧参数（按声明自动生成控件），应用按钮。
+    - 仅引用 Osiris.Abstractions + Avalonia（ABI 红线：不引用 Core/Engine/SkiaSharp）。
+    - 输出到 plugins/bin/Fptp.Filters/ 子目录（module.json 与其它模块隔离）。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Fptp.Filters</RootNamespace>
+    <AssemblyName>Fptp.Filters</AssemblyName>
+    <OutputPath>$(MSBuildThisFileDirectory)..\bin\Fptp.Filters\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="module.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

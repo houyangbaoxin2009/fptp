@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Filters;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Ui;
@@ -44,6 +45,17 @@ public partial class App : Application
             services.Register<IModuleUpdater>(updater);
             services.Register<Func<string, PixelSurface?>>(SkiaCodec.Decode);
             services.Register<Func<string, PixelSurface, bool>>(SaveByExtension);
+            // 滤镜解析器（CoreModule batch 命令与 fptp.filters 滤镜窗口共用）：
+            // 从注册表已实例化模块收集全部 IFilterPlugin 的滤镜，按 Id 匹配（大小写不敏感）。
+            services.Register<Func<string, IFilterProcessor?>>(id => registry.GetInstances()
+                .OfType<IFilterPlugin>()
+                .SelectMany(m => m.Filters)
+                .FirstOrDefault(f => string.Equals(f.Id, id, StringComparison.OrdinalIgnoreCase)));
+            // 全部滤镜枚举（滤镜窗口列表数据源）。
+            services.Register<Func<IReadOnlyList<IFilterProcessor>>>(() => registry.GetInstances()
+                .OfType<IFilterPlugin>()
+                .SelectMany(m => m.Filters)
+                .ToList());
 
             // 3. 工作台装配（壳零业务 UI）
             var ui = new AppUiService();
