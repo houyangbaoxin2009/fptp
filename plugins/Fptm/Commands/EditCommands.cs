@@ -122,3 +122,30 @@ public sealed class RedoCommand : ICommand
     /// <inheritdoc />
     public void Execute(object? parameter) => _host.Services.Get<IDocumentService>()?.Redo();
 }
+
+/// <summary>
+/// 颜料盘槽位命令（fptm.palette1..9）：把对应槽位颜色应用到当前画笔工具。
+/// 壳快捷键路由（默认 Ctrl+A+1..9）执行本命令；操作窗口/画笔窗口也可经命令表触发。
+/// </summary>
+public sealed class PaletteSlotCommand : ICommand
+{
+    private readonly int _index; // 0-based 槽位索引
+
+    public PaletteSlotCommand(int index) => _index = index;
+
+    /// <inheritdoc />
+    public string Id => $"fptm.palette{_index + 1}";
+
+    /// <inheritdoc />
+    public string DisplayName => $"颜料槽 {_index + 1}";
+
+    /// <inheritdoc />
+    public void Execute(object? parameter)
+    {
+        if (_index < 0 || _index >= Editing.ToolState.Instance.Slots.Length) return;
+        string toolId = Editing.ToolState.Instance.IsStrokeTool(Editing.ToolState.Instance.CurrentToolId)
+            ? Editing.ToolState.Instance.CurrentToolId
+            : "brush";
+        Editing.ToolState.Instance.SetColor(toolId, Editing.ToolState.Instance.GetSlot(_index));
+    }
+}

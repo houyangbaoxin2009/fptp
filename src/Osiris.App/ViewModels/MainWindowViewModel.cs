@@ -39,6 +39,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>模块注册表（壳级工具窗口构造 VM 用；构造注入，非空）。</summary>
     public ModuleRegistry Registry { get; }
 
+    /// <summary>命令表（Rebuild 时从模块贡献收集；快捷键路由执行用）。</summary>
+    public IReadOnlyDictionary<string, ICommand> Commands { get; private set; } = new Dictionary<string, ICommand>();
+
     /// <summary>VSCode/VS 风格停靠工厂（画布 + 工具窗口可拖拽停靠/浮动/标签化）。</summary>
     public WorkbenchDockFactory DockFactory { get; }
 
@@ -107,6 +110,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>从模块贡献装配工作台（模块全部加载后由壳调用一次；AppUiService 为程序集内部类型，本方法同程序集可见即可）。</summary>
     internal void Rebuild(AppUiService ui)
     {
+        Commands = new Dictionary<string, ICommand>(ui.Commands);
         Menus = BuildMenuTree(ui.Menus, ui.Commands);
         ToolbarItems = ui.ToolbarItems
             .OrderBy(t => t.Order)

@@ -77,12 +77,41 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
                 Scope = SettingScope.User,
             });
 
+        // 快捷键组（User 级，存于注册表）：键=命令 Id，值=快捷键文本（壳 KeyDown 路由解析执行）。
+        // 默认：编辑操作 + 工具切换 + 颜料盘槽位（Ctrl+A+1..9）。
+        var hotkeys = new List<SettingItem>
+        {
+            Hotkey("fptm.copy", "复制", "Ctrl+C"),
+            Hotkey("fptm.paste", "粘贴", "Ctrl+V"),
+            Hotkey("fptm.undo", "撤销", "Ctrl+Z"),
+            Hotkey("fptm.redo", "重做", "Ctrl+Y"),
+            Hotkey("fptm.palette1", "颜料槽 1", "Ctrl+A+1"),
+            Hotkey("fptm.palette2", "颜料槽 2", "Ctrl+A+2"),
+            Hotkey("fptm.palette3", "颜料槽 3", "Ctrl+A+3"),
+            Hotkey("fptm.palette4", "颜料槽 4", "Ctrl+A+4"),
+            Hotkey("fptm.palette5", "颜料槽 5", "Ctrl+A+5"),
+            Hotkey("fptm.palette6", "颜料槽 6", "Ctrl+A+6"),
+            Hotkey("fptm.palette7", "颜料槽 7", "Ctrl+A+7"),
+            Hotkey("fptm.palette8", "颜料槽 8", "Ctrl+A+8"),
+            Hotkey("fptm.palette9", "颜料槽 9", "Ctrl+A+9"),
+        };
+
         return
         [
             new SettingGroup { Id = "fptm.tools", DisplayName = "编辑工具", Items = tools },
             new SettingGroup { Id = "fptm.palette", DisplayName = "颜料盘", Items = palette },
+            new SettingGroup { Id = "fptm.hotkeys", DisplayName = "快捷键", Items = hotkeys },
         ];
     }
+
+    /// <summary>快捷键设置项（TextSettingItem：键=命令 Id，值=快捷键文本）。</summary>
+    private static TextSettingItem Hotkey(string key, string label, string defaultValue) => new(defaultValue)
+    {
+        GroupId = "fptm",
+        Key = key,
+        Label = label,
+        Scope = SettingScope.User,
+    };
 
     /// <summary>宿主上下文（窗口视图经此访问服务：工具激活/注册表/命令）。静态供模块内视图访问。</summary>
     public static IHostContext? HostContext { get; private set; }
@@ -109,6 +138,10 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
             ui.RegisterCommand(new Commands.PasteCommand(host));
             ui.RegisterCommand(new Commands.UndoCommand(host));
             ui.RegisterCommand(new Commands.RedoCommand(host));
+
+            // 颜料盘槽位命令（壳快捷键路由 Ctrl+A+1..9 执行：应用槽位色到当前画笔工具）
+            for (int i = 0; i < Editing.ToolState.Instance.Slots.Length; i++)
+                ui.RegisterCommand(new Commands.PaletteSlotCommand(i));
 
             ui.AddPanel("操作", () => new Views.OperationWindowView(), DockSide.Right);
             ui.AddPanel("画笔", () => new Views.BrushWindowView(), DockSide.Right);
