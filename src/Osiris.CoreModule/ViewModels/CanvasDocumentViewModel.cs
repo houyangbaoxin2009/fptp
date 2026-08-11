@@ -30,12 +30,17 @@ public sealed partial class CanvasDocumentViewModel : ObservableObject
         documents.DocumentChanged += OnDocumentChanged;
     }
 
-    /// <summary>文档变更（打开/撤销/重做后）→ 同步文档并自动缩放适配。</summary>
+    /// <summary>文档变更（打开/撤销/重做/图层变更/预览替换后）→ 同步文档并刷新。
+    /// 仅当文档实例替换（打开/撤销重做到新文档）时缩放适配；预览替换（同实例图层内容变化）不重置视口。</summary>
     private void OnDocumentChanged()
     {
-        Document = _documents.Document;
+        var current = _documents.Document;
+        if (!ReferenceEquals(Document, current))
+        {
+            Document = current;
+            ZoomFit();
+        }
         Revision++;
-        ZoomFit();
     }
 
     /// <summary>当前渲染的文档（无文档时画布显示空白底色）。</summary>

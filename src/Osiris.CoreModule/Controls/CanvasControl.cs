@@ -149,7 +149,7 @@ public sealed class CanvasControl : Control
     /// （架构第 7 节：context.Custom(new CanvasDrawOperation(...))）。
     public override void Render(DrawingContext context)
         => context.Custom(new CanvasDrawOperation(
-            new Rect(Bounds.Size), Document, Offset, Scale, ActiveTool, _overlayProxy));
+            new Rect(Bounds.Size), Document, Offset, Scale, ActiveTool, _overlayProxy, Revision));
 
     /// <inheritdoc />
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -344,6 +344,7 @@ public sealed class CanvasControl : Control
         private readonly double _scale;
         private readonly IEditorTool? _activeTool;
         private readonly CanvasOverlayProxy _overlay;
+        private readonly int _revision;
 
         public CanvasDrawOperation(
             Rect bounds,
@@ -351,7 +352,8 @@ public sealed class CanvasControl : Control
             Vector offset,
             double scale,
             IEditorTool? activeTool,
-            CanvasOverlayProxy overlay)
+            CanvasOverlayProxy overlay,
+            int revision)
         {
             _bounds = bounds;
             _document = document;
@@ -359,6 +361,7 @@ public sealed class CanvasControl : Control
             _scale = scale;
             _activeTool = activeTool;
             _overlay = overlay;
+            _revision = revision;
         }
 
         /// <inheritdoc />
@@ -426,7 +429,8 @@ public sealed class CanvasControl : Control
             => other is CanvasDrawOperation op
                 && ReferenceEquals(op._document, _document)
                 && op._scale == _scale
-                && op._offset == _offset;
+                && op._offset == _offset
+                && op._revision == _revision; // 修订号参与比较：预览/选区变化（同文档引用）强制重绘
 
         /// <inheritdoc />
         /// 无自有托管资源（SKPaint 等在 Render 内 using 释放），无需清理。

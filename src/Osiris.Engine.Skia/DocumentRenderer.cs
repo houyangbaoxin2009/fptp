@@ -56,9 +56,41 @@ public static class DocumentRenderer
             }
         }
 
-        // TODO(性能)：当前为 2.1 全量绘制——每帧重绘整画布并遍历全部可见图层。
-        // 超大图层/视口场景应反算可见文档矩形，只画与视口相交的图层并做部分重绘
-        // （见 docs/2.1-architecture.md 第 7 节"渲染前反算可见文档矩形，只画相交图层"）。
+        // 选区蚂蚁线（虚线包围盒；文档坐标——调用方已施加视口变换）。
+        // 套索/矩形/魔棒提交选区后经此显示，让选区工具"可见"。
+        if (document.Selection is { } selection)
+            DrawSelection(canvas, selection);
+
+        // TODO(后续)：当前为 2.1 全量绘制；每帧重绘时仅遍历可见图层。
+        // 超大图/视口裁剪应限制可见文档区域，只绘制与视口相交的图层并做增量重绘
+        // 见 docs/2.1-architecture.md 第 7 节"渲染前反算可见文档矩形，只画相交图层"。
+    }
+
+    /// <summary>绘制选区蚂蚁线：求选中像素包围盒并画虚线矩形（空选区跳过）。</summary>
+    private static void DrawSelection(SKCanvas canvas, Selection selection)
+    {
+        // 求包围盒（遍历选中像素）
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
+        for (int y = 0; y < selection.Height; y++)
+            for (int x = 0; x < selection.Width; x++)
+                if (selection.Contains(x, y))
+                {
+                    minX = Math.Min(minX, x); minY = Math.Min(minY, y);
+                    maxX = Math.Max(maxX, x); maxY = Math.Max(maxY, y);
+                }
+        if (maxX < minX) return; // 空选区
+
+        var rect = new SKRect(minX - 0.5f, minY - 0.5f, maxX + 0.5f, maxY + 0.5f);
+        using var paint = new SKPaint
+        {
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1f,
+            IsAntialias = true,
+            Color = new SKColor(0, 0, 0, 220),
+        };
+        using SKPathEffect dash = SKPathEffect.CreateDash([4f, 4f], 0f);
+        paint.PathEffect = dash;
+        canvas.DrawRect(rect, paint);
     }
 
     /// <summary>离屏渲染整份文档为 SKImage（raster 后端；快照生命周期由调用方管理）。</summary>
