@@ -43,7 +43,11 @@ public sealed class SelectRectTool : IEditorTool
     /// <inheritdoc />
     public void MouseMove(ToolMouseEvent e)
     {
-        if (_dragging) _end = new Point2(e.X, e.Y);
+        if (_dragging)
+        {
+            _end = new Point2(e.X, e.Y);
+            VisualChanged?.Invoke(); // 拖动中实时刷新覆盖层（矩形预览）
+        }
     }
 
     /// <inheritdoc />
@@ -74,6 +78,9 @@ public sealed class SelectRectTool : IEditorTool
     }
 
     /// <inheritdoc />
+    /// <inheritdoc />
+    public event Action? VisualChanged;
+    
     public void Activate() { }
 
     /// <inheritdoc />
@@ -120,7 +127,10 @@ public sealed class LassoTool : IEditorTool
         if (!_dragging) return;
         var p = new Point2(e.X, e.Y);
         if (_points.Count == 0 || _points[^1] != p)
+        {
             _points.Add(p);
+            VisualChanged?.Invoke(); // 收集点实时刷新覆盖层（套索轨迹）
+        }
     }
 
     /// <inheritdoc />
@@ -145,6 +155,9 @@ public sealed class LassoTool : IEditorTool
     }
 
     /// <inheritdoc />
+    /// <inheritdoc />
+    public event Action? VisualChanged;
+    
     public void Activate() { }
 
     /// <inheritdoc />
@@ -196,8 +209,12 @@ public sealed class MagicWandTool : IEditorTool
     public void DrawOverlay(IToolOverlay overlay) { }
 
     /// <inheritdoc />
+    /// <inheritdoc />
+    public event Action? VisualChanged;
+    
     public void Activate() { }
 
     /// <inheritdoc />
     public void Deactivate() { }
 }
+

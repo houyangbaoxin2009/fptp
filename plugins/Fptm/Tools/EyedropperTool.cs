@@ -60,8 +60,12 @@ public sealed class EyedropperTool : IEditorTool
     public void DrawOverlay(IToolOverlay overlay) { }
 
     /// <inheritdoc />
+    /// <inheritdoc />
+    public event Action? VisualChanged;
+    
     public void Activate() { }
 
     /// <inheritdoc />
     public void Deactivate() { }
 }
+

@@ -38,6 +38,9 @@ public abstract class StrokeToolBase : IEditorTool
     /// <inheritdoc />
     public string MinHostVersion => "2.1.0.0";
 
+    /// <inheritdoc />
+    public event Action? VisualChanged;
+
     /// <summary>由宿主模块统一注入（工具不独立走插件加载器）。</summary>
     public void Initialize(IHostContext host) => Host = host;
 
@@ -77,6 +80,7 @@ public abstract class StrokeToolBase : IEditorTool
         _last = to;
         // 实时反馈：把当前笔画状态提交为预览表面（不入历史），画布即时显示笔迹
         Docs?.SetPreviewSurface(_oldLayer.Id, _editor.Commit());
+        VisualChanged?.Invoke();
     }
 
     /// <inheritdoc />

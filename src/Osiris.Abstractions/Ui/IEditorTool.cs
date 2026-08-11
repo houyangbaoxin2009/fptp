@@ -7,7 +7,13 @@ namespace Osiris.Abstractions.Ui;
 /// </summary>
 public interface IEditorTool : IPlugin
 {
-    /// <summary>工具被激活为当前工具（可在此重置内部状态）。</summary>
+    /// <summary>
+    /// 视觉状态变化事件：工具在操作过程中（套索收集点、矩形拖动、画笔预览等）修改了覆盖层/视觉状态时触发，
+    /// 宿主（画布）订阅后请求重绘——实现"操作中实时渲染"（DrawOverlay 随每次重绘被调用）。
+    /// </summary>
+    event Action? VisualChanged;
+
+    /// <summary>工具被激活为当前工具（宿主在状态切换时清理内部状态）。</summary>
     void Activate();
 
     /// <summary>工具被停用（清理临时状态/覆盖层）。</summary>

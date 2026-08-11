@@ -79,16 +79,28 @@ public sealed class CanvasControl : Control
         InvalidateVisual();
     }
 
-    /// <summary>VM 状态变化（文档/修订/缩放/偏移/工具）→ 重绘；工具切换时同步鼠标光标。</summary>
+    /// <summary>VM 状态变化（文档/修订/缩放/偏移/工具）→ 重绘；工具切换时同步光标并订阅其重绘请求。</summary>
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(CanvasDocumentViewModel.ActiveTool))
         {
             // 光标反馈：激活工具时显示十字（绘制/选区通用），无工具恢复默认箭头
             Cursor = ViewModel?.ActiveTool is null ? Cursor.Default : new Cursor(StandardCursorType.Cross);
+            // 订阅工具视觉变化（套索轨迹/矩形预览等操作中实时重绘）；退订旧工具防泄漏
+            if (_subscribedTool is not null)
+                _subscribedTool.VisualChanged -= OnToolVisualChanged;
+            _subscribedTool = ViewModel?.ActiveTool;
+            if (_subscribedTool is not null)
+                _subscribedTool.VisualChanged += OnToolVisualChanged;
         }
         InvalidateVisual();
     }
+
+    /// <summary>当前已订阅视觉变化的工具（退订防事件泄漏，保证 ALC 可回收）。</summary>
+    private IEditorTool? _subscribedTool;
+
+    /// <summary>工具请求重绘：画布刷新（DrawOverlay 随重绘被调用，操作轨迹实时可见）。</summary>
+    private void OnToolVisualChanged() => InvalidateVisual();
 
     /// <summary>当前渲染的文档（自 ViewModel；无 VM 时 null）。</summary>
     public OsirisDocument? Document => ViewModel?.Document;
