@@ -57,6 +57,15 @@
   "输入颜色（AARRGGBB，如 FF0000FF=蓝）": "Enter color (AARRGGBB, e.g. FF0000FF=blue)",
   "确定": "OK",
 
+  "权限警告": "Elevation Warning",
+  "检测到以管理员权限运行。\n插件（模块）是可执行代码，管理员权限下恶意插件可修改系统文件、安装驱动、破坏系统安全。\n建议以普通权限运行本程序。": "Running with administrator privileges.\nPlugins (modules) are executable code — under administrator privileges a malicious plugin could modify system files, install drivers, or damage system security.\nIt is recommended to run this application with normal privileges.",
+  "以普通权限重新启动": "Restart with Normal Privileges",
+  "仍要继续": "Continue Anyway",
+  "外部模块确认": "External Module Confirmation",
+  "检测到外部安装的模块（可能来自不可信来源）。\n恶意模块是可执行代码，可窃取文件或破坏系统。\n请确认以下模块来源可信后才允许加载：": "External modules detected (possibly from untrusted sources).\nMalicious modules are executable code that could steal files or damage your system.\nConfirm the following modules are from trusted sources before allowing them to load:",
+  "确认加载": "Approve and Load",
+  "拒绝加载": "Reject",
+
   "批量处理图片：--input 输入文件/目录 --out 输出目录 [--filter 滤镜步骤] [--overwrite]": "Batch process images: --input input file/dir --out output dir [--filter filter steps] [--overwrite]",
   "输入：图片文件路径或目录（多个以分号分隔）": "Input: image file path or directory (separate multiple with ;)",
   "输出目录（不存在则创建）": "Output directory (created if missing)",

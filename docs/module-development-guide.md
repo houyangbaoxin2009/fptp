@@ -218,7 +218,20 @@ double threshold = registry.GetConfig("mymodule", "threshold", 50.0) ?? 50.0;
 | 下拉项存翻译文本 → 语言切换后匹配失败 | 存稳定 key，ItemTemplate 翻译显示（见传统面板相纸） |
 | 模块引用 Core/Skia → ALC 加载失败 | 只引 Abstractions/Algorithms/Avalonia |
 
-## 8. 测试与验证
+## 8. 安全机制（防恶意模块）
+
+模块是 ALC 加载的**任意代码**，宿主内置三层防护：
+
+| 层 | 机制 | 说明 |
+|---|---|---|
+| 1 | 管理员权限警告 | 管理员/root 下启动弹警告（降权重启/仍要继续）；CLI 打印警告继续 |
+| 2 | 外部模块加载确认 | `%APPDATA%/Fptp/modules/`（用户手动安装）的模块加载前弹确认框（列出清单）；CLI 打印警告 |
+| 3 | 签名校验骨架 | `IModuleSignatureValidator` 契约 + `module.json` 可选 `signature` 字段；App 默认放行，未来接入数字签名/白名单即生效 |
+
+**可信目录**：程序集旁 `plugins/`（随产品分发）直接加载，不弹确认。
+**用户自定义语言包**：`%APPDATA%\Fptp\langs\`（最高优先，可覆盖一切翻译）。
+
+## 9. 测试与验证
 
 ```bash
 # 构建（0 错误 0 警告）
@@ -237,7 +250,7 @@ dotnet run --project src/Osiris.Cli -- --help
 模块加载失败信息打印到控制台（`模块加载失败 {name}: {message}`）——验证 `module.json`
 的 `id`/`entryPoint`/`minHostVersion` 是否与宿主版本（`1.0.0`）匹配。
 
-## 9. 版本号（osiris 插件必须遵守）
+## 10. 版本号（osiris 插件必须遵守）
 
 - 4 段式 `X.Y.Z.W`，`csproj <Version>` 与 `module.json version` 同步
 - 每次编译一次 → `W+1`（不推送）；每完成一个任务 → `W` 清零、`Z+1`，提交推送并发布

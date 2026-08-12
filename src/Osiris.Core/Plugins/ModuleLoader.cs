@@ -66,6 +66,16 @@ public static class ModuleLoader
     {
         ModuleManifest manifest = ParseManifest(manifestPath);
 
+        // 签名校验（安全骨架）：宿主经服务注册表注入 IModuleSignatureValidator；
+        // 拒绝返回 false 的模块不加载（防恶意/不可信来源模块执行任意代码）。
+        var validator = context.Services.Get<IModuleSignatureValidator>();
+        if (validator is not null && !validator.IsTrusted(manifest.Id, moduleDir, manifest.Signature))
+        {
+            onError?.Invoke(manifest.Id, new UnauthorizedAccessException(
+                $"模块 {manifest.Id} 未通过签名校验（来源不可信），已拒绝加载。"));
+            return false;
+        }
+
         // 构造注册表记录：状态以持久化 modules.json 为准（Register 内部以持久化状态覆盖 Status）
         var record = new ModuleRecord(
             manifest.Id, manifest.Name, manifest.Version, manifest.Kind,
@@ -206,6 +216,59 @@ public static class ModuleLoader
     // ---- 辅助 ----
 
     /// <summary>
+    /// 枚举目录下模块清单（id/name，不含加载）：供外部模块确认框展示来源。
+    /// 无清单时尝试反射识别 DLL 的 IModule 元数据（与 LoadFromDirectory 同源发现逻辑）。
+    /// </summary>
+    public static IReadOnlyList<(string Id, string Name)> EnumerateManifests(string directory)
+    {
+        var result = new List<(string, string)>();
+        if (!Directory.Exists(directory))
+            return result;
+
+        foreach ((string moduleDir, string manifestPath) in FindManifests(directory))
+        {
+            try
+            {
+                ModuleManifest manifest = ParseManifest(manifestPath);
+                result.Add((manifest.Id, manifest.Name));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                result.Add((Path.GetFileName(moduleDir), $"<清单解析失败: {ex.Message}>"));
+            }
+        }
+
+        // 无清单：反射识别 DLL 的 IModule 元数据（不实例化，仅读 Id/Name）
+        if (result.Count == 0)
+        {
+            foreach (string dll in Directory.EnumerateFiles(directory, "*.dll"))
+            {
+                if (ModuleLoadContext.IsSharedAssemblyName(Path.GetFileNameWithoutExtension(dll)))
+                    continue;
+                try
+                {
+                    var alc = new ModuleLoadContext(dll);
+                    Assembly assembly = alc.LoadFromAssemblyPath(dll);
+                    foreach (Type type in SafeGetTypes(assembly))
+                    {
+                        if (type.GetCustomAttribute<PluginExportAttribute>() is null || !typeof(IModule).IsAssignableFrom(type))
+                            continue;
+                        // 不经 Activator 实例化（无副作用），反射读取属性值
+                        var module = (IModule)Activator.CreateInstance(type)!;
+                        result.Add((module.Id, module.Name));
+                        break; // 每个 DLL 只取第一个模块
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    result.Add((Path.GetFileNameWithoutExtension(dll), $"<反射失败: {ex.Message}>"));
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
     /// 注册模块自带语言包（模块目录下 langs/）：条目合并进全局语言表，
     /// 随模块分发——卸载/移除模块后其翻译条目一并消失。经 L10n 静态门面转发，
     /// 未注入语言服务（CLI 早期/测试）时静默忽略，模块文本保持原文。
@@ -252,7 +315,8 @@ public static class ModuleLoader
             ParseType(GetString("type")),
             ParseLanguage(GetString("language")),
             string.IsNullOrWhiteSpace(entry) ? null : entry,
-            string.IsNullOrWhiteSpace(minHost) ? null : minHost);
+            string.IsNullOrWhiteSpace(minHost) ? null : minHost,
+            GetString("signature")); // 可选签名声明（安全骨架：IModuleSignatureValidator 校验数据源）
     }
 
     /// <summary>kind 解析：standard → Standard；未知按 Extension（保守）。</summary>
@@ -304,7 +368,7 @@ public static class ModuleLoader
     /// <summary>module.json 清单强类型（内部私有数据行）。</summary>
     private sealed record ModuleManifest(
         string Id, string Name, string Version, ModuleKind Kind, ModuleType Type,
-        ScriptLanguage Language, string? EntryPoint, string? MinHostVersion);
+        ScriptLanguage Language, string? EntryPoint, string? MinHostVersion, string? Signature);
 }
 
 

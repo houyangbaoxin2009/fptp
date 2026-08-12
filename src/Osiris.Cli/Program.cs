@@ -2,6 +2,7 @@ using Osiris.Abstractions.Cli;
 using Osiris.Abstractions.Localization;
 using Osiris.Core.Localization;
 using Osiris.Core.Plugins;
+using Osiris.Core.Security;
 using Osiris.Core.Storage;
 using System.CommandLine;
 using System.CommandLine.Parsing;
@@ -37,6 +38,10 @@ internal static class Program
     /// <summary>宿主启动流程（与 GUI 启动流程同构：注册表 → 宿主上下文 → 加载 → 收集命令）。</summary>
     private static int Run(string[] args)
     {
+        // 0) 权限警告：管理员/root 下加载插件（可执行代码）可破坏系统——打印警告，不阻断（CLI 无交互，拒绝会破坏自动化脚本）
+        if (ElevationGuard.IsElevated())
+            Console.Error.WriteLine("警告：当前以管理员权限运行。插件是可执行代码，管理员权限下恶意插件可修改系统文件。建议以普通权限运行。");
+
         // 1) 配置存储 + 模块注册表：与 GUI 完全同一路径（modules.json/settings.json/secure.json），
         //    因此 CLI 读到的模块启用/禁用状态、用户配置、安全设置都与 GUI 一致——共享状态，CLI 无特权。
         var store = new JsonConfigStore();
@@ -107,6 +112,16 @@ internal static class Program
         int loaded = 0;
         foreach (string directory in directories)
         {
+            // 外部模块目录（用户手动安装，可能来自不可信来源）→ 打印警告（CLI 无交互确认，仅提示）
+            if (string.Equals(
+                    Path.GetFullPath(directory),
+                    Path.GetFullPath(Path.Combine(CliEnvironment.AppDataDir, "modules")),
+                    StringComparison.OrdinalIgnoreCase)
+                && Directory.Exists(directory)
+                && ModuleLoader.EnumerateManifests(directory).Count > 0)
+            {
+                Console.Error.WriteLine("警告：检测到外部安装的模块（来源可能不可信）。恶意模块是可执行代码，请确认来源可信。");
+            }
             int count = ModuleLoader.LoadFromDirectory(directory, registry, context,
                 (name, ex) => Console.Error.WriteLine($"osiris: 模块加载失败 [{name}]: {ex.Message}"));
             loaded += count;
