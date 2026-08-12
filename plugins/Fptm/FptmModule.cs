@@ -1,4 +1,5 @@
 using Osiris.Abstractions;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Settings;
@@ -29,7 +30,7 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
     public string Id => "fptm";
 
     /// <inheritdoc />
-    public string Name => "传统编辑模块";
+    public string Name => L10n.T("传统编辑模块");
 
     /// <inheritdoc />
     public string Version => "1.0.0";
@@ -58,13 +59,13 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
     {
         var tools = new List<SettingItem>
         {
-            new ColorSettingItem(Editing.ToolState.Instance.GetColor("pencil")) { GroupId = "fptm", Key = "pencilColor", Label = "铅笔颜色", Scope = SettingScope.User },
-            new ColorSettingItem(Editing.ToolState.Instance.GetColor("pen")) { GroupId = "fptm", Key = "penColor", Label = "钢笔颜色", Scope = SettingScope.User },
-            new NumberSettingItem(Editing.ToolState.Instance.GetSize("pen"), 1, 10, 1) { GroupId = "fptm", Key = "penSize", Label = "钢笔大小", Scope = SettingScope.User },
-            new ColorSettingItem(Editing.ToolState.Instance.GetColor("inkBrush")) { GroupId = "fptm", Key = "inkBrushColor", Label = "毛笔颜色", Scope = SettingScope.User },
-            new ColorSettingItem(Editing.ToolState.Instance.GetColor("brush")) { GroupId = "fptm", Key = "brushColor", Label = "刷子颜色", Scope = SettingScope.User },
-            new NumberSettingItem(Editing.ToolState.Instance.GetSize("brush"), 1, 50, 1) { GroupId = "fptm", Key = "brushSize", Label = "刷子大小", Scope = SettingScope.User },
-            new ColorSettingItem(Editing.ToolState.Instance.GetColor("bucket")) { GroupId = "fptm", Key = "bucketColor", Label = "颜料桶颜色", Scope = SettingScope.User },
+            new ColorSettingItem(Editing.ToolState.Instance.GetColor("pencil")) { GroupId = "fptm", Key = "pencilColor", Label = L10n.T("铅笔颜色"), Scope = SettingScope.User },
+            new ColorSettingItem(Editing.ToolState.Instance.GetColor("pen")) { GroupId = "fptm", Key = "penColor", Label = L10n.T("钢笔颜色"), Scope = SettingScope.User },
+            new NumberSettingItem(Editing.ToolState.Instance.GetSize("pen"), 1, 10, 1) { GroupId = "fptm", Key = "penSize", Label = L10n.T("钢笔大小"), Scope = SettingScope.User },
+            new ColorSettingItem(Editing.ToolState.Instance.GetColor("inkBrush")) { GroupId = "fptm", Key = "inkBrushColor", Label = L10n.T("毛笔颜色"), Scope = SettingScope.User },
+            new ColorSettingItem(Editing.ToolState.Instance.GetColor("brush")) { GroupId = "fptm", Key = "brushColor", Label = L10n.T("刷子颜色"), Scope = SettingScope.User },
+            new NumberSettingItem(Editing.ToolState.Instance.GetSize("brush"), 1, 50, 1) { GroupId = "fptm", Key = "brushSize", Label = L10n.T("刷子大小"), Scope = SettingScope.User },
+            new ColorSettingItem(Editing.ToolState.Instance.GetColor("bucket")) { GroupId = "fptm", Key = "bucketColor", Label = L10n.T("颜料桶颜色"), Scope = SettingScope.User },
         };
 
         var palette = new List<SettingItem>();
@@ -73,7 +74,7 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
             {
                 GroupId = "fptm",
                 Key = $"slot{i}",
-                Label = $"颜料槽 {i}",
+                Label = L10n.T("颜料槽 {0}", i),
                 Scope = SettingScope.User,
             });
 
@@ -81,35 +82,35 @@ public sealed class FptmModule : IModule, IToolPlugin, ISettingProvider
         // 默认：编辑操作 + 工具切换 + 颜料盘槽位（Ctrl+A+1..9）。
         var hotkeys = new List<SettingItem>
         {
-            Hotkey("fptm.copy", "复制", "Ctrl+C"),
-            Hotkey("fptm.paste", "粘贴", "Ctrl+V"),
-            Hotkey("fptm.undo", "撤销", "Ctrl+Z"),
-            Hotkey("fptm.redo", "重做", "Ctrl+Y"),
-            Hotkey("fptm.palette1", "颜料槽 1", "Ctrl+A+1"),
-            Hotkey("fptm.palette2", "颜料槽 2", "Ctrl+A+2"),
-            Hotkey("fptm.palette3", "颜料槽 3", "Ctrl+A+3"),
-            Hotkey("fptm.palette4", "颜料槽 4", "Ctrl+A+4"),
-            Hotkey("fptm.palette5", "颜料槽 5", "Ctrl+A+5"),
-            Hotkey("fptm.palette6", "颜料槽 6", "Ctrl+A+6"),
-            Hotkey("fptm.palette7", "颜料槽 7", "Ctrl+A+7"),
-            Hotkey("fptm.palette8", "颜料槽 8", "Ctrl+A+8"),
-            Hotkey("fptm.palette9", "颜料槽 9", "Ctrl+A+9"),
-            Hotkey("fptm.preset1", "预设 1", "Ctrl+B+1"),
-            Hotkey("fptm.preset2", "预设 2", "Ctrl+B+2"),
-            Hotkey("fptm.preset3", "预设 3", "Ctrl+B+3"),
-            Hotkey("fptm.preset4", "预设 4", "Ctrl+B+4"),
-            Hotkey("fptm.preset5", "预设 5", "Ctrl+B+5"),
-            Hotkey("fptm.preset6", "预设 6", "Ctrl+B+6"),
-            Hotkey("fptm.preset7", "预设 7", "Ctrl+B+7"),
-            Hotkey("fptm.preset8", "预设 8", "Ctrl+B+8"),
-            Hotkey("fptm.preset9", "预设 9", "Ctrl+B+9"),
+            Hotkey("fptm.copy", L10n.T("复制"), "Ctrl+C"),
+            Hotkey("fptm.paste", L10n.T("粘贴"), "Ctrl+V"),
+            Hotkey("fptm.undo", L10n.T("撤销"), "Ctrl+Z"),
+            Hotkey("fptm.redo", L10n.T("重做"), "Ctrl+Y"),
+            Hotkey("fptm.palette1", L10n.T("颜料槽 1"), "Ctrl+A+1"),
+            Hotkey("fptm.palette2", L10n.T("颜料槽 2"), "Ctrl+A+2"),
+            Hotkey("fptm.palette3", L10n.T("颜料槽 3"), "Ctrl+A+3"),
+            Hotkey("fptm.palette4", L10n.T("颜料槽 4"), "Ctrl+A+4"),
+            Hotkey("fptm.palette5", L10n.T("颜料槽 5"), "Ctrl+A+5"),
+            Hotkey("fptm.palette6", L10n.T("颜料槽 6"), "Ctrl+A+6"),
+            Hotkey("fptm.palette7", L10n.T("颜料槽 7"), "Ctrl+A+7"),
+            Hotkey("fptm.palette8", L10n.T("颜料槽 8"), "Ctrl+A+8"),
+            Hotkey("fptm.palette9", L10n.T("颜料槽 9"), "Ctrl+A+9"),
+            Hotkey("fptm.preset1", L10n.T("预设 1"), "Ctrl+B+1"),
+            Hotkey("fptm.preset2", L10n.T("预设 2"), "Ctrl+B+2"),
+            Hotkey("fptm.preset3", L10n.T("预设 3"), "Ctrl+B+3"),
+            Hotkey("fptm.preset4", L10n.T("预设 4"), "Ctrl+B+4"),
+            Hotkey("fptm.preset5", L10n.T("预设 5"), "Ctrl+B+5"),
+            Hotkey("fptm.preset6", L10n.T("预设 6"), "Ctrl+B+6"),
+            Hotkey("fptm.preset7", L10n.T("预设 7"), "Ctrl+B+7"),
+            Hotkey("fptm.preset8", L10n.T("预设 8"), "Ctrl+B+8"),
+            Hotkey("fptm.preset9", L10n.T("预设 9"), "Ctrl+B+9"),
         };
 
         return
         [
-            new SettingGroup { Id = "fptm.tools", DisplayName = "编辑工具", Items = tools },
-            new SettingGroup { Id = "fptm.palette", DisplayName = "颜料盘", Items = palette },
-            new SettingGroup { Id = "fptm.hotkeys", DisplayName = "快捷键", Items = hotkeys },
+            new SettingGroup { Id = "fptm.tools", DisplayName = L10n.T("编辑工具"), Items = tools },
+            new SettingGroup { Id = "fptm.palette", DisplayName = L10n.T("颜料盘"), Items = palette },
+            new SettingGroup { Id = "fptm.hotkeys", DisplayName = L10n.T("快捷键"), Items = hotkeys },
         ];
     }
 

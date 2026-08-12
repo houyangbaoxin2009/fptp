@@ -1,5 +1,6 @@
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Progress;
 
 namespace Fptp.Plugins.Builtin;
@@ -17,7 +18,7 @@ public sealed class GrayscaleFilter : IFilterProcessor
     public string Id => "fptp.grayscale";
 
     /// <inheritdoc />
-    public string DisplayName => "灰度";
+    public string DisplayName => L10n.T("灰度");
 
     /// <inheritdoc />
     public FilterParameters Defaults => new();
@@ -52,7 +53,7 @@ public sealed class GrayscaleFilter : IFilterProcessor
             // Alpha 原样保留（第 i+3 字节不动）
         }
 
-        progress?.Report(100, "灰度完成");
+        progress?.Report(100, L10n.T("灰度完成"));
         return editor.Commit();
     }
 }

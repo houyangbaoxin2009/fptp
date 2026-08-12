@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Settings;
 using Osiris.Abstractions.Ui;
 using Osiris.App.ViewModels;
@@ -19,6 +20,8 @@ public partial class MainWindow : Window
     public MainWindow(MainWindowViewModel viewModel) : this()
     {
         DataContext = viewModel;
+        // 窗口标题（语言 key 即中文原文，未命中返回原文）
+        Title = L10n.T("Osiris 1.0.0 - 模块化图像工作台");
         // 窗口图标：荷鲁斯之眼 Logo（avares 资源，随程序集嵌入）
         Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(new Uri("avares://Osiris.App/Assets/App.ico")));
     }

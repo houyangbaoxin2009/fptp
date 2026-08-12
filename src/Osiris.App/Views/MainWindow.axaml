@@ -8,7 +8,6 @@
         xmlns:mvvmDock="using:Dock.Model.Mvvm.Controls"
         x:Class="Osiris.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Osiris 1.0.0 - 模块化图像工作台"
         Width="1200" Height="800"
         MinWidth="900" MinHeight="600">
 

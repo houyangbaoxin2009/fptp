@@ -1,5 +1,6 @@
 using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 using Fptm.Editing;
 
@@ -14,7 +15,7 @@ public sealed class PaintBucketTool : IEditorTool
     public string Id => "bucket";
 
     /// <inheritdoc />
-    public string DisplayName => "颜料桶";
+    public string DisplayName => L10n.T("颜料桶");
 
     /// <inheritdoc />
     public string Name => DisplayName;

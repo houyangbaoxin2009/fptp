@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 using Osiris.Core.Document;
 using Osiris.CoreModule.Services;
@@ -75,7 +76,7 @@ internal sealed class OpenCommand : ICommand
     public OpenCommand(CommandContext ctx) => _ctx = ctx;
 
     public string Id => KnownCommands.Open;
-    public string DisplayName => "打开…";
+    public string DisplayName => L10n.T("打开…");
 
     public async void Execute(object? parameter)
     {
@@ -118,7 +119,7 @@ internal sealed class SaveCommand : ICommand
     public SaveCommand(CommandContext ctx) => _ctx = ctx;
 
     public string Id => KnownCommands.Save;
-    public string DisplayName => "保存";
+    public string DisplayName => L10n.T("保存");
 
     public async void Execute(object? parameter)
     {
@@ -164,7 +165,7 @@ internal sealed class ExportCommand : ICommand
     public ExportCommand(CommandContext ctx) => _ctx = ctx;
 
     public string Id => KnownCommands.Export;
-    public string DisplayName => "导出…";
+    public string DisplayName => L10n.T("导出…");
 
     public async void Execute(object? parameter)
     {
@@ -200,7 +201,7 @@ internal sealed class UndoCommand : ICommand
     public UndoCommand(CommandContext ctx) => _ctx = ctx;
 
     public string Id => KnownCommands.Undo;
-    public string DisplayName => "撤销";
+    public string DisplayName => L10n.T("撤销");
 
     public void Execute(object? parameter)
     {
@@ -217,7 +218,7 @@ internal sealed class RedoCommand : ICommand
     public RedoCommand(CommandContext ctx) => _ctx = ctx;
 
     public string Id => KnownCommands.Redo;
-    public string DisplayName => "重做";
+    public string DisplayName => L10n.T("重做");
 
     public void Execute(object? parameter)
     {
@@ -234,7 +235,7 @@ internal sealed class ZoomFitCommand : ICommand
     public ZoomFitCommand(CommandContext ctx) => _ctx = ctx;
 
     public string Id => KnownCommands.ZoomFit;
-    public string DisplayName => "缩放适应";
+    public string DisplayName => L10n.T("缩放适应");
 
     public void Execute(object? parameter) => _ctx.CanvasVm.ZoomFit();
 }
@@ -247,7 +248,7 @@ internal sealed class ZoomActualCommand : ICommand
     public ZoomActualCommand(CommandContext ctx) => _ctx = ctx;
 
     public string Id => KnownCommands.ZoomActual;
-    public string DisplayName => "实际大小";
+    public string DisplayName => L10n.T("实际大小");
 
     public void Execute(object? parameter) => _ctx.CanvasVm.ZoomActual();
 }

@@ -4,6 +4,7 @@ using Dock.Model.Core;
 using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
 using Dock.Settings;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 
 namespace Osiris.App.ViewModels;
@@ -45,7 +46,7 @@ public sealed class WorkbenchDockFactory : Factory
         var canvas = new Document
         {
             Id = "osiris.canvas",
-            Title = "画布",
+            Title = L10n.T("画布"),
             CanClose = false,
             CanFloat = false,
             CanPin = false,
@@ -133,14 +134,27 @@ public sealed class WorkbenchDockFactory : Factory
     public void SetCanvasContext(object? content)
     {
         if (_dockables.TryGetValue("osiris.canvas", out var dockable) && dockable is Document doc)
+        {
             doc.Context = content;
+            // 语言切换后 Rebuild 刷新画布文档标题
+            doc.Title = L10n.T("画布");
+        }
     }
 
-    /// <summary>添加模块面板（工具窗口）到对应停靠区；重复 Id 忽略（面板生命周期归模块）。</summary>
+    /// <summary>
+    /// 添加模块面板（工具窗口）到对应停靠区。
+    /// 幂等设计：面板 Id 用**原文标题**（稳定标识，生命周期归模块）——语言切换后 Rebuild 传入翻译后的
+    /// 新标题时仅更新既有 Tool.Title（Dock 布局位置保留），不重复添加。
+    /// </summary>
     public void AddToolPanel(string id, string title, object? content, DockSide side)
     {
-        if (_dockables.ContainsKey(id))
-            return; // 面板由模块生命周期管理，重复注册忽略
+        if (_dockables.TryGetValue(id, out var existing))
+        {
+            // 面板已注册：仅刷新标题（语言切换场景），内容与布局保持
+            if (existing is Tool tool2)
+                tool2.Title = title;
+            return;
+        }
 
         var tool = new Tool
         {

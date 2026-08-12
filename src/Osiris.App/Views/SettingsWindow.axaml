@@ -4,7 +4,6 @@
         xmlns:set="using:Osiris.Abstractions.Settings"
         x:Class="Osiris.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="设置"
         Width="680" Height="480"
         WindowStartupLocation="CenterOwner">
 
@@ -37,7 +36,7 @@
     <DataTemplate DataType="set:ColorSettingItem" x:DataType="set:ColorSettingItem">
       <StackPanel Orientation="Horizontal" Spacing="8">
         <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Width="150" />
-        <Button Content="选择颜色 (AARRGGBB)..." Click="OnColorClick" Width="170" />
+        <Button Content="{x:Static vm:SettingsViewModel.BtnChooseColor}" Click="OnColorClick" Width="170" />
       </StackPanel>
     </DataTemplate>
     <DataTemplate DataType="set:FilePathSettingItem" x:DataType="set:FilePathSettingItem">

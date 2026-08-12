@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 
 namespace Fptm.Views;
@@ -40,18 +41,18 @@ public sealed class OperationWindowView : UserControl
     /// <summary>小节标题。</summary>
     private static TextBlock SectionLabel(string text) => new()
     {
-        Text = text,
+        Text = L10n.T(text),
         FontWeight = FontWeight.Bold,
         Foreground = Brushes.Gray,
         Margin = new Thickness(0, 4, 0, 0),
     };
 
-    /// <summary>工具切换按钮：设置当前工具并激活。</summary>
+    /// <summary>工具切换按钮：设置当前工具并激活（label 为翻译 key）。</summary>
     private static Button ToolButton(string label, string toolId)
     {
         var btn = new Button
         {
-            Content = label,
+            Content = L10n.T(label),
             Margin = new Thickness(0, 0, 6, 6),
             MinWidth = 72,
         };
@@ -63,12 +64,12 @@ public sealed class OperationWindowView : UserControl
         return btn;
     }
 
-    /// <summary>编辑操作按钮（复制/粘贴/撤销/重做 → 模块命令）。</summary>
+    /// <summary>编辑操作按钮（复制/粘贴/撤销/重做 → 模块命令；label 为中文翻译 key，switch 按原文分派）。</summary>
     private static Button EditButton(string label)
     {
         var btn = new Button
         {
-            Content = label,
+            Content = L10n.T(label),
             Margin = new Thickness(0, 0, 6, 6),
             MinWidth = 72,
         };

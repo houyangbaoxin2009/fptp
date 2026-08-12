@@ -1,5 +1,6 @@
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Progress;
 
 namespace Fptp.Plugins.Builtin;
@@ -26,7 +27,7 @@ public sealed class ReplaceBackgroundFilter : IFilterProcessor
     public string Id => "fptp.replaceBackground";
 
     /// <inheritdoc />
-    public string DisplayName => "换底色";
+    public string DisplayName => L10n.T("换底色");
 
     /// <inheritdoc />
     public FilterParameters Defaults => new()
@@ -41,14 +42,14 @@ public sealed class ReplaceBackgroundFilter : IFilterProcessor
         new()
         {
             Key = ParamColor,
-            Label = "目标颜色",
+            Label = L10n.T("目标颜色"),
             Kind = FilterParameterKind.Color,
             DefaultValue = DefaultColor,
         },
         new()
         {
             Key = ParamTolerance,
-            Label = "容差",
+            Label = L10n.T("容差"),
             Kind = FilterParameterKind.Int,
             Min = 0,
             Max = 200,
@@ -119,7 +120,7 @@ public sealed class ReplaceBackgroundFilter : IFilterProcessor
         }
 
         editor.MarkAllDirty();
-        progress?.Report(100, "换底色完成");
+        progress?.Report(100, L10n.T("换底色完成"));
         return editor.Commit();
     }
 

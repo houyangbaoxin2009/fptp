@@ -22,6 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 内置语言包：langs/*.json 随构建复制到输出目录（JsonLocalizationService 按 AppContext.BaseDirectory/langs 加载） -->
+    <None Include="langs\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Osiris.Core\Osiris.Core.csproj" />
     <ProjectReference Include="..\Osiris.CoreModule\Osiris.CoreModule.csproj" />
     <ProjectReference Include="..\Osiris.Engine.Skia\Osiris.Engine.Skia.csproj" />

@@ -4,9 +4,11 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Ui;
+using Osiris.Core.Localization;
 using Osiris.Core.Plugins;
 using Osiris.Core.Storage;
 using Osiris.CoreModule.Services;
@@ -43,6 +45,16 @@ public partial class App : Application
             var services = new ServiceRegistry();
             services.Register<IModuleRegistry>(registry);
             services.Register<IModuleUpdater>(updater);
+
+            // ---- 本地化：语言包服务（语言 id 为 BCP-47 小写形式，如 zh-cn / en-us）----
+            // 从注册表读取界面语言配置（osiris.core.language，默认 zh-cn），加载语言包并注入静态门面 L10n，
+            // 使模块/视图/命令任意处经 L10n.T("中文原文") 获取翻译；未命中返回原文，零破坏。
+            var localization = new JsonLocalizationService();
+            string language = registry.GetConfig("osiris.core", "language", "zh-cn") ?? "zh-cn";
+            localization.LoadLanguage(language);
+            services.Register<ILocalizationService>(localization);
+            L10n.SetService(localization);
+
             services.Register<Func<string, PixelSurface?>>(SkiaCodec.Decode);
             services.Register<Func<string, PixelSurface, bool>>(SaveByExtension);
             // 滤镜解析器（CoreModule batch 命令与 fptp.filters 滤镜窗口共用）：
@@ -96,6 +108,8 @@ public partial class App : Application
 
             // 6. 装配 UI：菜单/工具栏/面板/画布/状态栏
             viewModel.Rebuild(ui);
+            // 语言切换：重新装配工作台（命令 DisplayName / 菜单路径 / 面板标题经 L10n 惰性翻译，Rebuild 即刷新）
+            localization.LanguageChanged += (_, _) => Dispatcher.UIThread.Post(() => viewModel.Rebuild(ui));
             // 进度回调用 Dispatcher 回 UI 线程更新状态栏（模块可能在工作线程上报）
             host.Status.Changed += (percent, message) =>
                 Dispatcher.UIThread.Post(() => viewModel.StatusText = $"{message} ({percent:0}%)");
@@ -127,23 +141,24 @@ public partial class App : Application
 /// <summary>
 /// 壳级命令：lambda 包装（模块管理/设置等壳自身入口，非模块贡献）。
 /// 实现 Abstractions 命令契约，供工作台菜单绑定。
+/// DisplayName 惰性翻译：存中文原文（key），访问时经 L10n.T 取当前语言文本——语言切换后 Rebuild 即时刷新。
 /// </summary>
 internal sealed class ShellCommand : Osiris.Abstractions.Ui.ICommand
 {
     private readonly string _id;
-    private readonly string _displayName;
+    private readonly string _displayNameKey;
     private readonly Action _action;
 
-    public ShellCommand(string id, string displayName, Action action)
+    public ShellCommand(string id, string displayNameKey, Action action)
     {
         _id = id;
-        _displayName = displayName;
+        _displayNameKey = displayNameKey;
         _action = action;
     }
 
     public string Id => _id;
 
-    public string DisplayName => _displayName;
+    public string DisplayName => Osiris.Abstractions.Localization.L10n.T(_displayNameKey);
 
     public void Execute(object? parameter) => _action();
 }

@@ -1,5 +1,6 @@
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Progress;
 
 namespace Fptp.Plugins.Builtin;
@@ -27,7 +28,7 @@ public sealed class SmartCropFilter : IFilterProcessor
     public string Id => "fptp.smartCrop";
 
     /// <inheritdoc />
-    public string DisplayName => "智能裁切";
+    public string DisplayName => L10n.T("智能裁切");
 
     /// <inheritdoc />
     public FilterParameters Defaults => new()
@@ -42,7 +43,7 @@ public sealed class SmartCropFilter : IFilterProcessor
         new()
         {
             Key = ParamTopRatio,
-            Label = "上段比例(头顶留白)",
+            Label = L10n.T("上段比例(头顶留白)"),
             Kind = FilterParameterKind.Int,
             Min = 0,
             Max = 100,
@@ -51,7 +52,7 @@ public sealed class SmartCropFilter : IFilterProcessor
         new()
         {
             Key = ParamBottomRatio,
-            Label = "下段比例(肩部)",
+            Label = L10n.T("下段比例(肩部)"),
             Kind = FilterParameterKind.Int,
             Min = 0,
             Max = 100,
@@ -115,7 +116,7 @@ public sealed class SmartCropFilter : IFilterProcessor
         }
         editor.MarkAllDirty();
 
-        progress?.Report(100, $"智能裁切完成（{cropW}×{cropH}）");
+        progress?.Report(100, L10n.T("智能裁切完成（{0}×{1}）", cropW, cropH));
         return editor.Commit();
     }
 }

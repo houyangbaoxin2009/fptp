@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Algorithms;
 using Fptm.Editing;
 
@@ -42,26 +43,26 @@ public sealed class TraditionalPanelView : UserControl
         panel.Children.Add(FieldRow("输入(文件/目录,;分隔)", _inputBox));
         panel.Children.Add(FieldRow("输出目录", _outputBox));
         panel.Children.Add(FieldRow("滤镜链", _filterBox));
-        var run = new Button { Content = "开始批量", MinWidth = 90, HorizontalAlignment = HorizontalAlignment.Right };
+        var run = new Button { Content = L10n.T("开始批量"), MinWidth = 90, HorizontalAlignment = HorizontalAlignment.Right };
         run.Click += (_, _) => RunBatch();
         panel.Children.Add(run);
         panel.Children.Add(_batchStatus);
 
         // ---- 排版区 ----
         panel.Children.Add(SectionLabel("证件照排版"));
-        _paperBox.Items.Add("5寸");
-        _paperBox.Items.Add("6寸");
-        _paperBox.Items.Add("A4");
+        _paperBox.Items.Add(L10n.T("5寸"));
+        _paperBox.Items.Add(L10n.T("6寸"));
+        _paperBox.Items.Add(L10n.T("A4"));
         _paperBox.SelectedIndex = 0;
         var layoutRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        layoutRow.Children.Add(new TextBlock { Text = "相纸", VerticalAlignment = VerticalAlignment.Center });
+        layoutRow.Children.Add(new TextBlock { Text = L10n.T("相纸"), VerticalAlignment = VerticalAlignment.Center });
         layoutRow.Children.Add(_paperBox);
-        layoutRow.Children.Add(new TextBlock { Text = "列", VerticalAlignment = VerticalAlignment.Center });
+        layoutRow.Children.Add(new TextBlock { Text = L10n.T("列"), VerticalAlignment = VerticalAlignment.Center });
         layoutRow.Children.Add(_colsBox);
-        layoutRow.Children.Add(new TextBlock { Text = "行", VerticalAlignment = VerticalAlignment.Center });
+        layoutRow.Children.Add(new TextBlock { Text = L10n.T("行"), VerticalAlignment = VerticalAlignment.Center });
         layoutRow.Children.Add(_rowsBox);
         panel.Children.Add(layoutRow);
-        var generate = new Button { Content = "生成排版", MinWidth = 90, HorizontalAlignment = HorizontalAlignment.Right };
+        var generate = new Button { Content = L10n.T("生成排版"), MinWidth = 90, HorizontalAlignment = HorizontalAlignment.Right };
         generate.Click += (_, _) => GenerateLayout();
         panel.Children.Add(generate);
         panel.Children.Add(_layoutStatus);
@@ -71,7 +72,7 @@ public sealed class TraditionalPanelView : UserControl
 
     private static TextBlock SectionLabel(string text) => new()
     {
-        Text = text,
+        Text = L10n.T(text),
         FontWeight = FontWeight.Bold,
         Foreground = Brushes.Gray,
         Margin = new Thickness(0, 4, 0, 0),
@@ -80,7 +81,7 @@ public sealed class TraditionalPanelView : UserControl
     private static StackPanel FieldRow(string label, Control control)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        row.Children.Add(new TextBlock { Text = label, Width = 150, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = L10n.T(label), Width = 150, VerticalAlignment = VerticalAlignment.Center });
         row.Children.Add(control);
         return row;
     }
@@ -96,7 +97,7 @@ public sealed class TraditionalPanelView : UserControl
         Func<string, IFilterProcessor?>? resolve = host.Services.Get<Func<string, IFilterProcessor?>>();
         if (decode is null || encode is null)
         {
-            _batchStatus.Text = "宿主未提供编解码服务（需打开图片模块）。";
+            _batchStatus.Text = L10n.T("宿主未提供编解码服务（需打开图片模块）。");
             return;
         }
 
@@ -110,7 +111,7 @@ public sealed class TraditionalPanelView : UserControl
             else if (File.Exists(item))
                 files.Add(item);
         }
-        if (files.Count == 0) { _batchStatus.Text = "未找到输入图片。"; return; }
+        if (files.Count == 0) { _batchStatus.Text = L10n.T("未找到输入图片。"); return; }
 
         // 解析滤镜链（"id[:键=值[;键=值]]" 分号分隔）
         var steps = new List<(IFilterProcessor Filter, FilterParameters Parameters)>();
@@ -129,7 +130,7 @@ public sealed class TraditionalPanelView : UserControl
                 }
             }
             IFilterProcessor? filter = resolve?.Invoke(id);
-            if (filter is null) { _batchStatus.Text = $"未找到滤镜 '{id}'。"; return; }
+            if (filter is null) { _batchStatus.Text = L10n.T("未找到滤镜 '{0}'。", id); return; }
             steps.Add((filter, parameters));
         }
 
@@ -150,7 +151,7 @@ public sealed class TraditionalPanelView : UserControl
             }
             catch { fail++; }
         }
-        _batchStatus.Text = $"批量完成：成功 {ok}，失败 {fail}。输出目录：{outputDir}";
+        _batchStatus.Text = L10n.T("批量完成：成功 {0}，失败 {1}。输出目录：{2}", ok, fail, outputDir);
     }
 
     /// <summary>排版生成：当前文档首层按相纸网格排版 → 新文档（历史保留原图可撤销）。</summary>
@@ -162,15 +163,15 @@ public sealed class TraditionalPanelView : UserControl
         var doc = docs?.Document;
         if (host is null || docs is null || doc is null || doc.Layers.Count == 0)
         {
-            _layoutStatus.Text = "请先打开一张图片。";
+            _layoutStatus.Text = L10n.T("请先打开一张图片。");
             return;
         }
 
-        // 相纸尺寸（@300dpi）
+        // 相纸尺寸（@300dpi）：与下拉项一致地按翻译文本匹配（未命中回退 5 寸）
         (int paperW, int paperH) = _paperBox.SelectedItem?.ToString() switch
         {
-            "6寸" => (1800, 1200),
-            "A4" => (2480, 3508),
+            var s when s == L10n.T("6寸") => (1800, 1200),
+            var s when s == L10n.T("A4") => (2480, 3508),
             _ => (1500, 1050), // 5寸
         };
         int cols = Math.Max(1, (int)(_colsBox.Value ?? 2));
@@ -204,6 +205,6 @@ public sealed class TraditionalPanelView : UserControl
 
         // 生成新文档（原图保留在历史栈，可撤销回退）
         docs.OpenDocument(editor.Commit());
-        _layoutStatus.Text = $"已生成 {paperW}x{paperH} 相纸排版（{cols}x{rows}）。";
+        _layoutStatus.Text = L10n.T("已生成 {0}x{1} 相纸排版（{2}x{3}）。", paperW, paperH, cols, rows);
     }
 }

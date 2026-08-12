@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Filters;
 using Osiris.Abstractions.Plugins;
 
@@ -35,7 +36,7 @@ public sealed class FilterWindowView : UserControl
 
         // 右：参数 + 应用按钮
         var right = new DockPanel { Margin = new Thickness(8) };
-        var apply = new Button { Content = "应用", MinWidth = 80, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+        var apply = new Button { Content = L10n.T("应用"), MinWidth = 80, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
         apply.Click += (_, _) => ApplyFilter();
         DockPanel.SetDock(apply, Dock.Bottom);
         right.Children.Add(apply);
@@ -155,7 +156,7 @@ public sealed class FilterWindowView : UserControl
 
         // 无参数时提示
         if (_selected.Parameters.Count == 0)
-            _paramHost.Children.Add(new TextBlock { Text = "（该滤镜无参数）", Opacity = 0.6 });
+            _paramHost.Children.Add(new TextBlock { Text = L10n.T("（该滤镜无参数）"), Opacity = 0.6 });
     }
 
     /// <summary>应用选中滤镜到当前文档首层（经 IDocumentService.ApplyLayerChange，可撤销）。</summary>

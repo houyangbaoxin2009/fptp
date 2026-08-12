@@ -2,6 +2,7 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Settings;
 using Osiris.App.ViewModels;
 
@@ -23,6 +24,8 @@ public partial class SettingsWindow : Window
     public SettingsWindow(SettingsViewModel viewModel) : this()
     {
         DataContext = viewModel;
+        // 窗口标题（语言 key 即中文原文，未命中返回原文）
+        Title = L10n.T("设置");
         Opened += (_, _) => _loading = false;
     }
 
@@ -62,7 +65,7 @@ public partial class SettingsWindow : Window
         var input = new TextBox { Text = item.Value.ToString("X8"), Width = 140 };
         var dlg = new Window
         {
-            Title = "输入颜色（AARRGGBB，如 FF0000FF=蓝）",
+            Title = L10n.T("输入颜色（AARRGGBB，如 FF0000FF=蓝）"),
             Width = 300,
             Height = 130,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -70,7 +73,7 @@ public partial class SettingsWindow : Window
         };
         var panel = new StackPanel { Margin = new Thickness(16), Spacing = 12 };
         panel.Children.Add(input);
-        var ok = new Button { Content = "确定", Width = 80, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+        var ok = new Button { Content = L10n.T("确定"), Width = 80, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
         ok.Click += (_, _) => dlg.Close();
         panel.Children.Add(ok);
         dlg.Content = panel;

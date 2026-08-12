@@ -1,5 +1,6 @@
 using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 
 namespace Fptm.Tools;
@@ -145,7 +146,7 @@ public sealed class PencilTool : StrokeToolBase
     public override string Id => "pencil";
 
     /// <inheritdoc />
-    public override string DisplayName => "铅笔";
+    public override string DisplayName => L10n.T("铅笔");
 
     /// <inheritdoc />
     protected override uint Color => Editing.ToolState.Instance.GetColor(Id);
@@ -165,7 +166,7 @@ public sealed class PenTool : StrokeToolBase
     public override string Id => "pen";
 
     /// <inheritdoc />
-    public override string DisplayName => "钢笔";
+    public override string DisplayName => L10n.T("钢笔");
 
     /// <inheritdoc />
     protected override uint Color => Editing.ToolState.Instance.GetColor(Id);
@@ -191,7 +192,7 @@ public sealed class InkBrushTool : StrokeToolBase
     public override string Id => "inkBrush";
 
     /// <inheritdoc />
-    public override string DisplayName => "毛笔";
+    public override string DisplayName => L10n.T("毛笔");
 
     /// <inheritdoc />
     protected override uint Color => Editing.ToolState.Instance.GetColor(Id);
@@ -231,7 +232,7 @@ public sealed class BrushTool : StrokeToolBase
     public override string Id => "brush";
 
     /// <inheritdoc />
-    public override string DisplayName => "刷子";
+    public override string DisplayName => L10n.T("刷子");
 
     /// <inheritdoc />
     protected override uint Color => Editing.ToolState.Instance.GetColor(Id);

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Core.Plugins;
@@ -66,21 +67,56 @@ public sealed partial class ModuleManagerViewModel : ObservableObject
         SelectedModule = id is null ? null : _registry.Get(id);
     }
 
-    /// <summary>模块 Kind 徽标文本。</summary>
+    // ---- 翻译只读属性（XAML 静态中文文本改绑；key 即中文原文，未命中返回原文）----
+
+    /// <summary>底部操作栏"启用/禁用"按钮文字。</summary>
+    public string BtnEnableDisable => L10n.T("启用/禁用");
+
+    /// <summary>底部操作栏"卸载"按钮文字。</summary>
+    public string BtnUninstall => L10n.T("卸载");
+
+    /// <summary>底部操作栏"关闭"按钮文字。</summary>
+    public string BtnClose => L10n.T("关闭");
+
+    /// <summary>版本详情行（"版本：{0}"，参数即模块版本号）。</summary>
+    public string VersionText => SelectedModule is { } m ? L10n.T("版本：{0}", m.Version) : "";
+
+    /// <summary>类型详情行（"类型：{0}"，参数经 KindLabel 翻译）。</summary>
+    public string KindText => SelectedModule is { } m ? L10n.T("类型：{0}", KindLabel(m)) : "";
+
+    /// <summary>状态详情行（"状态：{0}"，参数经 StatusLabel 翻译）。</summary>
+    public string StatusText => SelectedModule is { } m ? L10n.T("状态：{0}", StatusLabel(m)) : "";
+
+    /// <summary>语言详情行（"语言：{0}"，参数即模块语言）。</summary>
+    public string LanguageText => SelectedModule is { } m ? L10n.T("语言：{0}", m.Language) : "";
+
+    /// <summary>底部权限提示文字。</summary>
+    public string HintText => L10n.T("提示：标准/更新模块受保护，不可禁用或卸载；扩展模块可自由管理。");
+
+    /// <summary>选中模块变化时刷新依赖其的详情行（仅当选中项实际存在才发通知）。</summary>
+    partial void OnSelectedModuleChanged(ModuleRecord? value)
+    {
+        OnPropertyChanged(nameof(VersionText));
+        OnPropertyChanged(nameof(KindText));
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(LanguageText));
+    }
+
+    /// <summary>模块 Kind 徽标文本（翻译）。</summary>
     public static string KindLabel(ModuleRecord r) => r.Kind switch
     {
-        ModuleKind.Standard => "标准",
-        ModuleKind.Extension => "扩展",
-        ModuleKind.Update => "更新",
+        ModuleKind.Standard => L10n.T("标准"),
+        ModuleKind.Extension => L10n.T("扩展"),
+        ModuleKind.Update => L10n.T("更新"),
         _ => r.Kind.ToString(),
     };
 
-    /// <summary>模块状态文本。</summary>
+    /// <summary>模块状态文本（翻译）。</summary>
     public static string StatusLabel(ModuleRecord r) => r.Status switch
     {
-        ModuleStatus.Enabled => "已启用",
-        ModuleStatus.Disabled => "已禁用",
-        ModuleStatus.Removed => "已卸载",
+        ModuleStatus.Enabled => L10n.T("已启用"),
+        ModuleStatus.Disabled => L10n.T("已禁用"),
+        ModuleStatus.Removed => L10n.T("已卸载"),
         _ => r.Status.ToString(),
     };
 }

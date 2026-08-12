@@ -1,5 +1,6 @@
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Progress;
 
 namespace Fptp.Plugins.Builtin;
@@ -23,7 +24,7 @@ public sealed class AnimeFilter : IFilterProcessor
     public string Id => "fptp.anime";
 
     /// <inheritdoc />
-    public string DisplayName => "动漫模式";
+    public string DisplayName => L10n.T("动漫模式");
 
     /// <inheritdoc />
     public FilterParameters Defaults => new()
@@ -38,7 +39,7 @@ public sealed class AnimeFilter : IFilterProcessor
         new()
         {
             Key = ParamLevels,
-            Label = "色彩层次",
+            Label = L10n.T("色彩层次"),
             Kind = FilterParameterKind.Int,
             Min = 2,
             Max = 16,
@@ -47,7 +48,7 @@ public sealed class AnimeFilter : IFilterProcessor
         new()
         {
             Key = ParamOutline,
-            Label = "描边强度",
+            Label = L10n.T("描边强度"),
             Kind = FilterParameterKind.Int,
             Min = 0,
             Max = 200,
@@ -119,7 +120,7 @@ public sealed class AnimeFilter : IFilterProcessor
         }
 
         editor.MarkAllDirty();
-        progress?.Report(100, "动漫模式完成");
+        progress?.Report(100, L10n.T("动漫模式完成"));
         return editor.Commit();
     }
 

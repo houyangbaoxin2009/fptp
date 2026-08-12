@@ -1,6 +1,7 @@
 using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 
 namespace Fptp.Plugins.Builtin;
@@ -32,7 +33,7 @@ internal sealed class FilterCommand : ICommand
     public string Id => _id;
 
     /// <inheritdoc />
-    public string DisplayName => _displayName;
+    public string DisplayName => L10n.T(_displayName);
 
     /// <inheritdoc />
     public void Execute(object? parameter)
@@ -44,12 +45,12 @@ internal sealed class FilterCommand : ICommand
         // 组装参数（设置项/模块配置/Default 三级回退），执行滤镜（COW：源像素面不变）
         var layer = doc.Layers[0];
         var parameters = _plugin.BuildParameters(_filter);
-        _host.Report.Report(0, $"正在执行：{_displayName}…");
+        _host.Report.Report(0, L10n.T("正在执行：{0}…", _displayName));
         var result = _filter.Apply(layer.Pixels, parameters, _host.Report, CancellationToken.None);
 
         // 以滤镜结果派生新图层替换文档首层（COW：其余属性不变，历史可经旧引用回退）
         doc.Layers[0] = layer.WithPixels(result).WithName(_displayName);
-        _host.Report.Report(100, $"{_displayName}完成");
+        _host.Report.Report(100, L10n.T("{0}完成", _displayName));
     }
 }
 
@@ -78,7 +79,7 @@ internal sealed class LayoutCommand : ICommand
     public string Id => _id;
 
     /// <inheritdoc />
-    public string DisplayName => _displayName;
+    public string DisplayName => L10n.T(_displayName);
 
     /// <inheritdoc />
     public void Execute(object? parameter)
@@ -92,14 +93,14 @@ internal sealed class LayoutCommand : ICommand
         PixelSurface? paper = LayoutComposer.Compose(doc.Layers[0].Pixels, paperName, out int columns, out int rows);
         if (paper is null)
         {
-            _host.Report.Report(0, $"未知相纸预设：{paperName}");
+            _host.Report.Report(0, L10n.T("未知相纸预设：{0}", paperName));
             return;
         }
 
         // 相纸结果作为单层替换当前文档内容（相纸尺寸即层像素面尺寸）
-        var newLayer = new Layer(paper) { Name = $"排版({paperName})" };
+        var newLayer = new Layer(paper) { Name = L10n.T("排版({0})", paperName) };
         doc.Layers.Clear();
         doc.Layers.Add(newLayer);
-        _host.Report.Report(100, $"排版完成：{paperName}，{columns}×{rows} 张");
+        _host.Report.Report(100, L10n.T("排版完成：{0}，{1}×{2} 张", paperName, columns, rows));
     }
 }

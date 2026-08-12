@@ -1,4 +1,6 @@
 using Osiris.Abstractions.Cli;
+using Osiris.Abstractions.Localization;
+using Osiris.Core.Localization;
 using Osiris.Core.Plugins;
 using Osiris.Core.Storage;
 using System.CommandLine;
@@ -40,6 +42,12 @@ internal static class Program
         var store = new JsonConfigStore();
         var registry = new ModuleRegistry(
             CliEnvironment.ModulesPath, CliEnvironment.SettingsPath, CliEnvironment.SecurePath, store);
+
+        // 1.5) 本地化：与 GUI 共享同一语言配置（osiris.core.language，默认 zh-cn），
+        //      加载语言包并注入 L10n 门面——CLI 帮助/错误文本与 GUI 同语言。
+        var localization = new JsonLocalizationService();
+        localization.LoadLanguage(registry.GetConfig("osiris.core", "language", "zh-cn") ?? "zh-cn");
+        L10n.SetService(localization);
 
         // 2) CLI 宿主上下文：预注册 IModuleRegistry / IModuleUpdater，控制台进度，Ui=null
         var context = new CliHostContext(registry);

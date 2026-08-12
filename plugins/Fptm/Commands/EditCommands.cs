@@ -1,5 +1,6 @@
 using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 
 namespace Fptm.Commands;
@@ -15,7 +16,7 @@ public sealed class CopyCommand : ICommand
     public string Id => "fptm.copy";
 
     /// <inheritdoc />
-    public string DisplayName => "复制";
+    public string DisplayName => L10n.T("复制");
 
     /// <inheritdoc />
     public void Execute(object? parameter)
@@ -55,7 +56,7 @@ public sealed class PasteCommand : ICommand
     public string Id => "fptm.paste";
 
     /// <inheritdoc />
-    public string DisplayName => "粘贴";
+    public string DisplayName => L10n.T("粘贴");
 
     /// <inheritdoc />
     public void Execute(object? parameter)
@@ -100,7 +101,7 @@ public sealed class UndoCommand : ICommand
     public string Id => "fptm.undo";
 
     /// <inheritdoc />
-    public string DisplayName => "撤销";
+    public string DisplayName => L10n.T("撤销");
 
     /// <inheritdoc />
     public void Execute(object? parameter) => _host.Services.Get<IDocumentService>()?.Undo();
@@ -117,7 +118,7 @@ public sealed class RedoCommand : ICommand
     public string Id => "fptm.redo";
 
     /// <inheritdoc />
-    public string DisplayName => "重做";
+    public string DisplayName => L10n.T("重做");
 
     /// <inheritdoc />
     public void Execute(object? parameter) => _host.Services.Get<IDocumentService>()?.Redo();
@@ -137,7 +138,7 @@ public sealed class PaletteSlotCommand : ICommand
     public string Id => $"fptm.palette{_index + 1}";
 
     /// <inheritdoc />
-    public string DisplayName => $"颜料槽 {_index + 1}";
+    public string DisplayName => L10n.T("颜料槽 {0}", _index + 1);
 
     /// <inheritdoc />
     public void Execute(object? parameter)
@@ -164,7 +165,7 @@ public sealed class PresetSlotCommand : ICommand
     public string Id => $"fptm.preset{_index + 1}";
 
     /// <inheritdoc />
-    public string DisplayName => $"预设 {_index + 1}";
+    public string DisplayName => L10n.T("预设 {0}", _index + 1);
 
     /// <inheritdoc />
     public void Execute(object? parameter) => Editing.ToolState.Instance.ApplyPreset(_index);

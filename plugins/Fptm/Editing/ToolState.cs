@@ -1,3 +1,4 @@
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 
 namespace Fptm.Editing;
@@ -89,7 +90,7 @@ public sealed class ToolState
     public void SavePreset(int index, string name)
     {
         if (index < 0 || index >= PresetCount) return;
-        _presetNames[index] = string.IsNullOrWhiteSpace(name) ? $"预设 {index + 1}" : name.Trim();
+        _presetNames[index] = string.IsNullOrWhiteSpace(name) ? L10n.T("预设 {0}", index + 1) : name.Trim();
         _presets[index] = BrushToolOrder.Select(GetColor).ToArray();
         PresetChanged?.Invoke();
     }
@@ -160,7 +161,7 @@ public sealed class ToolState
             string? raw = registry.GetConfig<string>("fptm", $"preset{i}", null);
             if (raw is null) continue;
             int bar = raw.IndexOf('|');
-            string name = bar > 0 ? raw[..bar] : $"预设 {i + 1}";
+            string name = bar > 0 ? raw[..bar] : L10n.T("预设 {0}", i + 1);
             string[] hexParts = (bar >= 0 ? raw[(bar + 1)..] : raw).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var colors = new uint[BrushToolOrder.Length];
             bool ok = true;

@@ -4,6 +4,7 @@ using Osiris.Abstractions;
 using Osiris.Abstractions.Cli;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Settings;
 using Osiris.Abstractions.Ui;
@@ -50,42 +51,45 @@ public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
     /// <summary>
     /// 设置组（ISettingProvider）："osiris.core" 核心设置示范五种设置类型
     /// （Bool / Number / Color / Choice / Text）。设置面板按组聚合渲染，编辑即 JSON 即时落盘。
+    /// Label/Description 经 L10n.T 惰性翻译（语言包 key 即中文原文）。
     /// </summary>
     public IReadOnlyList<SettingGroup> Groups { get; } =
     [
         new SettingGroup
         {
             Id = "osiris.core",
-            DisplayName = "核心",
+            DisplayName = L10n.T("核心"),
             Items =
             [
                 new BoolSettingItem(true)
                 {
                     GroupId = "osiris.core",
                     Key = "autoSave",
-                    Label = "自动保存",
-                    Description = "编辑后自动保存文档",
+                    Label = L10n.T("自动保存"),
+                    Description = L10n.T("编辑后自动保存文档"),
                 },
                 new NumberSettingItem(50, 5, 200, 1)
                 {
                     GroupId = "osiris.core",
                     Key = "maxUndo",
-                    Label = "撤销步数上限",
-                    Description = "历史栈深度上限（5~200，默认 50）",
+                    Label = L10n.T("撤销步数上限"),
+                    Description = L10n.T("历史栈深度上限（5~200，默认 50）"),
                 },
                 new ColorSettingItem(0xFFFFFFFF)
                 {
                     GroupId = "osiris.core",
                     Key = "canvasColor",
-                    Label = "画布背景色",
-                    Description = "画布空白区背景色（uint PackBgra，默认白色）",
+                    Label = L10n.T("画布背景色"),
+                    Description = L10n.T("画布空白区背景色（uint PackBgra，默认白色）"),
                 },
-                new ChoiceSettingItem(["中文", "English"], "中文")
+                new ChoiceSettingItem(
+                    L10n.AvailableLanguages.Select(l => l.Id).ToArray(),
+                    "zh-cn")
                 {
                     GroupId = "osiris.core",
                     Key = "language",
-                    Label = "界面语言",
-                    Description = "界面显示语言",
+                    Label = L10n.T("界面语言"),
+                    Description = L10n.T("界面显示语言（语言 id 为 BCP-47 小写形式，如 zh-cn）"),
                 },
             ],
         },
@@ -152,7 +156,7 @@ public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
         [
             new CliCommandDescriptor(
                 "batch",
-                "批量处理图片：--input 输入文件/目录 --out 输出目录 [--filter 滤镜步骤] [--overwrite]",
+                L10n.T("批量处理图片：--input 输入文件/目录 --out 输出目录 [--filter 滤镜步骤] [--overwrite]"),
                 BuildBatchOptions(),
                 BatchHandler),
         ];
@@ -161,10 +165,10 @@ public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
     /// <summary>构造 batch 子命令的选项描述（宿主据此生成 System.CommandLine Option）。</summary>
     private static IReadOnlyList<CliOptionDescriptor> BuildBatchOptions() =>
     [
-        new CliOptionDescriptor("--input", "-i", "输入：图片文件路径或目录（多个以分号分隔）", Required: true),
-        new CliOptionDescriptor("--out", "-o", "输出目录（不存在则创建）", Required: true),
-        new CliOptionDescriptor("--filter", "-f", "滤镜步骤，格式 \"滤镜Id[:键=值[;键=值]]\"，可重复（多次以分号拼接）"),
-        new CliOptionDescriptor("--overwrite", null, "覆盖已存在的输出文件", DefaultValue: "true"),
+        new CliOptionDescriptor("--input", "-i", L10n.T("输入：图片文件路径或目录（多个以分号分隔）"), Required: true),
+        new CliOptionDescriptor("--out", "-o", L10n.T("输出目录（不存在则创建）"), Required: true),
+        new CliOptionDescriptor("--filter", "-f", L10n.T("滤镜步骤，格式 \"滤镜Id[:键=值[;键=值]]\"，可重复（多次以分号拼接）")),
+        new CliOptionDescriptor("--overwrite", null, L10n.T("覆盖已存在的输出文件"), DefaultValue: "true"),
     ];
 
     /// <summary>

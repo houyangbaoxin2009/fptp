@@ -1,5 +1,6 @@
 using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 using Fptm.Editing;
 
@@ -17,7 +18,7 @@ public sealed class SelectRectTool : IEditorTool
     public string Id => "selectRect";
 
     /// <inheritdoc />
-    public string DisplayName => "选取";
+    public string DisplayName => L10n.T("选取");
 
     /// <inheritdoc />
     public string Name => DisplayName;
@@ -98,7 +99,7 @@ public sealed class LassoTool : IEditorTool
     public string Id => "lasso";
 
     /// <inheritdoc />
-    public string DisplayName => "套索";
+    public string DisplayName => L10n.T("套索");
 
     /// <inheritdoc />
     public string Name => DisplayName;
@@ -173,7 +174,7 @@ public sealed class MagicWandTool : IEditorTool
     public string Id => "magicWand";
 
     /// <inheritdoc />
-    public string DisplayName => "智能框选";
+    public string DisplayName => L10n.T("智能框选");
 
     /// <inheritdoc />
     public string Name => DisplayName;

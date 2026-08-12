@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Ui;
 using Fptm.Editing;
@@ -58,8 +59,8 @@ public sealed class BrushWindowView : UserControl
         panel.Children.Add(SectionLabel("颜色（每工具独立）"));
         // 滴管：取色到当前画笔工具（属于颜色操作，故置于颜色区）
         var eyedropperRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        eyedropperRow.Children.Add(new TextBlock { Text = "滴管", Width = 56, VerticalAlignment = VerticalAlignment.Center });
-        var eyedropperBtn = new Button { Content = "取色", MinWidth = 72 };
+        eyedropperRow.Children.Add(new TextBlock { Text = L10n.T("滴管"), Width = 56, VerticalAlignment = VerticalAlignment.Center });
+        var eyedropperBtn = new Button { Content = L10n.T("取色"), MinWidth = 72 };
         eyedropperBtn.Click += (_, _) =>
         {
             Editing.ToolState.Instance.CurrentToolId = "eyedropper";
@@ -109,9 +110,9 @@ public sealed class BrushWindowView : UserControl
 
         // 保存 / 加载颜料盘配置（注册表即时落盘）
         var saveRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var saveBtn = new Button { Content = "保存颜料盘", MinWidth = 90 };
+        var saveBtn = new Button { Content = L10n.T("保存颜料盘"), MinWidth = 90 };
         saveBtn.Click += (_, _) => SavePalette();
-        var loadBtn = new Button { Content = "加载颜料盘", MinWidth = 90 };
+        var loadBtn = new Button { Content = L10n.T("加载颜料盘"), MinWidth = 90 };
         loadBtn.Click += (_, _) => LoadPalette();
         saveRow.Children.Add(saveBtn);
         saveRow.Children.Add(loadBtn);
@@ -121,11 +122,11 @@ public sealed class BrushWindowView : UserControl
         panel.Children.Add(SectionLabel("预设栏（保存/加载全部画笔颜色，Ctrl+B+1~9）"));
         _presetBox = new ComboBox { Width = 150 };
         var presetRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var applyPreset = new Button { Content = "应用", MinWidth = 56 };
+        var applyPreset = new Button { Content = L10n.T("应用"), MinWidth = 56 };
         applyPreset.Click += (_, _) => ApplySelectedPreset();
-        var savePreset = new Button { Content = "保存", MinWidth = 56 };
+        var savePreset = new Button { Content = L10n.T("保存"), MinWidth = 56 };
         savePreset.Click += (_, _) => SaveSelectedPreset();
-        var deletePreset = new Button { Content = "删除", MinWidth = 56 };
+        var deletePreset = new Button { Content = L10n.T("删除"), MinWidth = 56 };
         deletePreset.Click += (_, _) => DeleteSelectedPreset();
         presetRow.Children.Add(_presetBox);
         presetRow.Children.Add(applyPreset);
@@ -147,7 +148,7 @@ public sealed class BrushWindowView : UserControl
     {
         _presetBox.Items.Clear();
         for (int i = 0; i < Editing.ToolState.PresetCount; i++)
-            _presetBox.Items.Add(Editing.ToolState.Instance.GetPresetName(i) ?? $"（空 {i + 1}）");
+            _presetBox.Items.Add(Editing.ToolState.Instance.GetPresetName(i) ?? L10n.T("（空 {0}）", i + 1));
         _presetBox.SelectedIndex = 0;
     }
 
@@ -165,7 +166,7 @@ public sealed class BrushWindowView : UserControl
         int index = _presetBox.SelectedIndex;
         if (index < 0) return;
         string? name = Editing.ToolState.Instance.GetPresetName(index);
-        string? input = PromptText("保存预设", $"预设名称（槽 {index + 1}）：", name ?? $"预设 {index + 1}");
+        string? input = PromptText(L10n.T("保存预设"), L10n.T("预设名称（槽 {0}）：", index + 1), name ?? L10n.T("预设 {0}", index + 1));
         if (input is null) return;
         Editing.ToolState.Instance.SavePreset(index, input);
         IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
@@ -202,13 +203,13 @@ public sealed class BrushWindowView : UserControl
         var panel = new StackPanel { Margin = new Thickness(14), Spacing = 10 };
         panel.Children.Add(new TextBlock { Text = label, FontSize = 11, Opacity = 0.7 });
         panel.Children.Add(input);
-        var ok = new Button { Content = "确定", Width = 80 };
+        var ok = new Button { Content = L10n.T("确定"), Width = 80 };
         ok.Click += (_, _) =>
         {
             result = input.Text ?? "";
             dlg.Close();
         };
-        var cancel = new Button { Content = "取消", Width = 80 };
+        var cancel = new Button { Content = L10n.T("取消"), Width = 80 };
         cancel.Click += (_, _) => dlg.Close();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(cancel);
@@ -221,7 +222,7 @@ public sealed class BrushWindowView : UserControl
 
     private static TextBlock SectionLabel(string text) => new()
     {
-        Text = text,
+        Text = L10n.T(text),
         FontWeight = FontWeight.Bold,
         Foreground = Brushes.Gray,
         Margin = new Thickness(0, 4, 0, 0),
@@ -230,7 +231,7 @@ public sealed class BrushWindowView : UserControl
     /// <summary>工具切换按钮：设置当前工具并激活。</summary>
     private static Button ToolButton(string label, string toolId)
     {
-        var btn = new Button { Content = label, Margin = new Thickness(0, 0, 6, 6), MinWidth = 64 };
+        var btn = new Button { Content = L10n.T(label), Margin = new Thickness(0, 0, 6, 6), MinWidth = 64 };
         btn.Click += (_, _) =>
         {
             Editing.ToolState.Instance.CurrentToolId = toolId;
@@ -243,7 +244,7 @@ public sealed class BrushWindowView : UserControl
     private StackPanel ColorRow(string label, string toolId)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        row.Children.Add(new TextBlock { Text = label, Width = 56, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = L10n.T(label), Width = 56, VerticalAlignment = VerticalAlignment.Center });
         var swatch = new Border
         {
             Width = 24,
@@ -263,7 +264,7 @@ public sealed class BrushWindowView : UserControl
     private StackPanel SizeRow(string label, string toolId, int min, int max)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        row.Children.Add(new TextBlock { Text = label, Width = 56, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(new TextBlock { Text = L10n.T(label), Width = 56, VerticalAlignment = VerticalAlignment.Center });
         var slider = new Slider { Minimum = min, Maximum = max, Width = 110, Value = Editing.ToolState.Instance.GetSize(toolId) };
         var valueLabel = new TextBlock { Width = 30, VerticalAlignment = VerticalAlignment.Center, Text = $"{(int)slider.Value}" };
         slider.ValueChanged += (_, e) =>
@@ -281,7 +282,7 @@ public sealed class BrushWindowView : UserControl
     private static void EditToolColor(string toolId)
     {
         uint current = Editing.ToolState.Instance.GetColor(toolId);
-        if (PromptHex($"设置「{ToolName(toolId)}」颜色（AARRGGBB）", current) is { } color)
+        if (PromptHex(L10n.T("设置「{0}」颜色（AARRGGBB）", ToolName(toolId)), current) is { } color)
         {
             Editing.ToolState.Instance.SetColor(toolId, color);
             IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
@@ -294,7 +295,7 @@ public sealed class BrushWindowView : UserControl
     private void EditSlotColor(int index)
     {
         uint current = Editing.ToolState.Instance.GetSlot(index);
-        if (PromptHex($"设置颜料槽 {index + 1}（AARRGGBB）", current) is { } color)
+        if (PromptHex(L10n.T("设置颜料槽 {0}（AARRGGBB）", index + 1), current) is { } color)
         {
             Editing.ToolState.Instance.SetSlot(index, color);
             SavePalette();
@@ -358,16 +359,16 @@ public sealed class BrushWindowView : UserControl
             CanResize = false,
         };
         var panel = new StackPanel { Margin = new Thickness(14), Spacing = 10 };
-        panel.Children.Add(new TextBlock { Text = "颜色值（AARRGGBB，如 FF0000FF=蓝）", FontSize = 11, Opacity = 0.7 });
+        panel.Children.Add(new TextBlock { Text = L10n.T("颜色值（AARRGGBB，如 FF0000FF=蓝）"), FontSize = 11, Opacity = 0.7 });
         panel.Children.Add(input);
-        var ok = new Button { Content = "确定", Width = 80 };
+        var ok = new Button { Content = L10n.T("确定"), Width = 80 };
         ok.Click += (_, _) =>
         {
             if (uint.TryParse(input.Text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint v))
                 result = v;
             dlg.Close();
         };
-        var cancel = new Button { Content = "取消", Width = 80 };
+        var cancel = new Button { Content = L10n.T("取消"), Width = 80 };
         cancel.Click += (_, _) => dlg.Close();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(cancel);
@@ -378,14 +379,14 @@ public sealed class BrushWindowView : UserControl
         return result;
     }
 
-    /// <summary>工具 Id → 中文名（提示用）。</summary>
+    /// <summary>工具 Id → 中文名（提示用，经 L10n 翻译）。</summary>
     private static string ToolName(string toolId) => toolId switch
     {
-        "pencil" => "铅笔",
-        "pen" => "钢笔",
-        "inkBrush" => "毛笔",
-        "brush" => "刷子",
-        "bucket" => "颜料桶",
+        "pencil" => L10n.T("铅笔"),
+        "pen" => L10n.T("钢笔"),
+        "inkBrush" => L10n.T("毛笔"),
+        "brush" => L10n.T("刷子"),
+        "bucket" => L10n.T("颜料桶"),
         _ => toolId,
     };
 

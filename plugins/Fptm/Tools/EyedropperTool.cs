@@ -1,5 +1,6 @@
 using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 using Fptm.Editing;
 
@@ -14,7 +15,7 @@ public sealed class EyedropperTool : IEditorTool
     public string Id => "eyedropper";
 
     /// <inheritdoc />
-    public string DisplayName => "滴管";
+    public string DisplayName => L10n.T("滴管");
 
     /// <inheritdoc />
     public string Name => DisplayName;

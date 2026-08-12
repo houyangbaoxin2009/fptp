@@ -1,4 +1,5 @@
 using Osiris.Abstractions;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Ui;
@@ -20,7 +21,7 @@ public sealed class FiltersModule : IModule
     public string Id => "fptp.filters";
 
     /// <inheritdoc />
-    public string Name => "滤镜模块";
+    public string Name => L10n.T("滤镜模块");
 
     /// <inheritdoc />
     public string Version => "1.0.0";

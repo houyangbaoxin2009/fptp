@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.App.ViewModels;
 
@@ -21,7 +22,7 @@ public partial class ModuleManagerView : UserControl
     {
         if (DataContext is not ModuleManagerViewModel vm || vm.SelectedModule is not { } m) return;
         if (m.Kind != ModuleKind.Extension) return;
-        if (await ShowConfirmAsync($"确定要卸载模块「{m.Name}」吗？卸载后需重新安装才能使用。"))
+        if (await ShowConfirmAsync(L10n.T("确定要卸载模块「{0}」吗？卸载后需重新安装才能使用。", m.Name)))
             vm.UninstallConfirmedCommand.Execute(null);
     }
 
@@ -42,7 +43,7 @@ public partial class ModuleManagerView : UserControl
         var owner = TopLevel.GetTopLevel(this) as Window;
         var dlg = new Window
         {
-            Title = "确认卸载",
+            Title = L10n.T("确认卸载"),
             Width = 400,
             Height = 150,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -57,8 +58,8 @@ public partial class ModuleManagerView : UserControl
             Spacing = 8,
             HorizontalAlignment = HorizontalAlignment.Right,
         };
-        var ok = new Button { Content = "确定卸载", Width = 90 };
-        var cancel = new Button { Content = "取消", Width = 80 };
+        var ok = new Button { Content = L10n.T("确定卸载"), Width = 90 };
+        var cancel = new Button { Content = L10n.T("取消"), Width = 80 };
         var tcs = new TaskCompletionSource<bool>();
         ok.Click += (_, _) => { tcs.TrySetResult(true); dlg.Close(); };
         cancel.Click += (_, _) => { tcs.TrySetResult(false); dlg.Close(); };

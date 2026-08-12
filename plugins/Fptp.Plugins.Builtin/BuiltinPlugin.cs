@@ -1,5 +1,6 @@
 using Osiris.Abstractions;
 using Osiris.Abstractions.Filters;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Settings;
@@ -49,8 +50,8 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
     {
         GroupId = ModuleId,
         Key = "replaceBgColor",
-        Label = "换底色",
-        Description = "换底色滤镜使用的目标背景颜色",
+        Label = L10n.T("换底色"),
+        Description = L10n.T("换底色滤镜使用的目标背景颜色"),
         Scope = SettingScope.User,
     };
 
@@ -58,8 +59,8 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
     {
         GroupId = ModuleId,
         Key = "replaceBgTolerance",
-        Label = "换底容差",
-        Description = "换底色滤镜的背景判定容差（越大替换范围越广）",
+        Label = L10n.T("换底容差"),
+        Description = L10n.T("换底色滤镜的背景判定容差（越大替换范围越广）"),
         Scope = SettingScope.User,
     };
 
@@ -67,8 +68,8 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
     {
         GroupId = ModuleId,
         Key = "animeLevels",
-        Label = "动漫色彩层次",
-        Description = "动漫模式每通道量化级数（越大色彩层次越丰富）",
+        Label = L10n.T("动漫色彩层次"),
+        Description = L10n.T("动漫模式每通道量化级数（越大色彩层次越丰富）"),
         Scope = SettingScope.User,
     };
 
@@ -76,8 +77,8 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
     {
         GroupId = ModuleId,
         Key = "animeOutline",
-        Label = "动漫描边强度",
-        Description = "动漫模式边缘描边强度（越大描边越少）",
+        Label = L10n.T("动漫描边强度"),
+        Description = L10n.T("动漫模式边缘描边强度（越大描边越少）"),
         Scope = SettingScope.User,
     };
 
@@ -85,8 +86,8 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
     {
         GroupId = ModuleId,
         Key = "layoutPaper",
-        Label = "排版相纸",
-        Description = "排版输出命令使用的相纸规格",
+        Label = L10n.T("排版相纸"),
+        Description = L10n.T("排版输出命令使用的相纸规格"),
         Scope = SettingScope.User,
     };
 
@@ -100,7 +101,7 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
     public string Id => ModuleId;
 
     /// <inheritdoc />
-    public string Name => ModuleName;
+    public string Name => L10n.T(ModuleName);
 
     /// <inheritdoc />
     public string Version => ModuleVersion;
@@ -129,7 +130,7 @@ public sealed class BuiltinPlugin : IFilterPlugin, ISettingProvider
         new SettingGroup
         {
             Id = ModuleId,
-            DisplayName = "证件照",
+            DisplayName = L10n.T("证件照"),
             Items =
             [
                 _replaceBgColor,

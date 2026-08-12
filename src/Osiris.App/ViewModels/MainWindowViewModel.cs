@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Ui;
@@ -76,13 +77,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         _services = services;
         DockFactory = new WorkbenchDockFactory();
         _ = DockFactory.Layout; // 强制创建布局（CreateLayout + InitLayout，供 DockControl 绑定）
+        StatusText = L10n.T("就绪"); // 初始翻译（语言服务已由壳注入 L10n）
     }
 
     /// <summary>打开模块管理工具窗口（Dock 停靠，可拖拽/浮动；重复打开激活既有窗口；视图工厂防双父级）。</summary>
     [RelayCommand]
     private void OpenModuleManager()
     {
-        DockFactory.ShowToolWindow("moduleManager", "模块管理",
+        DockFactory.ShowToolWindow("moduleManager", L10n.T("模块管理"),
             () => new ModuleManagerView { DataContext = new ModuleManagerViewModel(Registry, _services) });
     }
 
@@ -96,8 +98,10 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (Registry is not { } registry) return;
         var owner = Avalonia.Application.Current?.ApplicationLifetime
             is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime cdt ? cdt.MainWindow : null;
+        // 传入共享语言服务：语言设置保存时切换语言包（LanguageChanged → 壳 Rebuild 即时刷新）
+        var localization = _services.Get<Osiris.Abstractions.Localization.ILocalizationService>();
         // Avalonia 12：Owner setter 受保护，经 Show(owner) 重载设置 Owner 并显示（CenterOwner 定位）
-        var dlg = new SettingsWindow(new SettingsViewModel(registry));
+        var dlg = new SettingsWindow(new SettingsViewModel(registry, localization));
         if (owner is not null)
             dlg.Show(owner);
         else
@@ -107,7 +111,9 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>关闭壳级工具窗口（模块管理"关闭"按钮等经此从停靠布局移除）。</summary>
     public void CloseToolWindow(string id) => DockFactory.CloseToolWindow(id);
 
-    /// <summary>从模块贡献装配工作台（模块全部加载后由壳调用一次；AppUiService 为程序集内部类型，本方法同程序集可见即可）。</summary>
+    /// <summary>从模块贡献装配工作台（模块全部加载后由壳调用；语言切换后再次调用以刷新文本）。
+    /// 面板停靠 Id 用**原文标题**作稳定标识（生命周期归模块，切换语言不重建布局），
+    /// 菜单/工具栏/面板显示标题全部经 L10n 翻译（命令 DisplayName 惰性翻译，Rebuild 即取当前语言）。</summary>
     internal void Rebuild(AppUiService ui)
     {
         Commands = new Dictionary<string, ICommand>(ui.Commands);
@@ -122,18 +128,19 @@ public sealed partial class MainWindowViewModel : ObservableObject
         LeftPanels = ui.Panels.Where(p => p.Side == DockSide.Left).Select(ToHost).ToList();
         BottomPanels = ui.Panels.Where(p => p.Side == DockSide.Bottom).Select(ToHost).ToList();
         if (ui.StatusItems.Count > 0)
-            StatusText = string.Join("  |  ", ui.StatusItems.OrderBy(s => s.Order).Select(s => s.Text));
+            StatusText = string.Join("  |  ", ui.StatusItems.OrderBy(s => s.Order).Select(s => L10n.T(s.Text)));
 
         // 停靠工作台：画布注入中央文档，模块面板注入对应停靠区
         CanvasViewModel = ui.Canvas as CanvasDocumentViewModel;
         DockFactory.SetCanvasContext(ui.Canvas);
         foreach (var p in ui.Panels)
-            DockFactory.AddToolPanel($"panel.{p.Title}", p.Title, p.Content, p.Side);
+            DockFactory.AddToolPanel($"panel.{p.Title}", L10n.T(p.Title), p.Content, p.Side);
     }
 
-    private static PanelHostViewModel ToHost(PanelContribution p) => new(p.Title, p.Content, p.Side);
+    private static PanelHostViewModel ToHost(PanelContribution p) => new(L10n.T(p.Title), p.Content, p.Side);
 
-    /// <summary>把 "文件/打开" 形式的路径贡献构建为菜单树（按 "/" 分层，叶子挂命令）。</summary>
+    /// <summary>把 "文件/打开" 形式的路径贡献构建为菜单树（按 "/" 分层，叶子挂命令）。
+    /// 路径段即翻译 key：每个段经 L10n.T 取当前语言文本（语言包 key 即中文原文）。</summary>
     private static List<MenuNodeViewModel> BuildMenuTree(
         IEnumerable<MenuContribution> menus,
         IReadOnlyDictionary<string, ICommand> commands)
@@ -148,7 +155,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 .Select(m => new MenuContribution(string.Join("/", Segments(m.Path).Skip(1)), m.CommandId, m.Order));
             var children = BuildMenuTree(subMenus, commands);
             ICommand? cmd = leaf is not null && commands.TryGetValue(leaf.CommandId, out var c) ? c : null;
-            result.Add(new MenuNodeViewModel(head, cmd, children, false));
+            result.Add(new MenuNodeViewModel(L10n.T(head), cmd, children, false));
         }
         return result;
     }
