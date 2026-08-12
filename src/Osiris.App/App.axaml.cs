@@ -61,9 +61,12 @@ public partial class App : Application
             var services = new ServiceRegistry();
             services.Register<IModuleRegistry>(registry);
             services.Register<IModuleUpdater>(updater);
-            // 模块签名校验（安全骨架）：默认放行所有模块——未来在此接入 Authenticode 数字签名校验
-            // 或白名单机制（拒绝则 ModuleLoader 不加载对应模块，见 IModuleSignatureValidator）。
-            services.Register<IModuleSignatureValidator>(new DefaultModuleSignatureValidator());
+            // 模块签名校验（哈希白名单防篡改）：内置名单 trusted-modules.json（随产品分发，构建后生成）
+            // ∪ 用户名单（%APPDATA%/Fptp/trusted-modules.json，外部模块确认加载后写入）。
+            // 无内置名单（开发模式）降级放行；外部模块哈希未信任 → 拒绝加载。
+            var trustStore = new ModuleTrustStore();
+            services.Register<IModuleSignatureValidator>(new TrustedModuleSignatureValidator(trustStore));
+            services.Register<ModuleTrustStore>(trustStore);
 
             // ---- 本地化：语言包服务（语言 id 为 BCP-47 小写形式，如 zh-cn / en-us）----
             // 从注册表读取界面语言配置（osiris.core.language，默认 zh-cn），加载语言包并注入静态门面 L10n，
@@ -174,8 +177,9 @@ public partial class App : Application
             StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 外部模块加载：弹确认框（列出模块清单）→ 用户确认后后台加载 → 回 UI 线程重装配。
-    /// 用户拒绝 → 跳过该目录全部模块。设计：外部来源模块可能是恶意代码，加载前必须知情确认。
+    /// 外部模块加载：弹确认框（列出模块清单）→ 用户确认后把模块哈希写入信任名单 →
+    /// 后台加载 → 回 UI 线程重装配。用户拒绝 → 跳过该目录全部模块。
+    /// 设计：外部来源模块可能是恶意代码，加载前必须知情确认；确认后信任名单持久化，下次启动自动通过。
     /// </summary>
     private static async Task LoadExternalModulesAsync(
         string dir, ModuleRegistry registry, IHostContext host, Window owner, Action refresh)
@@ -188,6 +192,19 @@ public partial class App : Application
         bool approved = await ConfirmExternalModulesAsync(owner, modules);
         if (!approved)
             return;
+
+        // 确认加载 → 记录信任（主 DLL 哈希写入用户信任名单，后续启动自动通过校验）
+        var trustStore = host.Services.Get<ModuleTrustStore>();
+        if (trustStore is not null)
+        {
+            foreach ((string id, _) in modules)
+            {
+                string? entry = ModuleLoader.ReadEntryPoint(dir);
+                string? hash = entry is null ? null : Osiris.Core.Security.HashUtil.Sha256File(Path.Combine(dir, entry));
+                if (hash is not null)
+                    trustStore.Trust(id, hash);
+            }
+        }
 
         // 后台加载（模块 Initialize 可能耗时；UI 线程不阻塞）
         await Task.Run(() => ModuleLoader.LoadFromDirectory(dir, registry, host,
@@ -346,17 +363,6 @@ internal sealed class ShellCommand : Osiris.Abstractions.Ui.ICommand
     public string DisplayName => Osiris.Abstractions.Localization.L10n.T(_displayNameKey);
 
     public void Execute(object? parameter) => _action();
-}
-
-/// <summary>
-/// 默认模块签名校验器（安全骨架）：放行所有模块。
-/// 未来接入真实校验时替换此实现（Authenticode 数字签名 / 白名单 / 哈希校验）：
-/// 返回 false 的模块将被 ModuleLoader 拒绝加载（见 LoadManifest 校验点）。
-/// </summary>
-internal sealed class DefaultModuleSignatureValidator : Osiris.Abstractions.Modules.IModuleSignatureValidator
-{
-    /// <inheritdoc />
-    public bool IsTrusted(string moduleId, string moduleDirectory, string? signature) => true;
 }
 
 

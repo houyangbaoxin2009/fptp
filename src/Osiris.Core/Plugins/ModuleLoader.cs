@@ -216,6 +216,25 @@ public static class ModuleLoader
     // ---- 辅助 ----
 
     /// <summary>
+    /// 读取模块目录 module.json 的 entryPoint（主 DLL 文件名）；无清单/缺字段返回 null。
+    /// 供签名校验器定位模块主 DLL（与 LoadManifest 同源解析）。
+    /// </summary>
+    public static string? ReadEntryPoint(string moduleDir)
+    {
+        string manifestPath = Path.Combine(moduleDir, ManifestFileName);
+        if (!File.Exists(manifestPath))
+            return null;
+        try
+        {
+            return ParseManifest(manifestPath).EntryPoint;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// 枚举目录下模块清单（id/name，不含加载）：供外部模块确认框展示来源。
     /// 无清单时尝试反射识别 DLL 的 IModule 元数据（与 LoadFromDirectory 同源发现逻辑）。
     /// </summary>

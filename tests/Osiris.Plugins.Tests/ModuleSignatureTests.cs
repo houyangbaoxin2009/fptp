@@ -10,7 +10,7 @@ namespace Osiris.Plugins.Tests;
 /// （ModuleLoader.LoadManifest 校验点拦截，onError 上报拒绝原因）。
 /// </summary>
 [Collection("Plugins")]
-public class ModuleSignatureTests
+public class ModuleSignatureTests : IDisposable
 {
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), "fptp-sig-tests", Guid.NewGuid().ToString("N"));
 

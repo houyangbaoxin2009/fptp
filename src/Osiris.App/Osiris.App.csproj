@@ -64,4 +64,21 @@
     <Copy SourceFiles="@(PluginFiles)" DestinationFiles="@(PluginFiles->'$(OutDir)plugins\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 
+  <!--
+    内置模块信任名单（防篡改）：构建后扫描输出目录 plugins/ 下各模块的 module.json，
+    计算主 DLL（entryPoint）的 SHA-256，生成 trusted-modules.json 到输出目录。
+    运行时 TrustedModuleSignatureValidator 校验模块哈希 ∈ 该名单（官方模块防替换）。
+    无名单文件（未构建/开发）→ 校验降级放行，不锁死开发。
+  -->
+  <Target Name="GenerateTrustedModules" AfterTargets="CopyPluginsToOutput">
+    <PropertyGroup>
+      <TrustScript>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\scripts\generate-trusted-modules.ps1'))</TrustScript>
+      <TrustRoot>$([System.IO.Path]::GetFullPath('$(OutDir)plugins'))</TrustRoot>
+      <TrustOut>$([System.IO.Path]::GetFullPath('$(OutDir)trusted-modules.json'))</TrustOut>
+      <!-- PowerShell 7（项目/构建环境统一用 pwsh；5.1 在 MSBuild Exec 下偶发模块 PATH 异常） -->
+      <TrustHost>pwsh</TrustHost>
+    </PropertyGroup>
+    <Exec Command="&quot;$(TrustHost)&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;$(TrustScript)&quot; -ModuleRoot &quot;$(TrustRoot)&quot; -Output &quot;$(TrustOut)&quot;" />
+  </Target>
+
 </Project>
