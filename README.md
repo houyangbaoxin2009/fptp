@@ -55,6 +55,11 @@ dotnet run --project src/Osiris.Cli -- --help
 
 模块可贡献：滤镜（`IFilterPlugin`）、交互工具（`IEditorTool`）、UI（`IUiService` 菜单/工具栏/面板/画布）、设置组（`ISettingProvider`）、CLI 子命令（`ICliCommandProvider`）。
 
+**语言包（i18n）**：UI 文本用 `L10n.T("中文原文")` 包一层（未命中返回原文，增量翻译零破坏）。
+翻译条目放模块目录 `langs/{语言id}.json`（如 `langs/en-us.json`），随模块分发——宿主加载模块后自动注册，
+卸载/移除模块时其翻译一并消失。合并优先级：内置语言包 < 模块语言包 < 用户自定义（`%APPDATA%/Fptp/langs/`）。
+语言 id 用 BCP-47 小写形式（zh-cn / en-us）；语言选择在 设置 → 核心 → 界面语言，切换即时生效。
+
 详见 `docs/2.1-architecture.md`。
 
 ## 技术栈

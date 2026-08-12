@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Osiris.Abstractions;
+using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Settings;
@@ -96,7 +97,10 @@ public static class ModuleLoader
             return false;
         }
 
-        return LoadNative(dllPath, registry, context, onError) > 0;
+        bool loadedOk = LoadNative(dllPath, registry, context, onError) > 0;
+        if (loadedOk)
+            RegisterModuleLanguagePack(moduleDir); // 模块加载成功：注册其自带语言包（模块目录/langs）
+        return loadedOk;
     }
 
     /// <summary>
@@ -187,6 +191,7 @@ public static class ModuleLoader
                     registry.RegisterInstance(module);         // 登记实例（宿主收集 IToolPlugin/IFilterPlugin 能力）
                     if (module is ISettingProvider provider)
                         registry.RegisterSettingProvider(provider);
+                    RegisterModuleLanguagePack(directory);     // 模块加载成功：注册其自带语言包（模块目录/langs）
                     loaded++;
                 }
             }
@@ -199,6 +204,14 @@ public static class ModuleLoader
     }
 
     // ---- 辅助 ----
+
+    /// <summary>
+    /// 注册模块自带语言包（模块目录下 langs/）：条目合并进全局语言表，
+    /// 随模块分发——卸载/移除模块后其翻译条目一并消失。经 L10n 静态门面转发，
+    /// 未注入语言服务（CLI 早期/测试）时静默忽略，模块文本保持原文。
+    /// </summary>
+    private static void RegisterModuleLanguagePack(string moduleDir)
+        => L10n.RegisterLanguagePack(Path.Combine(moduleDir, "langs"));
 
     /// <summary>收集清单文件：目录根 + 一级子目录。</summary>
     private static List<(string ModuleDir, string ManifestPath)> FindManifests(string directory)

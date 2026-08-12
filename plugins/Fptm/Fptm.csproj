@@ -28,6 +28,8 @@
 
   <ItemGroup>
     <None Include="module.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 模块自带语言包：随模块分发（宿主加载模块后自动注册，合并进全局语言表） -->
+    <None Include="langs\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

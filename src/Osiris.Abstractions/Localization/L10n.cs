@@ -21,6 +21,12 @@ public static class L10n
     /// </summary>
     public static void SetService(ILocalizationService? service) => _service = service;
 
+    /// <summary>
+    /// 注册模块语言包目录（模块加载成功后由宿主调用；插件零代码接入）。
+    /// 未注入服务时静默忽略（语言包机制未启用，模块文本保持原文）。
+    /// </summary>
+    public static void RegisterLanguagePack(string langDirectory) => _service?.RegisterLanguagePack(langDirectory);
+
     /// <summary>翻译 key（未命中返回原文）。</summary>
     public static string T(string key) => _service?.Translate(key) ?? key;
 
