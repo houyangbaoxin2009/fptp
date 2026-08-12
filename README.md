@@ -61,6 +61,8 @@ dotnet run --project src/Osiris.Cli -- --help
 语言 id 用 BCP-47 小写形式（zh-cn / en-us）；语言选择在 设置 → 核心 → 界面语言，切换即时生效。
 
 详见 `docs/2.1-architecture.md`。
+模块开发实操（目录结构 / csproj 约定 / ABI 红线 / 本地化 / 常见陷阱）见
+**[docs/module-development-guide.md](docs/module-development-guide.md)**。
 
 ## 技术栈
 

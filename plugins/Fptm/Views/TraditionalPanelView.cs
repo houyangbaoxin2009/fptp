@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Osiris.Abstractions.Document;
@@ -50,9 +51,13 @@ public sealed class TraditionalPanelView : UserControl
 
         // ---- 排版区 ----
         panel.Children.Add(SectionLabel("证件照排版"));
-        _paperBox.Items.Add(L10n.T("5寸"));
-        _paperBox.Items.Add(L10n.T("6寸"));
-        _paperBox.Items.Add(L10n.T("A4"));
+        // 下拉项存**稳定 key**（"5寸"/"6寸"/"A4"），ItemTemplate 按当前语言翻译显示；
+        // 匹配走 key（GenerateLayout 按 key 取尺寸）——语言切换后即使面板内容不重建，
+        // 逻辑也始终正确（不会因翻译文本变化而静默回退默认 5 寸）。
+        _paperBox.ItemTemplate = new FuncDataTemplate<string>((key, _) => new TextBlock { Text = L10n.T(key) });
+        _paperBox.Items.Add("5寸");
+        _paperBox.Items.Add("6寸");
+        _paperBox.Items.Add("A4");
         _paperBox.SelectedIndex = 0;
         var layoutRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         layoutRow.Children.Add(new TextBlock { Text = L10n.T("相纸"), VerticalAlignment = VerticalAlignment.Center });
@@ -167,11 +172,12 @@ public sealed class TraditionalPanelView : UserControl
             return;
         }
 
-        // 相纸尺寸（@300dpi）：与下拉项一致地按翻译文本匹配（未命中回退 5 寸）
+        // 相纸尺寸（@300dpi）：下拉项为稳定 key（"5寸"/"6寸"/"A4"），按 key 匹配（未命中回退 5 寸）。
+        // 注意：不可按 L10n.T 翻译文本匹配——语言切换后已打开面板的下拉项仍是旧语言文本，会静默回退。
         (int paperW, int paperH) = _paperBox.SelectedItem?.ToString() switch
         {
-            var s when s == L10n.T("6寸") => (1800, 1200),
-            var s when s == L10n.T("A4") => (2480, 3508),
+            "6寸" => (1800, 1200),
+            "A4" => (2480, 3508),
             _ => (1500, 1050), // 5寸
         };
         int cols = Math.Max(1, (int)(_colsBox.Value ?? 2));

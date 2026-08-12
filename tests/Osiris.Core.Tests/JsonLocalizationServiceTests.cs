@@ -176,4 +176,46 @@ public class JsonLocalizationServiceTests
         }
         finally { Directory.Delete(root, true); }
     }
+
+    [Fact]
+    public void LoadLanguage_损坏语言包跳过不崩溃()
+    {
+        string root = Path.Combine(TempRoot, Path.GetRandomFileName());
+        Directory.CreateDirectory(Path.Combine(root, "langs"));
+        try
+        {
+            // 内置 zh-cn 正常；en-us 语言包是非法 JSON
+            File.WriteAllText(Path.Combine(root, "langs", "zh-cn.json"), "{\"$name\":\"简体中文\"}");
+            File.WriteAllText(Path.Combine(root, "langs", "en-us.json"), "{ 这不是合法JSON!!! ");
+
+            var svc = new JsonLocalizationService([Path.Combine(root, "langs")]);
+            svc.LoadLanguage("en-us"); // 不应抛异常
+
+            Assert.Equal("en-us", svc.CurrentLanguage);
+            Assert.Equal("保存", svc.Translate("保存")); // 损坏包无条目 → 返回原文
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Translate_翻译文本含非法格式占位符不崩溃()
+    {
+        string root = Path.Combine(TempRoot, Path.GetRandomFileName());
+        Directory.CreateDirectory(Path.Combine(root, "langs"));
+        try
+        {
+            // 翻译文本含孤立 '{'（不完整占位符）——string.Format 会抛 FormatException，服务应回退
+            File.WriteAllText(Path.Combine(root, "langs", "en-us.json"),
+                "{\"$name\":\"English\",\"进度 {0}%\":\"Progress {0}% { bad\",\"简单键\":\"simple\"}");
+
+            var svc = new JsonLocalizationService([Path.Combine(root, "langs")]);
+            svc.LoadLanguage("en-us");
+
+            // 非法格式：不崩溃，回退翻译原文（未格式化）
+            Assert.Equal("Progress {0}% { bad", svc.Translate("进度 {0}%", 42));
+            // 正常键无参翻译不受影响
+            Assert.Equal("simple", svc.Translate("简单键"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
 }

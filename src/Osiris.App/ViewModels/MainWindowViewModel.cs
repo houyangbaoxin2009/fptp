@@ -129,6 +129,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
         BottomPanels = ui.Panels.Where(p => p.Side == DockSide.Bottom).Select(ToHost).ToList();
         if (ui.StatusItems.Count > 0)
             StatusText = string.Join("  |  ", ui.StatusItems.OrderBy(s => s.Order).Select(s => L10n.T(s.Text)));
+        else
+            StatusText = L10n.T("就绪"); // 无状态项时保持"就绪"（语言切换 Rebuild 时重新翻译）
 
         // 停靠工作台：画布注入中央文档，模块面板注入对应停靠区
         CanvasViewModel = ui.Canvas as CanvasDocumentViewModel;

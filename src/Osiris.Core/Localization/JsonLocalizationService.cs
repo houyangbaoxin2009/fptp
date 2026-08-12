@@ -87,6 +87,23 @@ public sealed class JsonLocalizationService : ILocalizationService
 
         // 规范化：小写（BCP-47 id 约定小写，如 zh-cn）
         string id = languageId.ToLowerInvariant();
+
+        // 语言包文件不存在（旧版配置值如 "中文"/"English"、拼写错误）→ 回退 zh-cn，
+        // 避免 _current 指向无效 id（设置下拉无匹配项显示空白）。
+        if (!AllDirectories().Any(dir => File.Exists(Path.Combine(dir, $"{id}.json"))))
+        {
+            // 回退默认中文：若连 zh-cn 包都不存在（异常部署），置空表（全部返回原文=中文）。
+            if (id == "zh-cn")
+            {
+                _entries.Clear();
+                _current = "zh-cn";
+                return false;
+            }
+            _current = "zh-cn";
+            LoadLanguage("zh-cn");
+            return false;
+        }
+
         var entries = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // 按优先级合并：内置 → 模块 → 用户（后者覆盖前者）
@@ -96,18 +113,25 @@ public sealed class JsonLocalizationService : ILocalizationService
             if (!File.Exists(path))
                 continue;
 
-            using var stream = File.OpenRead(path);
-            var doc = JsonDocument.Parse(stream, new JsonDocumentOptions
+            try
             {
-                AllowTrailingCommas = true,
-                CommentHandling = JsonCommentHandling.Skip,
-            });
-            foreach (JsonProperty prop in doc.RootElement.EnumerateObject())
+                using var stream = File.OpenRead(path);
+                var doc = JsonDocument.Parse(stream, new JsonDocumentOptions
+                {
+                    AllowTrailingCommas = true,
+                    CommentHandling = JsonCommentHandling.Skip,
+                });
+                foreach (JsonProperty prop in doc.RootElement.EnumerateObject())
+                {
+                    if (prop.Name == "$name")
+                        continue; // 元数据，不入翻译表
+                    if (prop.Value.ValueKind == JsonValueKind.String)
+                        entries[prop.Name] = prop.Value.GetString() ?? prop.Name;
+                }
+            }
+            catch (JsonException)
             {
-                if (prop.Name == "$name")
-                    continue; // 元数据，不入翻译表
-                if (prop.Value.ValueKind == JsonValueKind.String)
-                    entries[prop.Name] = prop.Value.GetString() ?? prop.Name;
+                // 语言包损坏（非法 JSON）：跳过该文件，其余目录/条目不受影响（未命中返回原文）
             }
         }
 
@@ -123,7 +147,17 @@ public sealed class JsonLocalizationService : ILocalizationService
     public string Translate(string key, params object?[] args)
     {
         string text = _entries.TryGetValue(key, out string? value) ? value : key;
-        return args is { Length: > 0 } ? string.Format(text, args) : text;
+        if (args is not { Length: > 0 })
+            return text;
+        try
+        {
+            return string.Format(text, args);
+        }
+        catch (FormatException)
+        {
+            // 翻译文本含非法格式占位符（如孤立 '{'）→ 回退未格式化文本，绝不崩溃
+            return text;
+        }
     }
 
     /// <summary>全部语言包目录（内置 → 模块 → 用户，LoadLanguage 合并顺序即此）。</summary>

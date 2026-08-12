@@ -146,13 +146,23 @@ public sealed class ModuleRegistry : IModuleRegistry
         {
             // 1) 用户配置（settings.json，User/Core 级别）
             if (_configs.TryGetValue(moduleId, out Dictionary<string, object>? userCfg)
-                && userCfg.TryGetValue(key, out object? userValue) && userValue is T typedUser)
-                return typedUser;
+                && userCfg.TryGetValue(key, out object? userValue))
+            {
+                if (userValue is T typedUser)
+                    return typedUser;
+                if (TryConvert(userValue, out T? converted))
+                    return converted; // 存储为规范化标量（如 Color uint → double）时按目标类型转换读取
+            }
 
             // 2) 安全配置（secure.json，Security 级别——可读不可写）
             if (_secure.TryGetValue(moduleId, out Dictionary<string, object>? secCfg)
-                && secCfg.TryGetValue(key, out object? secValue) && secValue is T typedSecure)
-                return typedSecure;
+                && secCfg.TryGetValue(key, out object? secValue))
+            {
+                if (secValue is T typedSecure)
+                    return typedSecure;
+                if (TryConvert(secValue, out T? converted))
+                    return converted;
+            }
 
             // 3) 回退 ISettingProvider 描述符当前值（即默认值）
             object? descriptor = FindDescriptorDefault(moduleId, key);
@@ -161,6 +171,25 @@ public sealed class ModuleRegistry : IModuleRegistry
 
             // 4) 最终 fallback
             return fallback;
+        }
+    }
+
+    /// <summary>
+    /// 值类型转换（读取侧）：SetConfig 经 NormalizeValue 把 int/uint/float 统一存为 double，
+    /// 读取方按原类型（如 GetConfig&lt;uint&gt; 读画布底色）时 is T 匹配失败——此处按目标类型转换。
+    /// 仅做安全转换（IFormattable 到 T）；失败返回 false 走下一回退层。
+    /// </summary>
+    private static bool TryConvert<T>(object value, out T? result)
+    {
+        try
+        {
+            result = (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
+        {
+            result = default;
+            return false;
         }
     }
 

@@ -109,7 +109,11 @@ public partial class App : Application
             // 6. 装配 UI：菜单/工具栏/面板/画布/状态栏
             viewModel.Rebuild(ui);
             // 语言切换：重新装配工作台（命令 DisplayName / 菜单路径 / 面板标题经 L10n 惰性翻译，Rebuild 即刷新）
-            localization.LanguageChanged += (_, _) => Dispatcher.UIThread.Post(() => viewModel.Rebuild(ui));
+            localization.LanguageChanged += (_, _) => Dispatcher.UIThread.Post(() =>
+            {
+                viewModel.Rebuild(ui);
+                window.Title = L10n.T("Osiris 1.0.0 - 模块化图像工作台"); // 主窗口标题同步刷新
+            });
             // 进度回调用 Dispatcher 回 UI 线程更新状态栏（模块可能在工作线程上报）
             host.Status.Changed += (percent, message) =>
                 Dispatcher.UIThread.Post(() => viewModel.StatusText = $"{message} ({percent:0}%)");
