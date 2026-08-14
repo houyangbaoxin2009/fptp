@@ -7,9 +7,9 @@ using Avalonia.Media;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Ui;
-using Fptm.Editing;
+using Itool.Editing;
 
-namespace Fptm.Views;
+namespace Itool.Views;
 
 /// <summary>
 /// 画笔窗口（可停靠）：铅笔/钢笔/毛笔/刷子/颜料桶 工具切换 +
@@ -63,8 +63,7 @@ public sealed class BrushWindowView : UserControl
         var eyedropperBtn = new Button { Content = L10n.T("取色"), MinWidth = 72 };
         eyedropperBtn.Click += (_, _) =>
         {
-            Editing.ToolState.Instance.CurrentToolId = "eyedropper";
-            FptmModule.HostContext?.Services.Get<IToolHostService>()?.ActivateTool("eyedropper");
+            ItoolModule.HostContext?.Services.Get<IToolHostService>()?.ActivateTool("eyedropper");
         };
         eyedropperRow.Children.Add(eyedropperBtn);
         panel.Children.Add(eyedropperRow);
@@ -169,7 +168,7 @@ public sealed class BrushWindowView : UserControl
         string? input = PromptText(L10n.T("保存预设"), L10n.T("预设名称（槽 {0}）：", index + 1), name ?? L10n.T("预设 {0}", index + 1));
         if (input is null) return;
         Editing.ToolState.Instance.SavePreset(index, input);
-        IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
+        IModuleRegistry? registry = ItoolModule.HostContext?.Services.Get<IModuleRegistry>();
         if (registry is not null)
             Editing.ToolState.Instance.Save(registry);
         RefreshPresetList();
@@ -181,7 +180,7 @@ public sealed class BrushWindowView : UserControl
         int index = _presetBox.SelectedIndex;
         if (index < 0) return;
         Editing.ToolState.Instance.ClearPreset(index);
-        IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
+        IModuleRegistry? registry = ItoolModule.HostContext?.Services.Get<IModuleRegistry>();
         if (registry is not null)
             Editing.ToolState.Instance.Save(registry);
         RefreshPresetList();
@@ -228,14 +227,13 @@ public sealed class BrushWindowView : UserControl
         Margin = new Thickness(0, 4, 0, 0),
     };
 
-    /// <summary>工具切换按钮：设置当前工具并激活。</summary>
+    /// <summary>工具切换按钮：经壳工具宿主服务激活工具（当前工具 Id 由壳维护）。</summary>
     private static Button ToolButton(string label, string toolId)
     {
         var btn = new Button { Content = L10n.T(label), Margin = new Thickness(0, 0, 6, 6), MinWidth = 64 };
         btn.Click += (_, _) =>
         {
-            Editing.ToolState.Instance.CurrentToolId = toolId;
-            FptmModule.HostContext?.Services.Get<IToolHostService>()?.ActivateTool(toolId);
+            ItoolModule.HostContext?.Services.Get<IToolHostService>()?.ActivateTool(toolId);
         };
         return btn;
     }
@@ -285,7 +283,7 @@ public sealed class BrushWindowView : UserControl
         if (PromptHex(L10n.T("设置「{0}」颜色（AARRGGBB）", ToolName(toolId)), current) is { } color)
         {
             Editing.ToolState.Instance.SetColor(toolId, color);
-            IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
+            IModuleRegistry? registry = ItoolModule.HostContext?.Services.Get<IModuleRegistry>();
             if (registry is not null)
                 Editing.ToolState.Instance.Save(registry);
         }
@@ -302,19 +300,18 @@ public sealed class BrushWindowView : UserControl
         }
     }
 
-    /// <summary>把颜料盘槽位应用到当前画笔工具（单击行为）。</summary>
+    /// <summary>把颜料盘槽位应用到当前画笔工具（单击行为）。目标经壳当前激活工具判断。</summary>
     private void ApplySlotToCurrent(int index)
     {
-        string toolId = Editing.ToolState.Instance.IsStrokeTool(Editing.ToolState.Instance.CurrentToolId)
-            ? Editing.ToolState.Instance.CurrentToolId
-            : "brush";
+        string? current = ItoolModule.HostContext?.Services.Get<IToolHostService>()?.CurrentToolId;
+        string toolId = current is { } c && Editing.ToolState.Instance.IsStrokeTool(c) ? c : "brush";
         Editing.ToolState.Instance.SetColor(toolId, Editing.ToolState.Instance.GetSlot(index));
     }
 
     /// <summary>保存颜料盘与工具状态到注册表（即时落盘）。</summary>
     private void SavePalette()
     {
-        IModuleRegistry? registry = FptmModule.HostContext?.Services.Get<IModuleRegistry>();
+        IModuleRegistry? registry = ItoolModule.HostContext?.Services.Get<IModuleRegistry>();
         if (registry is not null)
             Editing.ToolState.Instance.Save(registry);
     }
@@ -322,7 +319,7 @@ public sealed class BrushWindowView : UserControl
     /// <summary>从注册表加载颜料盘与工具状态。</summary>
     private void LoadPalette()
     {
-        if (FptmModule.HostContext?.Services.Get<IModuleRegistry>() is { } reg)
+        if (ItoolModule.HostContext?.Services.Get<IModuleRegistry>() is { } reg)
         {
             Editing.ToolState.Instance.Load(reg);
             RefreshColors();

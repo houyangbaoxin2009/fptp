@@ -1,6 +1,6 @@
 using Osiris.Abstractions.Document;
 
-namespace Fptm.Editing;
+namespace Itool.Editing;
 
 /// <summary>
 /// 泛洪填充 / 区域选择算法（魔棒选区与颜料桶共用）。

@@ -29,7 +29,7 @@ public sealed class ModuleRegistry : IModuleRegistry
     // 设置提供者：GetConfig 回退描述符默认值 + SetConfig 级别校验用（ModuleLoader 初始化后注册）
     private readonly List<ISettingProvider> _settingProviders = [];
 
-    // 已实例化的模块：宿主（App/CLI）经 GetInstances() 收集模块能力（IToolPlugin 工具、IFilterPlugin 滤镜等）
+    // 已实例化的模块：宿主（App/CLI）经 GetInstances() 收集模块能力（ITool 工具、IFilterPlugin 滤镜等）
     private readonly List<IModule> _instances = [];
 
     private readonly IConfigStore _store;
@@ -389,6 +389,6 @@ public sealed class ModuleRegistry : IModuleRegistry
         _instances.Add(module);
     }
 
-    /// <summary>全部已实例化的模块（宿主收集 IToolPlugin/IFilterPlugin 等能力；无实例时为空）。</summary>
+    /// <summary>全部已实例化的模块（宿主收集 ITool/IFilterPlugin 等能力；无实例时为空）。</summary>
     public IReadOnlyList<IModule> GetInstances() => _instances;
 }

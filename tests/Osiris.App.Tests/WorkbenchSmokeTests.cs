@@ -251,7 +251,7 @@ public class WorkbenchSmokeTests
     [AvaloniaFact]
     public void ToolActivation_LoadsFptmTools_ActivatesOnCanvasViewModel()
     {
-        // 意图：工具激活链路（画笔失效回归）——加载 fptm 扩展模块 → 注册工具到 ToolHostService →
+        // 意图：工具激活链路（画笔失效回归）——加载扩展模块 → 注册工具到 ToolHostService →
         // ActivateTool 后画布 VM 的 ActiveTool 必须非空且为指定工具（画布事件路由依赖此链路）。
         var registry = CreateTestRegistry(out string dir);
         try
@@ -266,7 +266,7 @@ public class WorkbenchSmokeTests
             registry.Register(new ModuleRecord("osiris.core", "核心模块", "1.0.0",
                 ModuleKind.Standard, ModuleStatus.Enabled, ModuleType.Native, ScriptLanguage.DotNet, null, null));
 
-            // 加载扩展模块（fptm 提供 9 个工具）
+            // 加载扩展模块（itool 提供 9 个工具）
             var errors = new List<string>();
             ModuleLoader.LoadFromDirectory(PluginsBinPath, registry, host,
                 (name, ex) => errors.Add($"{name}: {ex.Message}"));
@@ -277,9 +277,9 @@ public class WorkbenchSmokeTests
             Assert.NotNull(vm.CanvasViewModel); // 画布 VM 必须存在（ActivateTool 目标）
 
             var toolHost = new ToolHostService(() => vm.CanvasViewModel);
-            foreach (var module in registry.GetInstances().OfType<IToolPlugin>())
+            foreach (var module in registry.GetInstances().OfType<ITool>())
                 toolHost.RegisterModule(module);
-            Assert.Equal(9, toolHost.Tools.Count); // fptm 9 个工具已注册
+            Assert.Equal(9, toolHost.Tools.Count); // itool 9 个工具已注册
 
             // 激活铅笔 → 画布 VM.ActiveTool 必须同步
             toolHost.ActivateTool("pencil");
@@ -322,7 +322,7 @@ public class WorkbenchSmokeTests
             vm.Rebuild(ui);
 
             var toolHost = new ToolHostService(() => vm.CanvasViewModel);
-            foreach (var module in registry.GetInstances().OfType<IToolPlugin>())
+            foreach (var module in registry.GetInstances().OfType<ITool>())
                 toolHost.RegisterModule(module);
             services.Register<IToolHostService>(toolHost);
             Assert.NotNull(vm.CanvasViewModel);

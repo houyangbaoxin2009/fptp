@@ -32,6 +32,19 @@
     <ProjectReference Include="..\Osiris.Engine.Skia\Osiris.Engine.Skia.csproj" />
   </ItemGroup>
 
+  <!--
+    插件构建顺序依赖：仅保证扩展模块 DLL 先于壳构建完成（ReferenceOutputAssembly=false，
+    不引入程序集引用——插件仍由 ModuleLoader 运行时加载，ABI 红线不变）。
+    否则并行构建时插件 DLL 未就绪，CopyPluginsToOutput 复制/登记会缺失。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\plugins\Fptm\Fptm.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\plugins\FpEdit\FpEdit.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\plugins\Itool\Itool.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\plugins\Fptp.Filters\Fptp.Filters.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\plugins\Fptp.Plugins.Builtin\Fptp.Plugins.Builtin.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
   <!-- Headless 冒烟测试访问壳内部类型（AppUiService/AppHostContext 等） -->
   <ItemGroup>
     <InternalsVisibleTo Include="Osiris.App.Tests" />

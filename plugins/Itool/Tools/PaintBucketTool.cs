@@ -2,9 +2,9 @@ using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
-using Fptm.Editing;
+using Itool.Editing;
 
-namespace Fptm.Tools;
+namespace Itool.Tools;
 
 /// <summary>颜料桶：点击区域填充（颜色容差 BFS 选区 → 目标色填充 → 历史命令，可撤销）。</summary>
 public sealed class PaintBucketTool : IEditorTool
@@ -64,7 +64,3 @@ public sealed class PaintBucketTool : IEditorTool
     /// <inheritdoc />
     public void Deactivate() { }
 }
-
-
-
-

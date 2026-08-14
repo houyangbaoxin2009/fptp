@@ -8,7 +8,6 @@ using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Filters;
 using Osiris.Abstractions.Localization;
 using Osiris.Algorithms;
-using Fptm.Editing;
 
 namespace Fptm.Views;
 

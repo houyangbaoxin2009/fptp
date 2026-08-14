@@ -97,7 +97,7 @@ public partial class App : Application
             var viewModel = new MainWindowViewModel(registry, services);
             var window = new MainWindow(viewModel);
 
-            // 工具宿主：聚合模块工具（IToolPlugin）并路由到画布（工具窗口点击即切换当前工具）
+            // 工具宿主：聚合模块工具（ITool）并路由到画布（工具窗口点击即切换当前工具）
             var toolHost = new ToolHostService(() => viewModel.CanvasViewModel);
             services.Register<IToolHostService>(toolHost);
 
@@ -164,7 +164,7 @@ public partial class App : Application
         MainWindowViewModel viewModel = _viewModel!;
         AppUiService ui = _ui!;
 
-        foreach (var module in registry.GetInstances().OfType<IToolPlugin>())
+        foreach (var module in registry.GetInstances().OfType<ITool>())
             toolHost.RegisterModule(module);
         viewModel.Rebuild(ui);
     }

@@ -2,9 +2,9 @@ using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
-using Fptm.Editing;
+using Itool.Editing;
 
-namespace Fptm.Tools;
+namespace Itool.Tools;
 
 /// <summary>选取：矩形选区工具（拖拽矩形，提交为文档选区，可撤销）。</summary>
 public sealed class SelectRectTool : IEditorTool
@@ -218,8 +218,3 @@ public sealed class MagicWandTool : IEditorTool
     /// <inheritdoc />
     public void Deactivate() { }
 }
-
-
-
-
-

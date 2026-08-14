@@ -1,12 +1,12 @@
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 
-namespace Fptm.Editing;
+namespace Itool.Editing;
 
 /// <summary>
-/// 模块内共享工具状态（单例）：各画笔工具独立颜色/大小 + 颜料盘 9 槽 + 当前工具。
-/// 经注册表持久化（模块 Id "fptm"，键带工具名/槽位前缀，User 级，JSON 即时落盘）。
-/// 工具、操作窗口、画笔窗口、颜料盘均经此共享状态。
+/// 模块内共享工具状态（单例）：各画笔工具独立颜色/大小 + 颜料盘 9 槽 + 预设栏。
+/// 经注册表持久化（模块 Id "itool"，键带工具名/槽位前缀，User 级，JSON 即时落盘）。
+/// 工具、画笔窗口、颜料盘均经此共享状态。
 /// </summary>
 public sealed class ToolState
 {
@@ -16,10 +16,7 @@ public sealed class ToolState
     private readonly Dictionary<string, uint> _colors = new();
     private readonly Dictionary<string, double> _sizes = new();
 
-    /// <summary>当前选中工具 Id（操作/画笔窗口设置，画布路由用）。</summary>
-    public string CurrentToolId { get; set; } = "brush";
-
-    /// <summary>状态变化事件（颜色/大小/当前工具变化时触发，UI 刷新用）。</summary>
+    /// <summary>状态变化事件（颜色/大小变化时触发，UI 刷新用）。</summary>
     public event Action? Changed;
 
     // 工具默认颜色（PackBgra 布局：A<<24|R<<16|G<<8|B）：铅笔/钢笔=黑、毛笔/刷子=蓝、颜料桶=红。
@@ -137,7 +134,7 @@ public sealed class ToolState
         0xFFFFFF00u, 0xFFFF00FFu, 0xFF00FFFFu, 0xFFFF8000u,
     ];
 
-    // ---- 持久化（注册表，User 级）----
+    // ---- 持久化（注册表，User 级，键前缀 itool）----
 
     /// <summary>从注册表加载工具状态与颜料盘（模块初始化时调用）。值经注册表归一化为 double 存取。</summary>
     public void Load(IModuleRegistry registry)
@@ -145,20 +142,20 @@ public sealed class ToolState
         if (registry is null) return;
         foreach (string toolId in DefaultColors.Keys)
         {
-            double? c = registry.GetConfig<double>("fptm", $"{toolId}Color", double.NaN);
+            double? c = registry.GetConfig<double>("itool", $"{toolId}Color", double.NaN);
             if (c is double cv && double.IsFinite(cv)) _colors[toolId] = (uint)cv;
-            double? s = registry.GetConfig<double>("fptm", $"{toolId}Size", double.NaN);
+            double? s = registry.GetConfig<double>("itool", $"{toolId}Size", double.NaN);
             if (s is double sv && double.IsFinite(sv)) _sizes[toolId] = sv;
         }
         for (int i = 0; i < Slots.Length; i++)
         {
-            double? c = registry.GetConfig<double>("fptm", $"slot{i + 1}", double.NaN);
+            double? c = registry.GetConfig<double>("itool", $"slot{i + 1}", double.NaN);
             Slots[i] = c is double cv && double.IsFinite(cv) ? (uint)cv : DefaultPalette[i];
         }
         // 预设栏：键 "preset{i}" 值 "名称|hex1,hex2,hex3,hex4,hex5"（5 个画笔色，顺序 BrushToolOrder）
         for (int i = 0; i < PresetCount; i++)
         {
-            string? raw = registry.GetConfig<string>("fptm", $"preset{i}", null);
+            string? raw = registry.GetConfig<string>("itool", $"preset{i}", null);
             if (raw is null) continue;
             int bar = raw.IndexOf('|');
             string name = bar > 0 ? raw[..bar] : L10n.T("预设 {0}", i + 1);
@@ -186,21 +183,21 @@ public sealed class ToolState
     {
         if (registry is null) return;
         foreach ((string key, uint color) in _colors)
-            registry.SetConfig("fptm", $"{key}Color", (double)color);
+            registry.SetConfig("itool", $"{key}Color", (double)color);
         foreach ((string key, double size) in _sizes)
-            registry.SetConfig("fptm", $"{key}Size", size);
+            registry.SetConfig("itool", $"{key}Size", size);
         for (int i = 0; i < Slots.Length; i++)
-            registry.SetConfig("fptm", $"slot{i + 1}", (double)Slots[i]);
+            registry.SetConfig("itool", $"slot{i + 1}", (double)Slots[i]);
         // 预设栏：值 "名称|hex1,hex2,hex3,hex4,hex5"；空槽 SetConfig null 删除键
         for (int i = 0; i < PresetCount; i++)
         {
             if (_presetNames[i] is not { } name || _presets[i] is not { } colors)
             {
-                registry.SetConfig("fptm", $"preset{i}", null);
+                registry.SetConfig("itool", $"preset{i}", null);
                 continue;
             }
             string hex = string.Join(",", colors.Select(c => c.ToString("X8")));
-            registry.SetConfig("fptm", $"preset{i}", $"{name}|{hex}");
+            registry.SetConfig("itool", $"preset{i}", $"{name}|{hex}");
         }
     }
 }

@@ -5,6 +5,17 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)（4 段式 X.Y.Z.W，见 docs/2.0-architecture.md）。
 
+## [Unreleased]
+
+### 变更
+- **fptm 模块拆分**：原「传统编辑模块」拆为三个独立扩展模块——
+  - `itool`（画笔工具模块）：9 个编辑工具（选取/套索/智能框选/滴管/铅笔/钢笔/毛笔/刷子/颜料桶）+ 画笔窗口 + 颜料盘/预设 + 工具状态（`plugins/Itool`）
+  - `fpedit`（编辑模块）：复制/粘贴/撤销/重做命令 + 操作窗口 + 像素剪贴板（`plugins/FpEdit`）
+  - `fptm`（传统面板）：仅保留批量处理与证件照排版面板
+- **接口更名**：`IToolPlugin` → `ITool`（工具模块契约，全库同步）；`IToolHostService` 新增 `CurrentToolId`（当前激活工具，供取色/颜料盘目标工具判断，解决跨 ALC 模块间状态共享）
+- **工具状态键迁移**：注册表配置键前缀 `fptm.*` → `itool.*`（旧配置作废，首次运行回退默认值）
+- **构建顺序依赖**：`Osiris.App` 以 `ReferenceOutputAssembly=false` 引用扩展模块项目，保证并行构建时插件 DLL 先于壳复制/登记完成
+
 ## [1.0.0.0] - 2026-08-11
 
 ### 重大变更：Avalonia 跨平台完全重写

@@ -5,10 +5,10 @@ using Avalonia.Media;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 
-namespace Fptm.Views;
+namespace FpEdit.Views;
 
 /// <summary>
-/// 操作窗口（可停靠）：选取/套索/智能框选/滴管 工具切换 + 复制/粘贴/撤销/重做。
+/// 操作窗口（可停靠）：选取/套索/智能框选 工具切换 + 复制/粘贴/撤销/重做。
 /// 工具切换经 IToolHostService 路由到画布激活工具；编辑操作经模块命令（IDocumentService）。
 /// 代码构造 UI（Avalonia），避免 XAML 编译绑定；每次 Dock 浮动重建时由视图工厂生成新实例。
 /// </summary>
@@ -47,7 +47,7 @@ public sealed class OperationWindowView : UserControl
         Margin = new Thickness(0, 4, 0, 0),
     };
 
-    /// <summary>工具切换按钮：设置当前工具并激活（label 为翻译 key）。</summary>
+    /// <summary>工具切换按钮：激活当前工具（label 为翻译 key）。</summary>
     private static Button ToolButton(string label, string toolId)
     {
         var btn = new Button
@@ -58,8 +58,7 @@ public sealed class OperationWindowView : UserControl
         };
         btn.Click += (_, _) =>
         {
-            Editing.ToolState.Instance.CurrentToolId = toolId;
-            FptmModule.HostContext?.Services.Get<IToolHostService>()?.ActivateTool(toolId);
+            FpEditModule.HostContext?.Services.Get<IToolHostService>()?.ActivateTool(toolId);
         };
         return btn;
     }
@@ -75,7 +74,7 @@ public sealed class OperationWindowView : UserControl
         };
         btn.Click += (_, _) =>
         {
-            var host = FptmModule.HostContext;
+            var host = FpEditModule.HostContext;
             if (host is null) return;
             Osiris.Abstractions.Ui.ICommand cmd = label switch
             {

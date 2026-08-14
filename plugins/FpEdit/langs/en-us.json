@@ -1,0 +1,20 @@
+{
+  "$name": "English",
+  "$locale": "en-us",
+
+  "编辑模块": "Editing Module",
+  "快捷键": "Shortcuts",
+  "复制": "Copy",
+  "粘贴": "Paste",
+  "撤销": "Undo",
+  "重做": "Redo",
+
+  "操作": "Operations",
+
+  "选择工具": "Selection Tools",
+  "选取": "Select",
+  "套索": "Lasso",
+  "智能框选": "Smart Marquee",
+  "确定": "OK",
+  "取消": "Cancel"
+}

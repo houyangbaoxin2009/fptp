@@ -1,15 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Fptm：传统批处理与证件照排版面板模块（原 9 个编辑工具已拆到 itool 模块，编辑命令已拆到 fpedit 模块）。
+    FpEdit：编辑模块（fptm 拆出的编辑命令 + 操作面板部分）。
+    - 提供 编辑命令（复制/粘贴/撤销/重做）+ 操作窗口面板 + 像素剪贴板。
     - 仅引用 Osiris.Abstractions（ABI 红线：不引用 Core/Engine/Skia/Avalonia）。
-    - 输出到 plugins/bin/Fptm/ 子目录：与 Fptp.Plugins.Builtin 的 module.json 同名文件隔离，
+    - 输出到 plugins/bin/FpEdit/ 子目录：与 Fptp.Plugins.Builtin 的 module.json 同名文件隔离，
       宿主 ModuleLoader.FindManifests 扫描"根 + 一级子目录"即可发现本模块清单。
   -->
   <PropertyGroup>
-    <RootNamespace>Fptm</RootNamespace>
-    <AssemblyName>Fptm</AssemblyName>
-    <OutputPath>$(MSBuildThisFileDirectory)..\bin\Fptm\</OutputPath>
+    <RootNamespace>FpEdit</RootNamespace>
+    <AssemblyName>FpEdit</AssemblyName>
+    <OutputPath>$(MSBuildThisFileDirectory)..\bin\FpEdit\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 

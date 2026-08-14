@@ -2,9 +2,9 @@ using Osiris.Abstractions;
 using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
-using Fptm.Editing;
+using Itool.Editing;
 
-namespace Fptm.Tools;
+namespace Itool.Tools;
 
 /// <summary>滴管：点击画布取色，设置到当前绘制工具（当前工具非绘制类时设置到刷子），供画笔窗口显示。</summary>
 public sealed class EyedropperTool : IEditorTool
@@ -44,10 +44,9 @@ public sealed class EyedropperTool : IEditorTool
             ? 0u
             : (uint)(b | (g << 8) | ((r * 255 / a) << 16) | (a << 24)); // 非预乘 RGB + 原 alpha
 
-        // 取色目标：当前工具为绘制类则设给该工具，否则默认刷子。
-        string target = ToolState.Instance.IsStrokeTool(ToolState.Instance.CurrentToolId)
-            ? ToolState.Instance.CurrentToolId
-            : "brush";
+        // 取色目标：当前激活工具（壳）为绘制类则设给该工具，否则默认刷子。
+        string? current = _host?.Services.Get<IToolHostService>()?.CurrentToolId;
+        string target = current is { } c && ToolState.Instance.IsStrokeTool(c) ? c : "brush";
         ToolState.Instance.SetColor(target, color);
     }
 
@@ -69,7 +68,3 @@ public sealed class EyedropperTool : IEditorTool
     /// <inheritdoc />
     public void Deactivate() { }
 }
-
-
-
-

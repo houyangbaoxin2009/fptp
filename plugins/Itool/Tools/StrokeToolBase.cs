@@ -3,7 +3,7 @@ using Osiris.Abstractions.Document;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Ui;
 
-namespace Fptm.Tools;
+namespace Itool.Tools;
 
 /// <summary>
 /// 绘制工具基类：笔画生命周期管理（一笔一命令，可撤销）。
@@ -17,7 +17,7 @@ public abstract class StrokeToolBase : IEditorTool
     private PixelSurfaceEditor? _editor;
     private Point2 _last;
 
-    /// <summary>宿主上下文（由 FptmModule.Initialize 统一注入）。</summary>
+    /// <summary>宿主上下文（由 ItoolModule.Initialize 统一注入）。</summary>
     protected IHostContext? Host;
 
     /// <summary>文档服务（经服务注册表获取；CLI/无文档宿主下为 null）。</summary>
@@ -268,5 +268,3 @@ public sealed class BrushTool : StrokeToolBase
     protected override void Stamp(PixelSurfaceEditor editor, int x, int y, double size, uint color)
         => InkBrushTool.SoftStamp(editor, x, y, size, color);
 }
-
-

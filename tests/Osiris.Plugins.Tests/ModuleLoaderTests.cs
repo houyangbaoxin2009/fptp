@@ -62,22 +62,22 @@ public class ModuleLoaderTests : IDisposable
     }
 
     [Fact]
-    public void LoadFromDirectory_LoadsFptmModule_NineEditorTools()
+    public void LoadFromDirectory_LoadsItoolModule_NineEditorTools()
     {
-        // 意图：fptm 模块（子目录 plugins/bin/Fptm/module.json）经 FindManifests
-        // 一级子目录扫描被加载；IToolPlugin.Tools 暴露 9 个编辑工具。
+        // 意图：itool 模块（子目录 plugins/bin/Itool/module.json）经 FindManifests
+        // 一级子目录扫描被加载；ITool.Tools 暴露 9 个编辑工具。
         ModuleRegistry registry = CreateRegistry();
         var context = new TestHostContext();
         (int loaded, List<string> errors) = LoadPlugins(registry, context);
 
-        Assert.True(loaded >= 2, $"加载数应 ≥2（fptp.idphoto + fptm），实际 {loaded}");
+        Assert.True(loaded >= 2, $"加载数应 ≥2（fptp.idphoto + itool），实际 {loaded}");
         Assert.Empty(errors);
 
-        ModuleRecord? record = registry.Get("fptm");
+        ModuleRecord? record = registry.Get("itool");
         Assert.NotNull(record);
         Assert.Equal(ModuleKind.Extension, record!.Kind);
 
-        Assembly? assembly = FindModuleAssembly("Fptm");
+        Assembly? assembly = FindModuleAssembly("Itool");
         Assert.NotNull(assembly);
         Type? pluginType = assembly!.GetTypes()
             .FirstOrDefault(t => t.GetCustomAttribute<PluginExportAttribute>() is not null);
