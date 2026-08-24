@@ -3,11 +3,10 @@ using Osiris.Abstractions.Filters;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Progress;
 
-namespace Fptp.Plugins.Builtin;
+namespace Fpter;
 
 /// <summary>
-/// 动漫模式滤镜（2.1 复刻 2.0 Core AnimeFilter，去掉可选平滑简化参数）：
-/// 照片转二次元卡通风格。两步：颜色量化（每通道映射到 levels 级色块，消除渐变）
+/// 动漫模式滤镜：照片转二次元卡通风格。两步：颜色量化（每通道映射到 levels 级色块，消除渐变）
 /// → 边缘检测描边（Sobel 梯度幅值超阈值处画暗色粗轮廓）。
 /// 纯 PixelSurface 像素循环，禁止 Skia 等渲染后端。参数：levels(2~16 默认 8)、
 /// outline(0~200 默认 60，越大描边越少)。
@@ -21,7 +20,7 @@ public sealed class AnimeFilter : IFilterProcessor
     public const string ParamOutline = "outline";
 
     /// <inheritdoc />
-    public string Id => "fptp.anime";
+    public string Id => "fpter.anime";
 
     /// <inheritdoc />
     public string DisplayName => L10n.T("动漫模式");
@@ -62,7 +61,6 @@ public sealed class AnimeFilter : IFilterProcessor
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(parameters);
 
-        // 读取并钳制参数
         int levels = Math.Clamp(parameters.Get(ParamLevels, 8), 2, 16);
         int outline = Math.Clamp(parameters.Get(ParamOutline, 60), 0, 200);
 
@@ -78,16 +76,13 @@ public sealed class AnimeFilter : IFilterProcessor
 
         if (outline == 0)
         {
-            // 描边关闭：直接输出量化结果
             quantized.CopyTo(dst);
         }
         else
         {
-            // 梯度幅值阈值：outline 越大越不敏感（描边更少、更细）
             int gradThreshold = outline * 3;
             int rowBytes = width * 4;
 
-            // 对量化结果做 Sobel 梯度，超阈值像素涂暗色（保留 30% 原亮度，呈勾线感）
             for (int y = 0; y < height; y++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -101,15 +96,13 @@ public sealed class AnimeFilter : IFilterProcessor
 
                     if (magnitude > gradThreshold)
                     {
-                        // 描边像素：暗化（量化值 30%）并拉满 alpha，形成深色轮廓线
                         dst[o] = (byte)(quantized[o] * 0.3);
                         dst[o + 1] = (byte)(quantized[o + 1] * 0.3);
                         dst[o + 2] = (byte)(quantized[o + 2] * 0.3);
-                        dst[o + 3] = Math.Max(quantized[o + 3], (byte)255); // 描边不透明
+                        dst[o + 3] = Math.Max(quantized[o + 3], (byte)255);
                     }
                     else
                     {
-                        // 非边缘：保持量化结果
                         dst[o] = quantized[o];
                         dst[o + 1] = quantized[o + 1];
                         dst[o + 2] = quantized[o + 2];
@@ -130,7 +123,7 @@ public sealed class AnimeFilter : IFilterProcessor
         int width = input.Width;
         int height = input.Height;
         var output = new byte[checked(width * height * 4)];
-        int step = 256 / levels; // 量化步长
+        int step = 256 / levels;
 
         for (int y = 0; y < height; y++)
         {
@@ -147,12 +140,10 @@ public sealed class AnimeFilter : IFilterProcessor
                 int o = rowBase + offset;
                 if (alpha == 0)
                 {
-                    // 全透明像素：预乘全零，量化无意义，原样保持
                     output[o] = output[o + 1] = output[o + 2] = output[o + 3] = 0;
                     continue;
                 }
 
-                // 反预乘 → 量化直通色 → 重新预乘（保证与量化前同处预乘空间）
                 uint straight = PixelColor.Unpremultiply(premul);
                 uint quantized = PixelColor.Premultiply(PixelColor.PackBgra(
                     (byte)((PixelColor.R(straight) / step) * step + step / 2),

@@ -23,7 +23,7 @@ namespace Osiris.CoreModule;
 /// - 基础命令：文件/打开、保存、导出；编辑/撤销、重做；视图/缩放适应、实际大小。
 /// - 设置：ISettingProvider 贡献 "osiris.core" 设置组（自动保存/撤销上限/画布底色/语言）。
 /// - CLI：ICliCommandProvider 贡献 "batch" 批处理子命令（通用批处理管线，复用 Core BatchProcessor）。
-/// 本模块不提供业务滤镜（证件照类滤镜归 Fptp.Plugins.Builtin 扩展模块）。
+/// 本模块不提供业务滤镜（灰度/动漫画归 Fpter 内置滤镜模块；证件照工作流归 Fptm 扩展模块）。
 /// </summary>
 public sealed class CoreModule : IModule, ISettingProvider, ICliCommandProvider
 {

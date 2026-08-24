@@ -240,11 +240,11 @@ public class WorkbenchSmokeTests
             while (dir is not null)
             {
                 string candidate = Path.Combine(dir.FullName, "plugins", "bin");
-                if (File.Exists(Path.Combine(candidate, "Fptp.Plugins.Builtin.dll")))
+                if (File.Exists(Path.Combine(candidate, "Fpter", "Fpter.dll")))
                     return candidate;
                 dir = dir.Parent;
             }
-            throw new InvalidOperationException("未找到仓库 plugins/bin 目录（需先构建 Fptp.Plugins.Builtin 项目）。");
+            throw new InvalidOperationException("未找到仓库 plugins/bin 目录（需先构建 Fpter 项目）。");
         }
     }
 

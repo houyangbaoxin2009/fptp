@@ -41,8 +41,7 @@
     <ProjectReference Include="..\..\plugins\Fptm\Fptm.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\plugins\FpEdit\FpEdit.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\plugins\Itool\Itool.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\..\plugins\Fptp.Filters\Fptp.Filters.csproj" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="..\..\plugins\Fptp.Plugins.Builtin\Fptp.Plugins.Builtin.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\plugins\Fpter\Fpter.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Headless 冒烟测试访问壳内部类型（AppUiService/AppHostContext 等） -->

@@ -9,10 +9,10 @@ using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Filters;
 using Osiris.Abstractions.Plugins;
 
-namespace Fptp.Filters.Views;
+namespace Fpter.Views;
 
 /// <summary>
-/// 滤镜窗口（可停靠）：左侧内置滤镜列表（聚合全部 IFilterPlugin 模块的滤镜），
+/// 滤镜窗口（可停靠，合并自 Fptp.Filters）：左侧滤镜列表（聚合全部 IFilterPlugin 模块的滤镜），
 /// 右侧按 FilterParameterDescriptor 声明自动生成参数控件，底部"应用"把滤镜应用到当前文档首层（可撤销）。
 /// 滤镜经宿主注册的解析服务获取（Func&lt;string, IFilterProcessor?&gt; / Func&lt;IReadOnlyList&lt;IFilterProcessor&gt;&gt;）。
 /// </summary>
@@ -47,7 +47,7 @@ public sealed class FilterWindowView : UserControl
         Content = root;
 
         // 加载全部内置滤镜（宿主收集的 IFilterPlugin）
-        var allFilters = FiltersModule.HostContext?.Services.Get<Func<IReadOnlyList<IFilterProcessor>>>();
+        var allFilters = FpterModule.HostContext?.Services.Get<Func<IReadOnlyList<IFilterProcessor>>>();
         if (allFilters is not null)
         {
             foreach (var filter in allFilters())
@@ -71,7 +71,7 @@ public sealed class FilterWindowView : UserControl
         _paramValues.Clear();
 
         if (_filterList.SelectedItem is not FilterListItem item) return;
-        var resolve = FiltersModule.HostContext?.Services.Get<Func<string, IFilterProcessor?>>();
+        var resolve = FpterModule.HostContext?.Services.Get<Func<string, IFilterProcessor?>>();
         _selected = resolve?.Invoke(item.Id);
         if (_selected is null) return;
 
@@ -163,7 +163,7 @@ public sealed class FilterWindowView : UserControl
     private void ApplyFilter()
     {
         if (_selected is null) return;
-        var host = FiltersModule.HostContext;
+        var host = FpterModule.HostContext;
         var docs = host?.Services.Get<IDocumentService>();
         var doc = docs?.Document;
         if (docs is null || doc is null || doc.Layers.Count == 0) return;

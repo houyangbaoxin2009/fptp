@@ -4,13 +4,16 @@ using Osiris.Abstractions.Filters;
 using Osiris.Abstractions.Plugins;
 using Osiris.Core.Plugins;
 using Osiris.Core.Storage;
+using Fptm.Workflow;
 using Xunit;
 
 namespace Osiris.Plugins.Tests;
 
 /// <summary>
-/// 滤镜集成测试：经真实 ALC 反射实例化 BuiltinPlugin，
-/// 对 4x4 测试图运行 4 个内置滤镜，验证输出尺寸与像素/参数生效。
+/// 工作流与滤镜集成测试：
+/// - fpter 滤镜经真实 ALC 反射实例化，对 4x4 测试图运行灰度/动漫，验证像素/尺寸；
+/// - fptm 工作流（换底色/智能裁切/排版）为算法类，直接实例化验证（不注册为滤镜，
+///   不出现在滤镜窗口）。换底/排版代码迁移自原 Builtin，测试保留验证迁移未破坏。
 /// </summary>
 [Collection("Plugins")]
 public class FilterIntegrationTests : IDisposable
@@ -40,7 +43,7 @@ public class FilterIntegrationTests : IDisposable
         return editor.Commit();
     }
 
-    /// <summary>加载插件并从滤镜表取指定 Id 的滤镜（真实 ALC 路径）。</summary>
+    /// <summary>加载 fpter 模块并从滤镜表取指定 Id 的滤镜（真实 ALC 路径）。</summary>
     private static IFilterProcessor GetFilter(string filterId)
     {
         ModuleRegistry registry = new(
@@ -56,7 +59,7 @@ public class FilterIntegrationTests : IDisposable
         {
             if (alc.Name is null || !alc.Name.StartsWith("osiris-module:", StringComparison.Ordinal))
                 continue;
-            assembly = alc.Assemblies.FirstOrDefault(a => a.GetName().Name == "Fptp.Plugins.Builtin");
+            assembly = alc.Assemblies.FirstOrDefault(a => a.GetName().Name == "Fpter");
             if (assembly is not null)
                 break;
         }
@@ -76,31 +79,10 @@ public class FilterIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void ReplaceBackground_BlueImage_Tolerance200_TurnsRed()
-    {
-        // 意图：蓝底图（容差 200 覆盖任意蓝色偏差）经换底色滤镜 → 输出变红底；
-        // 验证"color" 参数生效（蓝→红）。
-        IFilterProcessor filter = GetFilter("fptp.replaceBackground");
-        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255); // 不透明蓝
-        var parameters = new FilterParameters
-        {
-            ["color"] = 0xFFFF0000u,      // 目标色：不透明红（0xAARRGGBB，低位=蓝）
-            ["tolerance"] = 200,
-        };
-
-        PixelSurface output = filter.Apply(input, parameters, progress: null, CancellationToken.None);
-
-        Assert.Equal(4, output.Width);
-        Assert.Equal(4, output.Height);
-        byte[] pixel = output.Row(0)[0..4].ToArray();
-        Assert.Equal(new byte[] { 0, 0, 255, 255 }, pixel); // 红色（B=0,G=0,R=255,A=255）
-    }
-
-    [Fact]
     public void Grayscale_RedPixel_BecomesEqualChannels()
     {
         // 意图：灰度滤镜按 BT.601 亮度公式把红(255,0,0) 转灰 → R==G==B==76。
-        IFilterProcessor filter = GetFilter("fptp.grayscale");
+        IFilterProcessor filter = GetFilter("fpter.grayscale");
         PixelSurface input = FillSurface(4, 4, b: 0, g: 0, r: 255, a: 255); // 不透明红
 
         PixelSurface output = filter.Apply(input, new FilterParameters(), progress: null, CancellationToken.None);
@@ -115,13 +97,81 @@ public class FilterIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void Anime_4x4Output_SizeUnchanged()
+    {
+        // 意图：动漫模式只改像素不改尺寸，输出与输入同尺寸。
+        IFilterProcessor filter = GetFilter("fpter.anime");
+        PixelSurface input = FillSurface(4, 4, b: 128, g: 128, r: 128, a: 255);
+
+        PixelSurface output = filter.Apply(input, new FilterParameters(), progress: null, CancellationToken.None);
+
+        Assert.Equal(input.Width, output.Width);
+        Assert.Equal(input.Height, output.Height);
+    }
+
+    // ---- fptm 工作流（迁移自原 Builtin 滤镜，验证迁移未破坏）----
+
+    [Fact]
+    public void ReplaceBackground_BlueImage_Tolerance200_TurnsRed()
+    {
+        // 意图：蓝底图（容差 200 覆盖任意蓝色偏差）经换底色工作流 → 输出变红底。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255); // 不透明蓝
+        var parameters = new FilterParameters
+        {
+            ["color"] = 0xFFFF0000u, // 目标色：不透明红
+            ["tolerance"] = 200,
+        };
+
+        PixelSurface output = new BackgroundReplace().Apply(input, parameters, progress: null, CancellationToken.None);
+
+        Assert.Equal(4, output.Width);
+        Assert.Equal(4, output.Height);
+        byte[] pixel = output.Row(0)[0..4].ToArray();
+        Assert.Equal(new byte[] { 0, 0, 255, 255 }, pixel); // 红色（B=0,G=0,R=255,A=255）
+    }
+
+    [Fact]
+    public void ReplaceBackground_SolidBlue_FeatherKeepsSaturatedColor()
+    {
+        // 意图：羽化只影响边缘过渡，纯蓝底（容差 200，羽化 10）仍整幅替换为目标色且不透明。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255);
+        var parameters = new FilterParameters
+        {
+            ["color"] = 0xFFFF0000u,
+            ["tolerance"] = 200,
+            ["feather"] = 10,
+        };
+
+        PixelSurface output = new BackgroundReplace().Apply(input, parameters, progress: null, CancellationToken.None);
+
+        byte[] pixel = output.Row(0)[0..4].ToArray();
+        Assert.Equal(new byte[] { 0, 0, 255, 255 }, pixel);
+    }
+
+    [Fact]
+    public void ReplaceBackground_BackgroundImage_OverridesSolidColor()
+    {
+        // 意图：提供背景图片（背景像素面）时，背景像素被图片采样填充而非纯色。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255); // 蓝底
+        PixelSurface bgImage = FillSurface(8, 8, b: 0, g: 255, r: 0, a: 255); // 绿背景图
+        var parameters = new FilterParameters
+        {
+            ["tolerance"] = 200,
+            ["background"] = bgImage,
+        };
+
+        PixelSurface output = new BackgroundReplace().Apply(input, parameters, progress: null, CancellationToken.None);
+
+        byte[] pixel = output.Row(0)[0..4].ToArray();
+        Assert.Equal(new byte[] { 0, 255, 0, 255 }, pixel); // 绿背景图（R=0,G=255,B=0）
+    }
+
+    [Fact]
     public void SmartCrop_4x4Output_WidthShrinks()
     {
         // 意图：4x4 源图偏宽（4 > 4*35/45），智能裁切输出 3x4——输出宽小于输入宽。
-        IFilterProcessor filter = GetFilter("fptp.smartCrop");
         PixelSurface input = FillSurface(4, 4, b: 255, g: 255, r: 255, a: 255);
-
-        PixelSurface output = filter.Apply(input, new FilterParameters(), progress: null, CancellationToken.None);
+        PixelSurface output = new SmartCrop().Apply(input, new FilterParameters(), progress: null, CancellationToken.None);
 
         Assert.True(output.Width < input.Width, $"输出宽 {output.Width} 应小于输入宽 {input.Width}");
         Assert.Equal(3, output.Width);
@@ -129,15 +179,29 @@ public class FilterIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void Anime_4x4Output_SizeUnchanged()
+    public void SmartCrop_OneInchPreset_ScalesTo295x413()
     {
-        // 意图：动漫模式只改像素不改尺寸，输出与输入同尺寸。
-        IFilterProcessor filter = GetFilter("fptp.anime");
-        PixelSurface input = FillSurface(4, 4, b: 128, g: 128, r: 128, a: 255);
+        // 意图：尺寸预设 1（1寸）把任意比例源图按 295×413 输出（裁切 + 双线性缩放）。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 255, r: 255, a: 255);
+        var parameters = new FilterParameters { ["sizePreset"] = 1 };
 
-        PixelSurface output = filter.Apply(input, new FilterParameters(), progress: null, CancellationToken.None);
+        PixelSurface output = new SmartCrop().Apply(input, parameters, progress: null, CancellationToken.None);
 
-        Assert.Equal(input.Width, output.Width);
-        Assert.Equal(input.Height, output.Height);
+        Assert.Equal(295, output.Width);
+        Assert.Equal(413, output.Height);
+    }
+
+    [Fact]
+    public void LayoutComposer_5InchPaper_ReturnsPaperSizedSurface()
+    {
+        // 意图：排版把照片排到 5 寸相纸（1500×1050），返回相纸尺寸像素面，网格行列 ≥1。
+        PixelSurface photo = FillSurface(300, 400, b: 255, g: 255, r: 255, a: 255);
+        PixelSurface? paper = LayoutComposer.Compose(photo, "5寸", out int cols, out int rows);
+
+        Assert.NotNull(paper);
+        Assert.Equal(1500, paper!.Width);
+        Assert.Equal(1050, paper.Height);
+        Assert.True(cols >= 1);
+        Assert.True(rows >= 1);
     }
 }

@@ -4,7 +4,7 @@ namespace Osiris.Core.Filters;
 
 /// <summary>
 /// 滤镜公共工具：像素循环范式封装（行级 Parallel.For 并行遍历）。
-/// 具体业务滤镜（灰度/换底/裁切/动漫）归 Fptp.Plugins.Builtin，本类仅提供范式助手。
+/// 具体业务滤镜归扩展模块（灰度/动画面归 Fpter，工作流归 Fptm），本类仅提供范式助手。
 /// </summary>
 public static class FilterSupport
 {

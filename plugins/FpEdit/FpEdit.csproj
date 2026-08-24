@@ -4,7 +4,7 @@
     FpEdit：编辑模块（fptm 拆出的编辑命令 + 操作面板部分）。
     - 提供 编辑命令（复制/粘贴/撤销/重做）+ 操作窗口面板 + 像素剪贴板。
     - 仅引用 Osiris.Abstractions（ABI 红线：不引用 Core/Engine/Skia/Avalonia）。
-    - 输出到 plugins/bin/FpEdit/ 子目录：与 Fptp.Plugins.Builtin 的 module.json 同名文件隔离，
+    - 输出到 plugins/bin/FpEdit/ 子目录：与 Fpter 的 module.json 同名文件隔离，
       宿主 ModuleLoader.FindManifests 扫描"根 + 一级子目录"即可发现本模块清单。
   -->
   <PropertyGroup>

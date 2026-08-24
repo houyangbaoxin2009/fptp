@@ -11,7 +11,7 @@ namespace Osiris.Plugins.Tests;
 
 /// <summary>
 /// 模块加载器真实路径测试：经 ModuleLoader + ModuleRegistry 加载 plugins/bin 的
-/// Fptp.Plugins.Builtin，验证注册表记录、滤镜表、以及 ALC 卸载（WeakReference 断言）。
+/// Fpter，验证注册表记录、滤镜表、以及 ALC 卸载（WeakReference 断言）。
 /// </summary>
 [Collection("Plugins")]
 public class ModuleLoaderTests : IDisposable
@@ -43,9 +43,9 @@ public class ModuleLoaderTests : IDisposable
         return (loaded, errors);
     }
 
-    /// <summary>在 AssemblyLoadContext.All 中查找加载了 Fptp.Plugins.Builtin 的模块 ALC。</summary>
+    /// <summary>在 AssemblyLoadContext.All 中查找加载了 Fpter 的模块 ALC。</summary>
     private static Assembly? FindPluginAssembly()
-        => FindModuleAssembly("Fptp.Plugins.Builtin");
+        => FindModuleAssembly("Fpter");
 
     /// <summary>在模块 ALC 中按程序集名查找已加载的程序集。</summary>
     private static Assembly? FindModuleAssembly(string assemblyName)
@@ -70,7 +70,7 @@ public class ModuleLoaderTests : IDisposable
         var context = new TestHostContext();
         (int loaded, List<string> errors) = LoadPlugins(registry, context);
 
-        Assert.True(loaded >= 2, $"加载数应 ≥2（fptp.idphoto + itool），实际 {loaded}");
+        Assert.True(loaded >= 2, $"加载数应 ≥2（fpter + itool），实际 {loaded}");
         Assert.Empty(errors);
 
         ModuleRecord? record = registry.Get("itool");
@@ -101,9 +101,9 @@ public class ModuleLoaderTests : IDisposable
     }
 
     [Fact]
-    public void LoadFromDirectory_LoadsBuiltinModule_RegistersRecord()
+    public void LoadFromDirectory_RegistersFpterModule_Record()
     {
-        // 意图：真实 ALC 路径加载插件——注册表记录 fptp.idphoto 且 Kind=Extension。
+        // 意图：真实 ALC 路径加载插件——注册表记录 fpter 且 Kind=Extension。
         ModuleRegistry registry = CreateRegistry();
         var context = new TestHostContext();
         (int loaded, List<string> errors) = LoadPlugins(registry, context);
@@ -111,16 +111,16 @@ public class ModuleLoaderTests : IDisposable
         Assert.True(loaded >= 1, $"加载数应 ≥1，实际 {loaded}");
         Assert.Empty(errors);
 
-        ModuleRecord? record = registry.Get("fptp.idphoto");
+        ModuleRecord? record = registry.Get("fpter");
         Assert.NotNull(record);
-        Assert.Equal("fptp.idphoto", record!.Id);
+        Assert.Equal("fpter", record!.Id);
         Assert.Equal(ModuleKind.Extension, record.Kind);
     }
 
     [Fact]
-    public void LoadedPlugin_ExposesFourFptpFilters()
+    public void LoadedPlugin_ExposesTwoFptpFilters()
     {
-        // 意图：插件滤镜表非空，且包含 4 个 fptp.* 滤镜（灰度/换底色/智能裁切/动漫）。
+        // 意图：插件滤镜表非空，且包含 2 个 fpter.* 滤镜（灰度/动漫）。
         ModuleRegistry registry = CreateRegistry();
         var context = new TestHostContext();
         (int loaded, List<string> errors) = LoadPlugins(registry, context);
@@ -137,11 +137,9 @@ public class ModuleLoaderTests : IDisposable
         var filters = (IReadOnlyList<IFilterProcessor>?)pluginType!.GetProperty("Filters")?.GetValue(plugin);
 
         Assert.NotNull(filters);
-        Assert.True(filters!.Count >= 4, $"滤镜数应 ≥4，实际 {filters.Count}");
-        Assert.Contains(filters, f => f.Id == "fptp.grayscale");
-        Assert.Contains(filters, f => f.Id == "fptp.replaceBackground");
-        Assert.Contains(filters, f => f.Id == "fptp.smartCrop");
-        Assert.Contains(filters, f => f.Id == "fptp.anime");
+        Assert.True(filters!.Count >= 2, $"滤镜数应 ≥2，实际 {filters.Count}");
+        Assert.Contains(filters, f => f.Id == "fpter.grayscale");
+        Assert.Contains(filters, f => f.Id == "fpter.anime");
     }
 
     [Fact]

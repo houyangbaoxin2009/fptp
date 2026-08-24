@@ -1,0 +1,18 @@
+{
+  "$name": "English",
+  "$locale": "en-us",
+
+  "内置滤镜模块": "Built-in Filter Module",
+  "滤镜": "Filters",
+  "应用": "Apply",
+  "（该滤镜无参数）": "(This filter has no parameters)",
+  "灰度": "Grayscale",
+  "动漫模式": "Anime Mode",
+  "正在执行：{0}…": "Executing: {0}…",
+  "{0}完成": "{0} done",
+  "灰度完成": "Grayscale done",
+  "动漫模式完成": "Anime mode done",
+  "图像": "Image",
+  "色彩层次": "Color Levels",
+  "描边强度": "Outline Strength"
+}

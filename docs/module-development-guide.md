@@ -43,7 +43,7 @@ plugins/MyModule/
 
 | 字段 | 说明 |
 |---|---|
-| `id` | 全局唯一（点分命名，如 `fptp.idphoto`），配置键前缀 |
+| `id` | 全局唯一（点分命名，如 `fpter`），配置键前缀 |
 | `kind` | `extension`（可装卸）/ `standard`（内置受保护）/ `update`（内置特殊权限） |
 | `type` | `native`（.NET 程序集）/ `script`（tie 脚本，2.1 未支持） |
 | `language` | **模块实现语言**（dotnet/tie），与 UI 语言无关 |

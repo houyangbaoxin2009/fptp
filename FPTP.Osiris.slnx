@@ -3,8 +3,7 @@
     <Project Path="plugins/Fptm/Fptm.csproj" />
     <Project Path="plugins/FpEdit/FpEdit.csproj" />
     <Project Path="plugins/Itool/Itool.csproj" />
-    <Project Path="plugins/Fptp.Filters/Fptp.Filters.csproj" />
-    <Project Path="plugins/Fptp.Plugins.Builtin/Fptp.Plugins.Builtin.csproj" />
+    <Project Path="plugins/Fpter/Fpter.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Osiris.Abstractions/Osiris.Abstractions.csproj" />

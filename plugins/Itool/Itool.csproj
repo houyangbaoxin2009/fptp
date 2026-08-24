@@ -4,7 +4,7 @@
     Itool：画笔工具模块（fptm 拆出的工具+画笔部分）。
     - 提供 9 个编辑工具（选取/套索/智能框选/滴管/铅笔/钢笔/毛笔/刷子/颜料桶）+ 画笔窗口 + 颜料盘/预设。
     - 仅引用 Osiris.Abstractions + Osiris.Algorithms（ABI 红线：不引用 Core/Engine）。
-    - 输出到 plugins/bin/Itool/ 子目录：与 Fptp.Plugins.Builtin 的 module.json 同名文件隔离，
+    - 输出到 plugins/bin/Itool/ 子目录：与 Fpter 的 module.json 同名文件隔离，
       宿主 ModuleLoader.FindManifests 扫描"根 + 一级子目录"即可发现本模块清单。
   -->
   <PropertyGroup>

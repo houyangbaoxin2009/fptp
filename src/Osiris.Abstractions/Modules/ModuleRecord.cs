@@ -4,7 +4,7 @@ namespace Osiris.Abstractions.Modules;
 /// 模块记录：模块注册表中的不可变数据行（来源于 module.json 清单或反射扫描兜底）。
 /// 状态变更（启用/禁用/卸载）由注册表以 with 表达式派生新记录，保持不可变性。
 /// </summary>
-/// <param name="Id">模块唯一 Id（如 "fptp.idphoto"）。</param>
+/// <param name="Id">模块唯一 Id（如 "fpter"）。</param>
 /// <param name="Name">模块显示名。</param>
 /// <param name="Version">模块版本（SemVer）。</param>
 /// <param name="Kind">分级：Standard 静态加载 / Extension ALC 动态加载。</param>

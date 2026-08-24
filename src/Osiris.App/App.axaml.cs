@@ -79,7 +79,7 @@ public partial class App : Application
 
             services.Register<Func<string, PixelSurface?>>(SkiaCodec.Decode);
             services.Register<Func<string, PixelSurface, bool>>(SaveByExtension);
-            // 滤镜解析器（CoreModule batch 命令与 fptp.filters 滤镜窗口共用）：
+            // 滤镜解析器（CoreModule batch 命令与 fpter 滤镜窗口共用）：
             // 从注册表已实例化模块收集全部 IFilterPlugin 的滤镜，按 Id 匹配（大小写不敏感）。
             services.Register<Func<string, IFilterProcessor?>>(id => registry.GetInstances()
                 .OfType<IFilterPlugin>()

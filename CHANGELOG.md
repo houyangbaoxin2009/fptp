@@ -7,11 +7,20 @@
 
 ## [Unreleased]
 
+### 新增
+- **换底色增强**（fptm 工作流）：新增边缘羽化参数（feather 0~20，默认 3，容差外按覆盖度线性过渡去锯齿）+ 背景图片支持（`replaceBgImage` 设置项选路径，宿主解码委托注入 PixelSurface，cover 铺满贴合，优先于纯色；解码失败回退纯色）
+- **智能裁切尺寸预设**（fptm 工作流）：新增尺寸预设（原始 35:45 / 1寸 295×413 / 小2寸 390×567 / 2寸 413×579 / 3寸 649×1000），按预设宽高比裁切后双线性缩放到标准像素（`smartCropPreset` 设置项）
+- **排版增强**（fptm 工作流）：相纸预设扩充 A5（2480×1748）+ 自定义宽高（`layoutWidth`/`layoutHeight` 设置项）；可选画虚线裁剪引导线（`layoutGuides`，照片格四周浅灰虚线，画在照片之上）
+
 ### 变更
+- **模块重组：Fptp.Plugins.Builtin 改名 fpter + 合并 Fptp.Filters**——
+  - 原内置证件照插件 `Fptp.Plugins.Builtin`（id=fptp.idphoto）改名 `fpter`（`plugins/Fpter`），并吸收独立滤镜窗口模块 `Fptp.Filters`（删除 `plugins/Fptp.Filters`）
+  - `fpter` = 纯滤镜模块：仅灰度 / 动漫模式两个滤镜（IFilterPlugin，进滤镜窗口）+ 自带可停靠滤镜窗口
+  - **换底色 / 智能裁切 / 排版迁到 fptm 工作流**：算法在 `plugins/Fptm/Workflow/`（复用 Osiris.Algorithms.ColorUtil/Scaling），注册为 fptm 命令 + 设置组（ISettingProvider）；不注册为滤镜（不出现在滤镜窗口）
 - **fptm 模块拆分**：原「传统编辑模块」拆为三个独立扩展模块——
   - `itool`（画笔工具模块）：9 个编辑工具（选取/套索/智能框选/滴管/铅笔/钢笔/毛笔/刷子/颜料桶）+ 画笔窗口 + 颜料盘/预设 + 工具状态（`plugins/Itool`）
   - `fpedit`（编辑模块）：复制/粘贴/撤销/重做命令 + 操作窗口 + 像素剪贴板（`plugins/FpEdit`）
-  - `fptm`（传统面板）：仅保留批量处理与证件照排版面板
+  - `fptm`（传统面板 + 证件照工作流）：批量处理面板 + 换底色/智能裁切/排版
 - **接口更名**：`IToolPlugin` → `ITool`（工具模块契约，全库同步）；`IToolHostService` 新增 `CurrentToolId`（当前激活工具，供取色/颜料盘目标工具判断，解决跨 ALC 模块间状态共享）
 - **工具状态键迁移**：注册表配置键前缀 `fptm.*` → `itool.*`（旧配置作废，首次运行回退默认值）
 - **构建顺序依赖**：`Osiris.App` 以 `ReferenceOutputAssembly=false` 引用扩展模块项目，保证并行构建时插件 DLL 先于壳复制/登记完成
