@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    {{DisplayName}} 插件项目（由 FpSDK 脚手架生成）。
+    约定：只引 FpSDK（聚合 Osiris.Abstractions + Osiris.Algorithms）；
+    禁止引用 Osiris.Core / Osiris.Engine.Skia / SkiaSharp（ABI 红线见 docs/module-development-guide.md）。
+  -->
+  <PropertyGroup>
+    <RootNamespace>{{Name}}</RootNamespace>
+    <AssemblyName>{{Name}}</AssemblyName>
+    <Version>{{Version}}</Version>
+    <!-- 输出到插件目录 plugins/bin/<模块名>/，宿主按一级子目录扫描 -->
+    <OutputPath>$(MSBuildThisFileDirectory)..\bin\{{Name}}\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+{{AbstractionsRef}}
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="module.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="langs\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

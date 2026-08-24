@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    FpSDK：fptp(Osiris) 插件开发 SDK 聚合包（非插件本身，不参与宿主加载）。
+    - 聚合转发 Osiris.Abstractions（合约）+ Osiris.Algorithms（算法），插件只引 FpSDK 一个入口。
+    - 附带插件开发辅助：ModuleBase 基类、FpContext 宿主便捷访问、PluginManifest 清单模型。
+    - ProjectReference 保持编译传递可见（下游引 FpSDK 即获得契约类型）；
+      打包时 SuppressDependenciesWhenPacking 去依赖 + BuildOutputInPackage 把
+      Abstractions/Algorithms 的 dll 以私有资产打进包 lib/net10.0/。
+    ABI 红线继承宿主约定：本程序集不得引入 SkiaSharp / Avalonia 等宿主渲染类型。
+  -->
+  <PropertyGroup>
+    <RootNamespace>FpSDK</RootNamespace>
+    <AssemblyName>FpSDK</AssemblyName>
+    <PackageId>FpSDK</PackageId>
+    <Version>1.0.0</Version>
+    <Description>fptp(Osiris) 插件开发 SDK：聚合契约与算法的单一引用入口，附模块基类与脚手架模板。</Description>
+    <PackageTags>fptp;osiris;plugin;sdk;image-editor</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+  </PropertyGroup>
+
+  <!-- 聚合转发：编译传递可见（引用方只需引用 FpSDK 一个项目） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Osiris.Abstractions\Osiris.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\src\Osiris.Algorithms\Osiris.Algorithms.csproj" />
+  </ItemGroup>
+
+  <!-- 打包：把 Abstractions/Algorithms 的 dll 打进包 lib/net10.0/（只装 FpSDK 即可编译插件） -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeFpSdkDependencies</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="IncludeFpSdkDependencies">
+    <ItemGroup>
+      <BuildOutputInPackage Include="$(OutputPath)Osiris.Abstractions.dll" />
+      <BuildOutputInPackage Include="$(OutputPath)Osiris.Algorithms.dll" />
+    </ItemGroup>
+  </Target>
+
+</Project>

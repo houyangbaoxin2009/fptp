@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FpSDK/FpSDK.csproj" />
+  </Folder>
+  <Folder Name="/cli/">
+    <Project Path="cli/FpSdkCli/FpSdkCli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FpSDK.Tests/FpSDK.Tests.csproj" />
+  </Folder>
+</Solution>

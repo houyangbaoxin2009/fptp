@@ -1,0 +1,11 @@
+{
+  "id": "{{Id}}",
+  "name": "{{DisplayName}}",
+  "version": "{{Version}}",
+  "kind": "extension",
+  "type": "native",
+  "language": "{{Language}}",
+  "entryPoint": "{{EntryPoint}}",
+  "minHostVersion": "{{MinHostVersion}}",
+  "dependencies": []
+}

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    fpsdk CLI：插件项目脚手架（dotnet tool，安装后命令为 fpsdk）。
+    - fpsdk new <name> 从 templates/ 生成标准插件骨架。
+    - 模板目录随包分发（PackagePath=templates/），运行时从 AppContext.BaseDirectory 读取。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>FpSdkCli</RootNamespace>
+    <!-- AssemblyName 避开与 FpSDK 库的"FpSDK.dll"大小写不敏感同名冲突（Windows） -->
+    <AssemblyName>fpsdkcli</AssemblyName>
+    <PackageId>FpSdkCli</PackageId>
+    <Version>1.0.0</Version>
+    <Description>fptp(Osiris) 插件项目脚手架：fpsdk new 一键生成模块骨架。</Description>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>fpsdk</ToolCommandName>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 模板生成逻辑在 FpSDK 库（任何宿主可用），CLI 是薄壳 -->
+    <ProjectReference Include="..\..\src\FpSDK\FpSDK.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\templates\**\*">
+      <Link>templates/%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>templates/</PackagePath>
+    </Content>
+  </ItemGroup>
+
+</Project>
