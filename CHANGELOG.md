@@ -8,6 +8,16 @@
 ## [Unreleased]
 
 ### 新增
+- **tie:data 全面替换 JSON（DoNetTD）**：配置与清单正式迁移到 tie:data 格式——
+  - 三存储文件改 `modules.data.tie` / `settings.data.tie` / `secure.data.tie`（顶层表 `[ "组.键": 值 ]`，
+    带 `type tie<data>` 角色头，与 tiec 配置文件同格式互通）；App/CLI 默认 `TieDataConfigStore`
+  - 模块清单改 `module.data.tie`（官方 4 模块 Fpter/Fptm/FpEdit/Itool 全部迁移，删除 module.json）；
+    `ModuleLoader` 双格式兼容（module.data.tie 优先，module.json 回退），清单解析统一走 `TieDataConfigStore`
+  - 信任名单改 `trusted-modules.data.tie`（tie:data 顶层表 `"modules": [ "Id": ["sha",...] ]`），
+    生成脚本 `generate-trusted-modules.ps1` 同步（读 module.data.tie 清单，输出 tie:data 无 BOM UTF-8）
+  - **旧 JSON 自动兼容迁移**：*.data.tie 不存在读同名旧 *.json；内容为 JSON 时自动回退解析——用户配置零丢失
+- **zd 数据传输格式（DoNetZD）**：新增 `ZdConfigStore : IConfigStore`（tie:zd 压缩二进制，
+  与 tie:data 同数据面，面向临时文件/备份/跨进程交换场景）；tie:data 与 zd 两格式数据无损互通
 - **fpter 滤镜扩充**：新增 6 个常用滤镜（反色 / 亮度对比度 / 饱和度 / 模糊 / 锐化 / 怀旧棕褐），
   全部照灰度滤镜模式（纯像素遍历、ABI 红线安全），自动进滤镜窗口（IFilterPlugin 聚合）+ 图像菜单命令（可撤销）
 - **itool 裁切到选区**：图像 → 裁切到选区（按选区包围盒裁切画布为新尺寸，历史栈可撤销；无选区静默忽略）

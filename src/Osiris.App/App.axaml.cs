@@ -52,7 +52,8 @@ public partial class App : Application
                 ShowElevationWarning(desktop); // 非阻塞：选择"降权重启"则启动普通权限实例并退出当前
 
             // 1. 模块基础设施：注册表 + 存储（与 CLI 共享同一注册表/配置/安全设置路径）
-            var store = new JsonConfigStore();
+            //    默认 TieDataConfigStore（tie:data 全面替换 JSON）：新文件写 .data.tie，旧 .json 自动兼容迁移。
+            var store = new TieDataConfigStore();
             var registry = new ModuleRegistry(AppPaths.ModulesPath, AppPaths.SettingsPath, AppPaths.SecurePath, store);
             ModuleKind? currentKind = null; // 模块加载期间的调用方 Kind（无越权）
             var updater = new ModuleUpdater(registry, AppPaths.GetPluginDirectories(), () => currentKind);

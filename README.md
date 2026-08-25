@@ -8,15 +8,15 @@
 ## 特性
 
 - **界面完全由模块控制**：壳只是模块运行时 + 空工作台框架，菜单/工具栏/面板/画布全部来自模块贡献
-- **模块注册表系统**：记录全部模块信息与配置（JSON 即时持久化），支持启用/禁用/卸载
+- **模块注册表系统**：记录全部模块信息与配置（tie:data 即时持久化，旧 JSON 配置自动兼容迁移），支持启用/禁用/卸载
 - **模块分级**：标准模块（内置，受保护，仅更新模块可改文件）/ 扩展模块（用户可安装卸载）/ 更新模块（内置特殊权限）
 - **设置分级**：用户设置 / 核心设置（用户可改）+ 安全设置（仅更新模块可改，隔离存储）
 - **证件照工作流**：Fpter 滤镜模块提供灰度 / 动漫 / 反色 / 亮度对比度 / 饱和度 / 模糊 / 锐化 / 怀旧 8 个滤镜 + 滤镜窗口；Fptm 工作流模块提供一键证件照 / 换底色 / 红眼去除 / 智能裁切 / 拼版排版
 - **撤销重做**：COW 不可变图层，命令级历史栈（零拷贝指针回退）
 - **批量处理**：GUI 与 CLI 复用同一批处理管线
 - **可卸载插件系统**：ALC 加载扩展模块，ABI 红线契约测试保证卸载承诺
-- **安全机制**：管理员权限警告 + 外部模块加载确认 + 模块哈希白名单校验（`trusted-modules.json` 防 DLL 篡改）
-- **tie 语言预留**：模块开发未来迁移到自研 tie 语言；`tie:data` 将取代 JSON 配置（`IConfigStore` 格式中立）
+- **安全机制**：管理员权限警告 + 外部模块加载确认 + 模块哈希白名单校验（`trusted-modules.data.tie` 防 DLL 篡改）
+- **tie 生态配置格式**：配置/清单统一 tie:data（`TieDataConfigStore`，与 tiec 配置同格式）；数据传输/临时文件用 tie:zd 压缩（`ZdConfigStore`，DoNetZD）；`tie:data` 已全面取代 JSON（旧 `.json` 文件启动时自动迁移）
 
 ## 解决方案结构
 
@@ -55,7 +55,8 @@ dotnet run --project src/Osiris.Cli -- --help
 ## 模块开发
 
 模块 = 实现 `IModule` 的扩展程序集（`[PluginExport]` 标记），只允许引用 `Osiris.Abstractions`（ABI 红线）。
-每个模块根目录放 `module.json` 清单（Id/Name/Version/kind/type/language/entryPoint/minHostVersion/dependencies）。
+每个模块根目录放 `module.data.tie` 清单（tie:data 格式；兼容旧 `module.json`——
+Id/Name/Version/kind/type/language/entryPoint/minHostVersion/dependencies）。
 
 模块可贡献：滤镜（`IFilterPlugin`）、交互工具（`IEditorTool`）、UI（`IUiService` 菜单/工具栏/面板/画布）、设置组（`ISettingProvider`）、CLI 子命令（`ICliCommandProvider`）。
 

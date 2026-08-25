@@ -5,7 +5,7 @@ namespace Osiris.CoreModule.Services;
 /// <summary>
 /// 应用路径服务：集中提供本软件在用户主目录下的数据目录与配置文件路径。
 /// 与 CLI 共享同一注册表路径（%APPDATA%/Fptp），保证 GUI 与 CLI 的状态一致
-/// （模块注册表 modules.json、模块配置 settings.json、安全配置 secure.json）。
+/// （模块注册表 modules.data.tie、模块配置 settings.data.tie、安全配置 secure.data.tie）。
 /// 全部成员为静态：无需实例化即可在任何宿主（GUI/CLI/测试）下使用。
 /// </summary>
 public sealed class AppPaths
@@ -33,14 +33,14 @@ public sealed class AppPaths
         }
     }
 
-    /// <summary>用户设置文件（settings.json，User/Core 段配置）。</summary>
-    public static string SettingsPath => Path.Combine(AppDataDir, "settings.json");
+    /// <summary>用户设置文件（settings.data.tie，tie:data 格式，User/Core 段配置；旧 settings.json 自动兼容迁移）。</summary>
+    public static string SettingsPath => Path.Combine(AppDataDir, "settings.data.tie");
 
-    /// <summary>模块注册表文件（modules.json，模块状态与配置）。</summary>
-    public static string ModulesPath => Path.Combine(AppDataDir, "modules.json");
+    /// <summary>模块注册表文件（modules.data.tie，tie:data 格式，模块状态与配置；旧 modules.json 自动兼容迁移）。</summary>
+    public static string ModulesPath => Path.Combine(AppDataDir, "modules.data.tie");
 
-    /// <summary>安全设置文件（secure.json，Security 段配置，与普通设置隔离）。</summary>
-    public static string SecurePath => Path.Combine(AppDataDir, "secure.json");
+    /// <summary>安全设置文件（secure.data.tie，tie:data 格式，Security 段配置，与普通设置隔离；旧 secure.json 自动兼容迁移）。</summary>
+    public static string SecurePath => Path.Combine(AppDataDir, "secure.data.tie");
 
     /// <summary>
     /// 插件扫描目录列表：①程序集旁的 plugins/（随产品分发的扩展模块）；

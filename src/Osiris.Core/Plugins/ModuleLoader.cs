@@ -1,10 +1,10 @@
 using System.Reflection;
-using System.Text.Json;
 using Osiris.Abstractions;
 using Osiris.Abstractions.Localization;
 using Osiris.Abstractions.Modules;
 using Osiris.Abstractions.Plugins;
 using Osiris.Abstractions.Settings;
+using Osiris.Core.Storage;
 
 namespace Osiris.Core.Plugins;
 
@@ -19,8 +19,14 @@ public static class ModuleLoader
     /// <summary>宿主版本（MinHostVersion 校验基准，与 Directory.Build.props 的 Version 对齐）。</summary>
     public const string HostVersion = "1.0.0";
 
-    /// <summary>模块清单文件名（语言中立数据源，见架构 4.7 节）。</summary>
-    private const string ManifestFileName = "module.json";
+    /// <summary>模块清单文件名（tie:data 角色，首选；tie:data 全面替换 JSON 后官方模块用本格式）。</summary>
+    private const string ManifestFileNameTieData = "module.data.tie";
+
+    /// <summary>模块清单文件名（JSON 旧格式，兼容回退：外部模块/历史目录仍可能为 module.json）。</summary>
+    private const string ManifestFileNameJson = "module.json";
+
+    /// <summary>清单解析存储：TieDataConfigStore 同时支持 tie:data（module.data.tie）与 JSON（module.json）解析。</summary>
+    private static readonly IConfigStore ManifestStore = new TieDataConfigStore();
 
     /// <summary>
     /// 加载指定目录下的全部模块（清单驱动；无清单则反射兜底）。
@@ -216,13 +222,13 @@ public static class ModuleLoader
     // ---- 辅助 ----
 
     /// <summary>
-    /// 读取模块目录 module.json 的 entryPoint（主 DLL 文件名）；无清单/缺字段返回 null。
+    /// 读取模块目录清单的 entryPoint（主 DLL 文件名）；无清单/缺字段返回 null。
     /// 供签名校验器定位模块主 DLL（与 LoadManifest 同源解析）。
     /// </summary>
     public static string? ReadEntryPoint(string moduleDir)
     {
-        string manifestPath = Path.Combine(moduleDir, ManifestFileName);
-        if (!File.Exists(manifestPath))
+        string? manifestPath = FindManifest(moduleDir);
+        if (manifestPath is null)
             return null;
         try
         {
@@ -295,30 +301,47 @@ public static class ModuleLoader
     private static void RegisterModuleLanguagePack(string moduleDir)
         => L10n.RegisterLanguagePack(Path.Combine(moduleDir, "langs"));
 
-    /// <summary>收集清单文件：目录根 + 一级子目录。</summary>
+    /// <summary>收集清单文件：目录根 + 一级子目录；每个目录同时找 tie:data（module.data.tie）与 JSON（module.json）清单，data 优先。</summary>
     private static List<(string ModuleDir, string ManifestPath)> FindManifests(string directory)
     {
         var list = new List<(string, string)>();
-        string root = Path.Combine(directory, ManifestFileName);
-        if (File.Exists(root))
-            list.Add((directory, root));
+        if (FindManifest(directory) is { } rootPath)
+            list.Add((directory, rootPath));
         foreach (string sub in Directory.EnumerateDirectories(directory))
         {
-            string path = Path.Combine(sub, ManifestFileName);
-            if (File.Exists(path))
-                list.Add((sub, path));
+            if (FindManifest(sub) is { } subPath)
+                list.Add((sub, subPath));
         }
         return list;
     }
 
-    /// <summary>解析 module.json 清单为强类型数据（字段缺省时取保守默认）。</summary>
+    /// <summary>定位单目录清单：module.data.tie 优先，其次 module.json；两者都不存在返回 null。</summary>
+    private static string? FindManifest(string directory)
+    {
+        string tieData = Path.Combine(directory, ManifestFileNameTieData);
+        if (File.Exists(tieData))
+            return tieData;
+        string json = Path.Combine(directory, ManifestFileNameJson);
+        return File.Exists(json) ? json : null;
+    }
+
+    /// <summary>解析模块清单为强类型数据（tie:data 或 JSON，经 TieDataConfigStore 统一扁平读取；字段缺省时取保守默认）。</summary>
     private static ModuleManifest ParseManifest(string manifestPath)
     {
-        using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
-        JsonElement root = doc.RootElement;
+        IReadOnlyDictionary<string, object> fields;
+        try
+        {
+            fields = ManifestStore.Load(manifestPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new InvalidDataException($"模块清单读取失败: {manifestPath}", ex);
+        }
+        if (fields.Count == 0)
+            throw new InvalidDataException($"模块清单为空或格式无法识别: {manifestPath}");
 
         string GetString(string property, string fallback = "")
-            => root.TryGetProperty(property, out JsonElement element) ? element.GetString() ?? fallback : fallback;
+            => fields.TryGetValue(property, out object? value) && value is string s && s.Length > 0 ? s : fallback;
 
         string id = GetString("id");
         if (string.IsNullOrWhiteSpace(id))

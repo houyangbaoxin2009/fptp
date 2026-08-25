@@ -42,9 +42,10 @@ internal static class Program
         if (ElevationGuard.IsElevated())
             Console.Error.WriteLine("警告：当前以管理员权限运行。插件是可执行代码，管理员权限下恶意插件可修改系统文件。建议以普通权限运行。");
 
-        // 1) 配置存储 + 模块注册表：与 GUI 完全同一路径（modules.json/settings.json/secure.json），
+        // 1) 配置存储 + 模块注册表：与 GUI 完全同一路径（modules.data.tie/settings.data.tie/secure.data.tie），
+        //    默认 TieDataConfigStore（tie:data 全面替换 JSON，旧 .json 自动兼容迁移），
         //    因此 CLI 读到的模块启用/禁用状态、用户配置、安全设置都与 GUI 一致——共享状态，CLI 无特权。
-        var store = new JsonConfigStore();
+        var store = new TieDataConfigStore();
         var registry = new ModuleRegistry(
             CliEnvironment.ModulesPath, CliEnvironment.SettingsPath, CliEnvironment.SecurePath, store);
 

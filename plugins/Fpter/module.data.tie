@@ -1,0 +1,14 @@
+type tie<data>
+
+// Fpter 模块清单（tie:data 角色；与旧 module.json 同字段，宿主两种格式均兼容解析）
+[
+    "id": "fpter",
+    "name": "内置滤镜模块",
+    "version": "1.0.0",
+    "kind": "extension",
+    "type": "native",
+    "language": "dotnet",
+    "entryPoint": "Fpter.dll",
+    "minHostVersion": "1.0.0",
+    "dependencies": [],
+]

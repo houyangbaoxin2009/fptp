@@ -14,6 +14,10 @@
     <ProjectReference Include="..\Osiris.Abstractions\Osiris.Abstractions.csproj" />
     <!-- 算法库：ColorUtil/几何/floodfill/缩放/色彩变换（自本层迁移，供扩展模块复用） -->
     <ProjectReference Include="..\Osiris.Algorithms\Osiris.Algorithms.csproj" />
+    <!-- tie:data 解析/写入库（DoNetTD）：tie:data 配置存储 + 模块清单解析（tie:data 全面替换 JSON） -->
+    <ProjectReference Include="..\..\..\tie-DoNetTD\src\DoNetTD\DoNetTD.csproj" />
+    <!-- tie:zd 压缩编码库（DoNetZD）：zd 配置交换/临时文件/备份（数据传输格式，与 tie:data 同数据面） -->
+    <ProjectReference Include="..\..\..\DoNetZD\src\DoNetZD\DoNetZD.csproj" />
   </ItemGroup>
 
 </Project>

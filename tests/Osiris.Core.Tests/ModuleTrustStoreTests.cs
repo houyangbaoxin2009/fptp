@@ -103,4 +103,51 @@ public class ModuleTrustStoreTests
         }
         finally { Directory.Delete(root, true); }
     }
+
+    [Fact]
+    public void IsTrusted_内置TieData名单命中()
+    {
+        // 意图：内置名单为 tie:data 格式（trusted-modules.data.tie，DoNetTD 写出风格）时哈希命中/未命中判定正确。
+        string root = Path.Combine(TempRoot, Path.GetRandomFileName());
+        Directory.CreateDirectory(root);
+        try
+        {
+            string builtin = Path.Combine(root, "trusted-modules.data.tie");
+            File.WriteAllText(builtin, """
+                type tie<data>
+                [
+                    "modules": [
+                        "mymod": ["abc123"],
+                    ],
+                ]
+                """);
+            var store = new ModuleTrustStore(builtin, Path.Combine(root, "user.json"));
+
+            Assert.True(store.IsTrusted("mymod", "abc123"));
+            Assert.False(store.IsTrusted("mymod", "deadbeef"));   // 哈希不匹配
+            Assert.False(store.IsTrusted("other", "abc123"));     // 模块不在名单
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Trust_用户名单落盘为TieData_重载命中()
+    {
+        // 意图：用户 Trust 后名单文件内容为 tie:data（可被 DoNetTD 解析），新实例重载同文件仍命中。
+        string root = Path.Combine(TempRoot, Path.GetRandomFileName());
+        Directory.CreateDirectory(root);
+        try
+        {
+            string userPath = Path.Combine(root, "trusted-modules.data.tie");
+            var store = new ModuleTrustStore(Path.Combine(root, "builtin.json"), userPath);
+
+            store.Trust("extmod", "h1");
+            Assert.True(store.IsTrusted("extmod", "h1"));
+            Assert.Contains("type tie<data>", File.ReadAllText(userPath));   // 落盘 tie:data 带角色头
+
+            var reloaded = new ModuleTrustStore(Path.Combine(root, "builtin.json"), userPath);
+            Assert.True(reloaded.IsTrusted("extmod", "h1"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
 }
