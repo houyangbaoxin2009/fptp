@@ -1,11 +1,15 @@
 type tie<logic>
 
 // {{DisplayName}} —— tie 脚本插件（{{Id}}）
-// tie 版本：Harbor-2026.1-preview.4（自包含，无 import，零 tie-interp 依赖）
+// tie 版本：Harbor-2026.1-preview.4（SDK：fptp_sdk.tie，零 tie-interp 依赖）
 // 运行桥（FpSDK.TieKit.TieRunner）：
-//   - 输入：环境变量 FPTP_TIE_INPUT = base64(宿主协议文本)
+//   - 输入：环境变量 FPTP_TIE_INPUT = base64(宿主文本)
 //   - 输出：stdout 一行 "FPTP_OK:<base64>" 或 "FPTP_ERR:<base64>"
-// 插件逻辑只需实现 process(src)，宿主经 TieRunner 以文本进出。
+// 解析 import 按工作目录（CWD），fptp_sdk.tie 需与本文件同目录（生成时已就位）。
+// 插件逻辑只需实现 process(src)；main 调 fptp.bridge(process) 完成
+//   输入读取 → process → FPTP_OK 应答。
+
+import "fptp_sdk.tie" as fptp
 
 // ==================== 插件逻辑 ====================
 
@@ -14,79 +18,8 @@ func process(src: string) -> string {
     return src
 }
 
-// ==================== base64 桥（自包含实现，勿删） ====================
+// ==================== 运行桥（勿删） ====================
 
 func main() {
-    var b64 = get_env("FPTP_TIE_INPUT")
-    var src = base64_decode(b64)
-    var out = process(src)
-    println("FPTP_OK:" + base64_encode(out))
-}
-
-func base64_decode(s: string) -> string {
-    var out: string = ""
-    var n: i64 = str_len(s)
-    var acc: i64 = 0
-    var bits: i64 = 0
-    var i: i64 = 0
-    while i < n {
-        var c = str_char(s, i)
-        var v: i64 = -1
-        if c >= "A" && c <= "Z" {
-            v = char_code(c) - 65
-        } else if c >= "a" && c <= "z" {
-            v = char_code(c) - 97 + 26
-        } else if c >= "0" && c <= "9" {
-            v = char_code(c) - 48 + 52
-        } else if c == "+" {
-            v = 62
-        } else if c == "/" {
-            v = 63
-        }
-        if v >= 0 {
-            acc = (acc << 6) | v
-            bits = bits + 6
-            if bits >= 8 {
-                bits = bits - 8
-                var byte: i64 = (acc >> bits) & 255
-                out = out + str_from_code(byte)
-            }
-        }
-        i = i + 1
-    }
-    return out
-}
-
-func base64_encode(s: string) -> string {
-    var tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-    var out: string = ""
-    var n: i64 = str_len(s)
-    var i: i64 = 0
-    while i < n {
-        var b0: i64 = char_code(str_char(s, i))
-        var b1: i64 = 0
-        var b2: i64 = 0
-        var has1: bool = i + 1 < n
-        var has2: bool = i + 2 < n
-        if has1 {
-            b1 = char_code(str_char(s, i + 1))
-        }
-        if has2 {
-            b2 = char_code(str_char(s, i + 2))
-        }
-        out = out + str_char(tbl, (b0 >> 2) & 63)
-        out = out + str_char(tbl, ((b0 & 3) << 4) | (b1 >> 4))
-        if has1 {
-            out = out + str_char(tbl, ((b1 & 15) << 2) | (b2 >> 6))
-        } else {
-            out = out + "="
-        }
-        if has2 {
-            out = out + str_char(tbl, b2 & 63)
-        } else {
-            out = out + "="
-        }
-        i = i + 3
-    }
-    return out
+    fptp.bridge(process)
 }

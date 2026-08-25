@@ -21,7 +21,7 @@ public sealed record TieResult(bool Ok, string Output, string? Message)
 }
 
 /// <summary>
-/// tie 脚本运行桥：进程调用 tiec.exe 编译自包含 .tie 脚本并执行。
+/// tie 脚本运行桥：进程调用 tiec.exe 编译 .tie 脚本（同目录 fptp_sdk.tie 依赖随拷）并执行。
 /// <para>协议（templates/tie-module 同款）：</para>
 /// <list type="bullet">
 ///   <item>输入：环境变量 <c>FPTP_TIE_INPUT</c> = base64(宿主文本)；</item>
@@ -80,10 +80,19 @@ public static class TieRunner
         Directory.CreateDirectory(work);
         try
         {
-            // tiec 编译产物输出到"输入脚本所在目录"，故先把脚本复制进临时工作目录
+            // tiec 编译产物输出到"输入脚本所在目录"，故先把脚本复制进临时工作目录。
+            // tiec 按工作目录（CWD）解析 import：同目录依赖（fptp_sdk.tie 等）一并复制，
+            // 否则 main.tie 的 import 会在临时目录解析失败。
             string baseName = Path.GetFileNameWithoutExtension(scriptPath);
             string scriptCopy = Path.Combine(work, baseName + ".tie");
             string exePath = Path.Combine(work, baseName + ".exe");
+            string scriptDir = Path.GetDirectoryName(Path.GetFullPath(scriptPath))!;
+            foreach (string dep in Directory.GetFiles(scriptDir, "*.tie"))
+            {
+                if (string.Equals(dep, scriptPath, StringComparison.OrdinalIgnoreCase))
+                    continue;   // 入口脚本下面单独复制
+                File.Copy(dep, Path.Combine(work, Path.GetFileName(dep)), overwrite: true);
+            }
             File.Copy(scriptPath, scriptCopy, overwrite: true);
 
             // 1) 编译：tiec.exe <script>

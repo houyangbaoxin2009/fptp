@@ -1,0 +1,111 @@
+type tie<class>
+
+// ==================== FPTP tie 插件 SDK（fptp_sdk.tie） ====================
+// 用途：制作 fptp（Osiris）tie 脚本插件的最小运行库。
+//   插件 main.tie 只需 import 本文件（同目录）+ 实现 func process(src: string) -> string，
+//   主流程（读宿主输入 → 调 process → FPTP_OK 协议输出）由 fptp.bridge 代劳。
+// 运行桥协议（FpSDK.TieKit.TieRunner 同款，见 templates/tie-module）：
+//   - 输入：环境变量 FPTP_TIE_INPUT = base64(宿主文本)
+//   - 输出：stdout 单行 "FPTP_OK:<base64>" 或 "FPTP_ERR:<base64>"
+// 依赖：仅 tie 内联底座（get_env/println/str_len/str_char/char_code/str_from_code/算术），
+//   零 tie-interp 依赖（不触碰 file/regex 等桥，编译产物不链接运行时）。
+// 角色：class 库——可被 logic 脚本 import（编译期内联），亦可独立编译为 fptp_sdk.a。
+// 注意：tiec 按工作目录（CWD）解析 import，运行／编译时请保证 fptp_sdk.tie 与 main.tie 同目录。
+// 字节模型：input() 经 base64 解码得到"0-255 码点"构造串（UTF-8 每个字节一字符），
+//   reply_* 会把该串原样编码回宿主——任意字节内容（含中文）可无损往返；
+//   但源码中的中文/emoji 字面量（真实码点）不利于 base64 往返，协议文本请用 ASCII。
+
+namespace fptp {
+
+    // ---------- 协议出入口 ----------
+
+    /// 读宿主输入：解码 FPTP_TIE_INPUT 环境变量为宿主协议文本。
+    pub func input() -> string {
+        return base64_decode(get_env("FPTP_TIE_INPUT"))
+    }
+
+    /// 成功应答：打印 "FPTP_OK:<base64(文本)>"。
+    pub func reply_ok(msg: string) {
+        println("FPTP_OK:" + base64_encode(msg))
+    }
+
+    /// 失败应答：打印 "FPTP_ERR:<base64(文本)>"。
+    pub func reply_err(msg: string) {
+        println("FPTP_ERR:" + base64_encode(msg))
+    }
+
+    /// 运行桥：读宿主输入 → 调 proc 处理 → FPTP_OK 应答。插件 main() 只需一行调用。
+    pub func bridge(proc: fn(string) -> string) {
+        reply_ok(proc(input()))
+    }
+
+    // ---------- base64（自包含实现，协议依赖，勿改格式） ----------
+
+    pub func base64_encode(s: string) -> string {
+        var tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        var out: string = ""
+        var n: i64 = str_len(s)
+        var i: i64 = 0
+        while i < n {
+            var b0: i64 = char_code(str_char(s, i))
+            var b1: i64 = 0
+            var b2: i64 = 0
+            var has1: bool = i + 1 < n
+            var has2: bool = i + 2 < n
+            if has1 {
+                b1 = char_code(str_char(s, i + 1))
+            }
+            if has2 {
+                b2 = char_code(str_char(s, i + 2))
+            }
+            out = out + str_char(tbl, (b0 >> 2) & 63)
+            out = out + str_char(tbl, ((b0 & 3) << 4) | (b1 >> 4))
+            if has1 {
+                out = out + str_char(tbl, ((b1 & 15) << 2) | (b2 >> 6))
+            } else {
+                out = out + "="
+            }
+            if has2 {
+                out = out + str_char(tbl, b2 & 63)
+            } else {
+                out = out + "="
+            }
+            i = i + 3
+        }
+        return out
+    }
+
+    pub func base64_decode(s: string) -> string {
+        var out: string = ""
+        var n: i64 = str_len(s)
+        var acc: i64 = 0
+        var bits: i64 = 0
+        var i: i64 = 0
+        while i < n {
+            var c = str_char(s, i)
+            var v: i64 = -1
+            if c >= "A" && c <= "Z" {
+                v = char_code(c) - 65
+            } else if c >= "a" && c <= "z" {
+                v = char_code(c) - 97 + 26
+            } else if c >= "0" && c <= "9" {
+                v = char_code(c) - 48 + 52
+            } else if c == "+" {
+                v = 62
+            } else if c == "/" {
+                v = 63
+            }
+            if v >= 0 {
+                acc = (acc << 6) | v
+                bits = bits + 6
+                if bits >= 8 {
+                    bits = bits - 8
+                    var byte: i64 = (acc >> bits) & 255
+                    out = out + str_from_code(byte)
+                }
+            }
+            i = i + 1
+        }
+        return out
+    }
+}

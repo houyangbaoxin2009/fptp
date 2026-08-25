@@ -8,6 +8,14 @@
 ## [Unreleased]
 
 ### 新增
+- **tie 插件运行桥库化**（FpSDK）：原"自包含 main.tie 内联 base64 桥"抽为可复用 tie 库
+  `templates/tie-module/fptp_sdk.tie`（`type tie<class>`，`namespace fptp`）——
+  `input()` / `bridge(proc)` / `reply_ok` / `reply_err` / `base64_encode` / `base64_decode`；
+  插件 main.tie 只需 `import "fptp_sdk.tie" as fptp` + 实现 `process(src)`，main 一行 `fptp.bridge(process)`。
+  `TieRunner` 同步支持复制同目录 `.tie` 依赖（import 按 CWD 解析，`fptp_sdk.tie` 随模板分发进插件目录）。
+  库零 tie-interp 依赖，可 import 编译期内联，也可独立编译为 `fptp_sdk.a`；FpSDK 1.0.1 / FpSdkCli 1.0.1
+
+### 变更
 - **换底色增强**（fptm 工作流）：新增边缘羽化参数（feather 0~20，默认 3，容差外按覆盖度线性过渡去锯齿）+ 背景图片支持（`replaceBgImage` 设置项选路径，宿主解码委托注入 PixelSurface，cover 铺满贴合，优先于纯色；解码失败回退纯色）
 - **智能裁切尺寸预设**（fptm 工作流）：新增尺寸预设（原始 35:45 / 1寸 295×413 / 小2寸 390×567 / 2寸 413×579 / 3寸 649×1000），按预设宽高比裁切后双线性缩放到标准像素（`smartCropPreset` 设置项）
 - **排版增强**（fptm 工作流）：相纸预设扩充 A5（2480×1748）+ 自定义宽高（`layoutWidth`/`layoutHeight` 设置项）；可选画虚线裁剪引导线（`layoutGuides`，照片格四周浅灰虚线，画在照片之上）

@@ -11,7 +11,7 @@ fptp（Osiris）**插件开发 SDK**：聚合包 + 脚手架 CLI + NuGet 打包�
 |---|---|
 | **聚合包（库）** | `FpSDK` 程序集聚合 `Osiris.Abstractions` + `Osiris.Algorithms`，插件只引 FpSDK 一个项目/包即可写插件；另附开发辅助：`ModuleBase` 基类、`FpContext` 宿主便捷访问、`PluginManifest` 清单模型、`ProjectGenerator` 模板引擎 |
 | **脚手架 CLI** | `fpsdk new <name>` 一键生成标准插件骨架（csproj + module.json + IModule + langs），严格遵循 `docs/module-development-guide.md` 约定；`--lang tie` 生成 tie 脚本插件 |
-| **tie 集成** | 绑定 **tie Harbor-2026.1-preview.4**：tie 脚本插件模板（自包含 main.tie，零 tie-interp 依赖）+ `TieRunner` 运行桥（进程调用随包 `tools/tie/tiec.exe`，base64 协议文本进出） |
+| **tie 集成** | 绑定 **tie Harbor-2026.1-preview.4**：tie 脚本插件模板（`main.tie` + 运行桥库 `fptp_sdk.tie`，零 tie-interp 依赖）+ `TieRunner` 运行桥（进程调用随包 `tools/tie/tiec.exe`，base64 协议文本进出） |
 | **NuGet 打包** | `dotnet pack` 产出 `FpSDK.nupkg`（契约 dll 私有打入 + tiec.exe 随包分发，无外部 NuGet 依赖）与 `FpSdkCli` dotnet tool（安装后命令 `fpsdk`） |
 
 ## 快速开始
@@ -35,23 +35,41 @@ dotnet run --project FpSDK/cli/FpSdkCli -- new MyWidget --path plugins/MyWidget
 ## tie 脚本插件（Harbor-2026.1-preview.4）
 
 绑定 **tie-main `Harbor-2026.1-preview.4`**（`FpSDK/tools/tie/tiec.exe` 随包分发），
-tie 模块 = 一个**自包含** `.tie` 文件（`type tie<logic>` + `func process(src: string) -> string`），
+tie 模块 = `main.tie`（`type tie<logic>` + `func process(src: string) -> string`）+ 运行桥库 `fptp_sdk.tie`，
 `module.json` 用 `type=script / language=tie`。
 
 ```bash
 fpsdk new Echo --lang tie --id tie.echo
-# 生成：main.tie + module.json（type=script）+ langs/
+# 生成：main.tie + fptp_sdk.tie + module.json（type=script）+ langs/
 ```
 
-写插件只需实现 `process`：
+写插件只需实现 `process`（桥的 base64 / FPTP_OK/ERR 协议已抽到 `fptp_sdk.tie` 库）：
 
 ```tie
-// main.tie（骨架已含 base64 桥与 main，勿删）
+// main.tie（import 同目录 fptp_sdk.tie；main 里一行 fptp.bridge(process)，勿删）
+import "fptp_sdk.tie" as fptp
+
 func process(src: string) -> string {
     // TODO: 处理宿主传入的 tie:data / 协议文本
     return src
 }
+
+func main() {
+    fptp.bridge(process)   // 读输入 → process → FPTP_OK 应答
+}
 ```
+
+`fptp_sdk.tie`（`type tie<class>`）库 API（`namespace fptp`）：
+
+| 函数 | 说明 |
+|---|---|
+| `input()` | 读宿主输入：解码 `FPTP_TIE_INPUT`（base64） |
+| `bridge(proc)` | 运行桥：读输入 → 调 proc → `FPTP_OK` 应答 |
+| `reply_ok(msg)` / `reply_err(msg)` | 直发 `FPTP_OK` / `FPTP_ERR` 应答 |
+| `base64_encode(s)` / `base64_decode(s)` | base64 编解码底层 |
+
+> 字节模型：`input()` 得到"0-255 码点"构造串（UTF-8 每字节一字符），任意字节内容（含中文）
+> 经 base64 无损往返；源码字面量请用 ASCII。
 
 运行桥（`FpSDK.TieRunner`，进程级，零 tie-interp 依赖）：
 
@@ -122,7 +140,7 @@ FpSDK/
 ├── cli/FpSdkCli/                # fpsdk 脚手架（dotnet tool，命令 fpsdk）
 ├── tools/tie/                   # tie 运行时产物（tiec.exe，Harbor-2026.1-preview.4，随包分发）
 ├── templates/dotnet-module/     # .NET 插件项目模板（token 化）
-├── templates/tie-module/        # tie 脚本插件模板（main.tie + module.json type=script）
+├── templates/tie-module/        # tie 脚本插件模板（main.tie + fptp_sdk.tie 运行桥库 + module.json type=script）
 └── tests/FpSDK.Tests/           # 聚合库 + 模板生成回环 + tie 运行桥测试
 ```
 

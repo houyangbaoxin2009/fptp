@@ -5,8 +5,8 @@ namespace FpSdk.Tests;
 
 /// <summary>
 /// tie 2026.1-preview.4 集成测试：
-/// - tie 模板生成回环（module.json type=script / main.tie / 无 csproj）；
-/// - TieRunner 端到端：真实编译运行 main.tie，base64 中文协议文本往返；
+/// - tie 模板生成回环（module.json type=script / main.tie + fptp_sdk.tie / 无 csproj）；
+/// - TieRunner 端到端：真实编译运行 main.tie（import fptp_sdk.tie），base64 中文协议文本往返；
 /// - ticc 随包分发可达性（AppContext.BaseDirectory/tools/tie）。
 /// </summary>
 public class TieTests
@@ -55,6 +55,7 @@ public class TieTests
                     DisplayName: "tie 探头", Language: "tie"));
 
             Assert.Contains("main.tie", files);
+            Assert.Contains("fptp_sdk.tie", files);   // 运行桥已抽为库，随模板分发
             Assert.Contains("module.json", files);
             Assert.DoesNotContain(files, f => f.EndsWith(".csproj"));
 
@@ -66,13 +67,21 @@ public class TieTests
             Assert.Contains("\"id\": \"tie.probe\"", manifestJson);
             Assert.Contains("\"name\": \"tie 探头\"", manifestJson);
 
-            // main.tie：进程桥约定 + 模板豁口
+            // main.tie：import 运行桥库 + process 豁口（base64 桥已移至 fptp_sdk.tie）
             string main = File.ReadAllText(Path.Combine(tmp, "main.tie"));
+            Assert.Contains("import \"fptp_sdk.tie\"", main);
             Assert.Contains("func process(src: string) -> string", main);
-            Assert.Contains("FPTP_OK:", main);
-            Assert.Contains("base64_decode", main);
+            Assert.Contains("fptp.bridge(process)", main);
             // token 已替换
             Assert.DoesNotContain("{{Name}}", main.Replace("tie 探头", ""));
+
+            // fptp_sdk.tie：协议常量与 base64 编解码在库内
+            string sdk = File.ReadAllText(Path.Combine(tmp, "fptp_sdk.tie"));
+            Assert.Contains("namespace fptp", sdk);
+            Assert.Contains("FPTP_OK:", sdk);
+            Assert.Contains("FPTP_ERR:", sdk);
+            Assert.Contains("func base64_decode(s: string) -> string", sdk);
+            Assert.Contains("func base64_encode(s: string) -> string", sdk);
         }
         finally
         {
@@ -106,6 +115,36 @@ public class TieTests
 
             Assert.True(result.Ok, result.Message);
             Assert.Equal("你好，tie 2026.1-pre4！\n第二行：中文 ✓", result.Output);
+        }
+        finally
+        {
+            CleanUp(tmp);
+        }
+    }
+
+    [Fact]
+    public void TieRunner_ErrPath_ReplyErrProtocol()
+    {
+        string? tiec = TieRunner.FindTiec();
+        if (tiec is null)
+            return;   // 运行桥不可用（未随包分发）时跳过
+
+        string tmp = NewTempDir();
+        try
+        {
+            ProjectGenerator.Generate(FindTemplateRoot(ProjectGenerator.TieTemplate), tmp,
+                new ProjectGenerator.Options(Name: "FailProbe", Id: "tie.fail", DisplayName: "失败探头"));
+
+            // 覆盖 main.tie：直接走 fptp_sdk.tie 的失败应答（tiec 不接受带 BOM 的文件头）
+            // 注意：桥的字节模型按 0-255 码点串处理，协议文本用 ASCII 才能稳定往返
+            string mainTie = Path.Combine(tmp, "main.tie");
+            File.WriteAllText(mainTie,
+                "type tie<logic>\n\nimport \"fptp_sdk.tie\" as fptp\n\nfunc main() {\n    fptp.reply_err(\"probe_err\")\n}\n",
+                new System.Text.UTF8Encoding(false));
+
+            TieResult result = TieRunner.Run(mainTie, "输入无关紧要");
+            Assert.False(result.Ok);
+            Assert.Equal("probe_err", result.Message);
         }
         finally
         {

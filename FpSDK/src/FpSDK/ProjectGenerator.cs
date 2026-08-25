@@ -12,7 +12,7 @@ namespace FpSDK;
 ///   - {{AbstractionsRef}} 依 RepoReference 注入 ProjectReference（仓库内 FpSDK）
 ///     或 PackageReference（NuGet 版 FpSDK）。
 /// tie 模板（templates/tie-module）：module.json（type=script,language=tie）+
-/// main.tie（自包含，TieRunner 桥），无 csproj。
+/// main.tie（import 运行桥库 fptp_sdk.tie，TieRunner 桥）+ fptp_sdk.tie，无 csproj。
 /// </summary>
 public static class ProjectGenerator
 {
