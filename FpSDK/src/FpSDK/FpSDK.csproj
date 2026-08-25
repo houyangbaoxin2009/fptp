@@ -40,4 +40,13 @@
     </ItemGroup>
   </Target>
 
+  <!-- tie 运行时产物随包分发（tools/tie/tiec.exe，Harbor-2026.1-preview.4）：
+       随构建复制到输出（TieRunner 从 AppContext.BaseDirectory/tools/tie 定位），并打进 NuGet。 -->
+  <ItemGroup>
+    <None Include="..\..\tools\tie\tiec.exe"
+          Pack="true" PackagePath="tools\tie\"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tools\tie\tiec.exe" />
+  </ItemGroup>
+
 </Project>

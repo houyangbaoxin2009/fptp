@@ -1,0 +1,11 @@
+{
+  "id": "{{Id}}",
+  "name": "{{DisplayName}}",
+  "version": "{{Version}}",
+  "kind": "extension",
+  "type": "script",
+  "language": "tie",
+  "entryPoint": "{{Name}}.tie",
+  "minHostVersion": "{{MinHostVersion}}",
+  "dependencies": []
+}

@@ -16,4 +16,11 @@
     <ProjectReference Include="..\..\src\FpSDK\FpSDK.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- tiec 运行时复制到测试输出（模拟随包分发路径 AppContext.BaseDirectory/tools/tie） -->
+    <None Include="..\..\tools\tie\tiec.exe"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tools\tie\tiec.exe" />
+  </ItemGroup>
+
 </Project>

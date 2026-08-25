@@ -45,6 +45,7 @@ public static class Program
     private static int RunNew(string[] args)
     {
         string? name = null, path = null, id = null, version = null;
+        string lang = ProjectGenerator.DotNetTemplate;
         bool repo = true;
         for (int i = 0; i < args.Length; i++)
         {
@@ -53,6 +54,13 @@ public static class Program
                 case "--path" when i + 1 < args.Length: path = args[++i]; break;
                 case "--id" when i + 1 < args.Length: id = args[++i]; break;
                 case "--version" when i + 1 < args.Length: version = args[++i]; break;
+                case "--lang" when i + 1 < args.Length:
+                    lang = args[++i].ToLowerInvariant() switch
+                    {
+                        "tie" => ProjectGenerator.TieTemplate,
+                        _ => ProjectGenerator.DotNetTemplate,
+                    };
+                    break;
                 case "--repo": repo = true; break;
                 case "--sdk": repo = false; break;
                 case "-h" or "--help": PrintNewHelp(); return 0;
@@ -75,26 +83,36 @@ public static class Program
         }
 
         string destDir = path ?? Path.Combine(Environment.CurrentDirectory, name);
-        string templateRoot = Path.Combine(AppContext.BaseDirectory, "templates", "dotnet-module");
+        string templateRoot = Path.Combine(AppContext.BaseDirectory, "templates", lang);
 
         var options = new ProjectGenerator.Options(
             Name: name,
             Id: id ?? NormalizeId(name),
             DisplayName: name,
             Version: version ?? "1.0.0.0",
+            Language: lang == ProjectGenerator.TieTemplate ? "tie" : "dotnet",
             RepoReference: repo);
 
         List<string> files = ProjectGenerator.Generate(templateRoot, destDir, options);
 
-        Console.WriteLine($"已生成插件项目 {name} → {destDir}");
+        Console.WriteLine($"已生成插件项目 {name}（{lang}）→ {destDir}");
         foreach (string f in files)
             Console.WriteLine($"  {f}");
         Console.WriteLine();
-        Console.WriteLine("下一步：");
-        Console.WriteLine($"  cd {destDir}");
-        Console.WriteLine("  dotnet build  # 构建（确保宿主 FpSDK/仓库可见）");
-        if (repo)
-            Console.WriteLine("  提示：模块放置在 fptp 仓库 plugins/ 下时，宿主启动即自动扫描加载。");
+        if (lang == ProjectGenerator.TieTemplate)
+        {
+            Console.WriteLine("下一步：");
+            Console.WriteLine($"  cd {destDir}");
+            Console.WriteLine("  宿主（TieHost）未来接管加载；当前可用 FpSDK.TieRunner 直接编译运行 main.tie 调试。");
+        }
+        else
+        {
+            Console.WriteLine("下一步：");
+            Console.WriteLine($"  cd {destDir}");
+            Console.WriteLine("  dotnet build  # 构建（确保宿主 FpSDK/仓库可见）");
+            if (repo)
+                Console.WriteLine("  提示：模块放置在 fptp 仓库 plugins/ 下时，宿主启动即自动扫描加载。");
+        }
 
         return 0;
     }

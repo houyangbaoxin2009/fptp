@@ -3,16 +3,23 @@ using System.Text;
 namespace FpSDK;
 
 /// <summary>
-/// 插件项目生成器：从模板目录（templates/dotnet-module）生成标准插件骨架。
+/// 插件项目生成器：从模板目录生成标准插件骨架。
+/// 模板目录：dotnet-module（.NET 程序集插件）/ tie-module（tie 脚本插件）。
 /// 模板占位符：{{Name}} {{Id}} {{DisplayName}} {{Version}} {{MinHostVersion}}
 /// {{Language}} {{EntryPoint}} {{AbstractionsRef}}。
-/// 生成规则：
+/// 生成规则（dotnet 模板）：
 ///   - _Module_.csproj → &lt;Name&gt;.csproj；Module.cs → &lt;Name&gt;Module.cs；
 ///   - {{AbstractionsRef}} 依 RepoReference 注入 ProjectReference（仓库内 FpSDK）
 ///     或 PackageReference（NuGet 版 FpSDK）。
+/// tie 模板（templates/tie-module）：module.json（type=script,language=tie）+
+/// main.tie（自包含，TieRunner 桥），无 csproj。
 /// </summary>
 public static class ProjectGenerator
 {
+    /// <summary>支持的模板种类。</summary>
+    public const string DotNetTemplate = "dotnet-module";
+    public const string TieTemplate = "tie-module";
+
     /// <summary>生成选项。</summary>
     public sealed record Options(
         string Name,
