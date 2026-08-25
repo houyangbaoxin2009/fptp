@@ -147,6 +147,10 @@ public sealed class ItoolModule : IModule, ITool, ISettingProvider
             for (int i = 0; i < Editing.ToolState.PresetCount; i++)
                 ui.RegisterCommand(new Commands.PresetSlotCommand(i));
 
+            // 编辑命令：裁切到选区（按当前选区包围盒裁切画布，可撤销）
+            ui.RegisterCommand(new Commands.CropToSelectionCommand(host));
+            ui.AddMenu("图像/裁切到选区", "itool.cropToSelection", 26);
+
             ui.AddPanel("画笔", () => new Views.BrushWindowView(), DockSide.Right);
         }
     }

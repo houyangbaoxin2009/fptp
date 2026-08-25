@@ -9,7 +9,8 @@ namespace Fpter;
 
 /// <summary>
 /// 内置滤镜模块（原 Fptp.Plugins.Builtin 改名而来，id=fpter）：
-/// 只提供滤镜（灰度 / 动漫），作为 IFilterPlugin 贡献给滤镜窗口与壳体菜单。
+/// 提供滤镜（灰度 / 动漫 / 反色 / 亮度对比度 / 饱和度 / 模糊 / 锐化 / 怀旧），
+/// 作为 IFilterPlugin 贡献给滤镜窗口与壳体菜单。
 /// 换底色 / 智能裁切 / 排版已迁移到 fptm 工作流模块，本模块不再承担。
 /// ABI 红线：仅引用 Osiris.Abstractions，不引用 SkiaSharp/Avalonia/Osiris.Core。
 /// </summary>
@@ -34,6 +35,12 @@ public sealed class FpterModule : IFilterPlugin
     // ---- 滤镜实例（命令与 Filters 列表共享同一实例）----
     private readonly GrayscaleFilter _grayscale = new();
     private readonly AnimeFilter _anime = new();
+    private readonly InvertFilter _invert = new();
+    private readonly BrightnessContrastFilter _brightnessContrast = new();
+    private readonly SaturationFilter _saturation = new();
+    private readonly BlurFilter _blur = new();
+    private readonly SharpenFilter _sharpen = new();
+    private readonly SepiaFilter _sepia = new();
 
     /// <inheritdoc />
     public string Id => ModuleId;
@@ -58,6 +65,12 @@ public sealed class FpterModule : IFilterPlugin
     [
         _grayscale,
         _anime,
+        _invert,
+        _brightnessContrast,
+        _saturation,
+        _blur,
+        _sharpen,
+        _sepia,
     ];
 
     /// <inheritdoc />
@@ -79,5 +92,24 @@ public sealed class FpterModule : IFilterPlugin
 
         ui.RegisterCommand(new FilterCommand(host, _anime, "fpter.anime", "动漫模式"));
         ui.AddMenu("图像/动漫模式", "fpter.anime", 12);
+
+        // 常用滤镜：反色 / 亮度对比度 / 饱和度 / 模糊 / 锐化 / 怀旧（滤镜窗口自动聚合，无需在此登记）
+        ui.RegisterCommand(new FilterCommand(host, _invert, "fpter.invert", "反色"));
+        ui.AddMenu("图像/反色", "fpter.invert", 14);
+
+        ui.RegisterCommand(new FilterCommand(host, _brightnessContrast, "fpter.brightnessContrast", "亮度对比度"));
+        ui.AddMenu("图像/亮度对比度", "fpter.brightnessContrast", 16);
+
+        ui.RegisterCommand(new FilterCommand(host, _saturation, "fpter.saturation", "饱和度"));
+        ui.AddMenu("图像/饱和度", "fpter.saturation", 18);
+
+        ui.RegisterCommand(new FilterCommand(host, _blur, "fpter.blur", "模糊"));
+        ui.AddMenu("图像/模糊", "fpter.blur", 20);
+
+        ui.RegisterCommand(new FilterCommand(host, _sharpen, "fpter.sharpen", "锐化"));
+        ui.AddMenu("图像/锐化", "fpter.sharpen", 22);
+
+        ui.RegisterCommand(new FilterCommand(host, _sepia, "fpter.sepia", "怀旧"));
+        ui.AddMenu("图像/怀旧", "fpter.sepia", 24);
     }
 }

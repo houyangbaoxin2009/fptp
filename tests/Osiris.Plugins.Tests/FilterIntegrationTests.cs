@@ -204,4 +204,187 @@ public class FilterIntegrationTests : IDisposable
         Assert.True(cols >= 1);
         Assert.True(rows >= 1);
     }
+
+    // ---- 新增常用滤镜（fpter）----
+
+    [Theory]
+    [InlineData("fpter.invert")]
+    [InlineData("fpter.brightnessContrast")]
+    [InlineData("fpter.saturation")]
+    [InlineData("fpter.blur")]
+    [InlineData("fpter.sharpen")]
+    [InlineData("fpter.sepia")]
+    public void NewFilters_RegisterInModule_AndKeepSize(string filterId)
+    {
+        // 意图：6 个新滤镜全部登记进 fpter 模块滤镜表（滤镜窗口/菜单可见），应用后尺寸不变。
+        IFilterProcessor filter = GetFilter(filterId);
+        PixelSurface input = FillSurface(4, 4, b: 128, g: 128, r: 128, a: 255);
+
+        PixelSurface output = filter.Apply(input, filter.Defaults, progress: null, CancellationToken.None);
+
+        Assert.Equal(input.Width, output.Width);
+        Assert.Equal(input.Height, output.Height);
+        Assert.NotNull(filter.Id);
+    }
+
+    [Fact]
+    public void Invert_WhitePixel_BecomesBlack()
+    {
+        // 意图：反色把不透明白（255,255,255）转黑（0,0,0），Alpha 不变。
+        IFilterProcessor filter = GetFilter("fpter.invert");
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 255, r: 255, a: 255);
+
+        PixelSurface output = filter.Apply(input, new FilterParameters(), progress: null, CancellationToken.None);
+
+        Assert.Equal(new byte[] { 0, 0, 0, 255 }, output.Row(0)[0..4].ToArray());
+    }
+
+    [Fact]
+    public void BrightnessContrast_NeutralParams_Unchanged()
+    {
+        // 意图：亮度/对比度均为 0（恒等）时输出与输入逐像素一致。
+        IFilterProcessor filter = GetFilter("fpter.brightnessContrast");
+        PixelSurface input = FillSurface(4, 4, b: 128, g: 128, r: 128, a: 255);
+
+        PixelSurface output = filter.Apply(input, new FilterParameters { ["brightness"] = 0, ["contrast"] = 0 },
+            progress: null, CancellationToken.None);
+
+        Assert.Equal(new byte[] { 128, 128, 128, 255 }, output.Row(0)[0..4].ToArray());
+    }
+
+    [Fact]
+    public void Saturation_Zero_RedTurnsGray()
+    {
+        // 意图：饱和度 0 时红色去饱和为亮度灰（BT.601：R=255 → luma=76）。
+        IFilterProcessor filter = GetFilter("fpter.saturation");
+        PixelSurface input = FillSurface(4, 4, b: 0, g: 0, r: 255, a: 255);
+
+        PixelSurface output = filter.Apply(input, new FilterParameters { ["saturation"] = 0 },
+            progress: null, CancellationToken.None);
+
+        Assert.Equal(new byte[] { 76, 76, 76, 255 }, output.Row(0)[0..4].ToArray());
+    }
+
+    [Fact]
+    public void Sepia_RedPixel_TurnsWarmTone()
+    {
+        // 意图：怀旧完全强度下红像素按 sepia 矩阵变换（B=69 < G=89 < R=100，波浪边缘），不再纯红。
+        IFilterProcessor filter = GetFilter("fpter.sepia");
+        PixelSurface input = FillSurface(4, 4, b: 0, g: 0, r: 255, a: 255);
+
+        PixelSurface output = filter.Apply(input, new FilterParameters { ["strength"] = 100 },
+            progress: null, CancellationToken.None);
+
+        byte[] pixel = output.Row(0)[0..4].ToArray();
+        Assert.Equal(69, pixel[0]); // B
+        Assert.Equal(89, pixel[1]); // G
+        Assert.Equal(100, pixel[2]); // R（红通道降低，不再 255）
+        Assert.Equal(255, pixel[3]);
+    }
+
+    // ---- 红眼去除（fptm 工作流）----
+
+    [Fact]
+    public void RedEye_RedPupil_RedChannelReduced()
+    {
+        // 意图：高红像素（R=255,G=0,B=0）红眼去除后红通道显著降低（去红），其余通道不变。
+        PixelSurface input = FillSurface(4, 4, b: 0, g: 0, r: 255, a: 255);
+        var parameters = new FilterParameters { ["tolerance"] = 60, ["strength"] = 80 };
+
+        PixelSurface output = new RedEyeRemove().Apply(input, parameters, progress: null, CancellationToken.None);
+
+        byte[] pixel = output.Row(0)[0..4].ToArray();
+        Assert.True(pixel[2] < 100, $"红通道应被压暗（当前 {pixel[2]}）");
+        Assert.Equal(new byte[] { 0, 0, pixel[2], 255 }, pixel);
+    }
+
+    [Fact]
+    public void RedEye_BluePixel_Unchanged()
+    {
+        // 意图：非红像素（蓝）不满足红光判定，原样保持。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255); // 蓝（redScore<0）
+        var parameters = new FilterParameters { ["tolerance"] = 60, ["strength"] = 80 };
+
+        PixelSurface output = new RedEyeRemove().Apply(input, parameters, progress: null, CancellationToken.None);
+
+        Assert.Equal(new byte[] { 255, 0, 0, 255 }, output.Row(0)[0..4].ToArray());
+    }
+
+    // ---- 拼版模板（fptm LayoutComposer）----
+
+    [Fact]
+    public void LayoutComposer_Template1Inchx8_FixedGrid()
+    {
+        // 意图：拼版模板「6寸·1寸×8」固定 4 列×2 行，照片缩放到 1 寸（295×413）排到 6 寸相纸（1800×1200）。
+        PixelSurface photo = FillSurface(300, 400, b: 255, g: 255, r: 255, a: 255);
+
+        PixelSurface? paper = LayoutComposer.Compose(photo, "6寸·1寸×8", out int cols, out int rows);
+
+        Assert.NotNull(paper);
+        Assert.Equal(1800, paper!.Width);
+        Assert.Equal(1200, paper.Height);
+        Assert.Equal(4, cols);
+        Assert.Equal(2, rows);
+    }
+
+    [Fact]
+    public void LayoutComposer_Template2Inchx4_FixedGrid()
+    {
+        // 意图：拼版模板「6寸·2寸×4」固定 2 列×2 行。
+        PixelSurface photo = FillSurface(300, 400, b: 255, g: 255, r: 255, a: 255);
+
+        PixelSurface? paper = LayoutComposer.Compose(photo, "6寸·2寸×4", out int cols, out int rows);
+
+        Assert.NotNull(paper);
+        Assert.Equal(2, cols);
+        Assert.Equal(2, rows);
+    }
+
+    // ---- 一键证件照（fptm IdPhotoWizard）----
+
+    [Fact]
+    public void IdPhotoWizard_NoLayout_ReturnsCroppedReplacedPhoto()
+    {
+        // 意图：不排版时一键生成 = 智能裁切（1寸）→ 换底色（蓝底→红底），宽高 295×413、像素变红。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255); // 蓝底
+        var options = new IdPhotoWizardOptions(
+            PresetIndex: 1, Color: 0xFFFF0000u, Tolerance: 200, Feather: 0,
+            Paper: IdPhotoWizard.NoLayoutPaper, CustomW: 0, CustomH: 0, Guides: false);
+
+        PixelSurface result = IdPhotoWizard.Run(input, options, progress: null, CancellationToken.None);
+
+        Assert.Equal(295, result.Width);
+        Assert.Equal(413, result.Height);
+        Assert.Equal(new byte[] { 0, 0, 255, 255 }, result.Row(0)[0..4].ToArray()); // 红底
+    }
+
+    [Fact]
+    public void IdPhotoWizard_Template_ComposesPaper()
+    {
+        // 意图：向导带拼版模板时输出 6 寸相纸（1800×1200）。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255);
+        var options = new IdPhotoWizardOptions(
+            PresetIndex: 1, Color: 0xFFFF0000u, Tolerance: 200, Feather: 0,
+            Paper: "6寸·1寸×8", CustomW: 0, CustomH: 0, Guides: false);
+
+        PixelSurface result = IdPhotoWizard.Run(input, options, progress: null, CancellationToken.None);
+
+        Assert.Equal(1800, result.Width);
+        Assert.Equal(1200, result.Height);
+    }
+
+    [Fact]
+    public void IdPhotoWizard_UnknownPaper_FallsBackToReplaced()
+    {
+        // 意图：未知相纸名称时排版失败 → 回退已换底/裁切结果（不崩）。
+        PixelSurface input = FillSurface(4, 4, b: 255, g: 0, r: 0, a: 255);
+        var options = new IdPhotoWizardOptions(
+            PresetIndex: 1, Color: 0xFFFF0000u, Tolerance: 200, Feather: 0,
+            Paper: "不存在相纸", CustomW: 0, CustomH: 0, Guides: false);
+
+        PixelSurface result = IdPhotoWizard.Run(input, options, progress: null, CancellationToken.None);
+
+        Assert.Equal(295, result.Width);
+        Assert.Equal(413, result.Height);
+    }
 }

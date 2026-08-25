@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -14,6 +15,7 @@ namespace Fptm.Views;
 /// <summary>
 /// 传统面板（fptm 老版 FPTP 功能，可停靠）：
 /// - 批量处理：输入路径 + 输出目录 + 滤镜链（"id:键=值;键=值" 分号分隔）→ 逐张解码/滤镜/编码；
+/// - 一键证件照：尺寸预设 + 底色 + 相纸拼版向导（智能裁切 → 换底色 → 可选排版，单步生成）；
 /// - 排版生成：相纸（5寸/6寸/A4 @300dpi）网格排版当前文档首层 → 新文档（可撤销回原图）。
 /// 编解码/滤镜解析经宿主注入的服务委托（与 CLI batch 同一套），打印简化为导出图片。
 /// </summary>
@@ -28,8 +30,27 @@ public sealed class TraditionalPanelView : UserControl
     private readonly NumericUpDown _rowsBox = new() { Minimum = 1, Maximum = 10, Value = 3, Width = 70 };
     private readonly TextBlock _layoutStatus = new() { Text = "", Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
 
+    // ---- 一键证件照向导控件 ----
+    private readonly ComboBox _wizardPresetBox = new() { Width = 150 };
+    private readonly TextBox _wizardColorBox = new() { Width = 110, Text = "FF0000FF" };
+    private readonly NumericUpDown _wizardToleranceBox = new() { Minimum = 0, Maximum = 200, Value = 60, Width = 70 };
+    private readonly NumericUpDown _wizardFeatherBox = new() { Minimum = 0, Maximum = 20, Value = 3, Width = 70 };
+    private readonly ComboBox _wizardPaperBox = new() { Width = 120 };
+    private readonly NumericUpDown _wizardWidthBox = new() { Minimum = 100, Maximum = 6000, Value = 1500, Width = 80 };
+    private readonly NumericUpDown _wizardHeightBox = new() { Minimum = 100, Maximum = 6000, Value = 1050, Width = 80 };
+    private readonly CheckBox _wizardGuidesBox = new() { IsChecked = true };
+    private readonly TextBlock _wizardStatus = new() { Text = "", Opacity = 0.7, TextWrapping = TextWrapping.Wrap };
+
     public TraditionalPanelView()
     {
+        // 向导默认值沿用设置（颜色 AARRGGBB 文本；未解析成功时正视 hex）
+        _wizardColorBox.Text = $"{(uint)Settings.ReplaceBgColor.Value:X8}";
+        _wizardToleranceBox.Value = (decimal)Settings.ReplaceBgTolerance.Value;
+        _wizardFeatherBox.Value = (decimal)Settings.ReplaceBgFeather.Value;
+        _wizardWidthBox.Value = (decimal)Settings.LayoutWidth.Value;
+        _wizardHeightBox.Value = (decimal)Settings.LayoutHeight.Value;
+        _wizardGuidesBox.IsChecked = Settings.LayoutGuides.Value;
+
         var root = new ScrollViewer { Content = BuildPanel(), HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Content = root;
     }
@@ -47,6 +68,38 @@ public sealed class TraditionalPanelView : UserControl
         run.Click += (_, _) => RunBatch();
         panel.Children.Add(run);
         panel.Children.Add(_batchStatus);
+
+        // ---- 一键证件照向导区 ----
+        panel.Children.Add(SectionLabel("一键证件照"));
+        // 尺寸预设（下标即 SmartCrop.SizePresets 索引）
+        _wizardPresetBox.Items.Clear();
+        foreach ((string name, _, _) in Workflow.SmartCrop.SizePresets)
+            _wizardPresetBox.Items.Add(name);
+        _wizardPresetBox.SelectedIndex = Math.Max(0, Array.IndexOf(
+            Workflow.SmartCrop.SizePresets.Select(p => p.Name).ToArray(), Settings.SmartCropPreset.Value));
+        panel.Children.Add(FieldRow("证件照尺寸", _wizardPresetBox));
+        panel.Children.Add(FieldRow("目标底色(AARRGGBB)", _wizardColorBox));
+        panel.Children.Add(FieldRow("换底容差", _wizardToleranceBox));
+        panel.Children.Add(FieldRow("边缘羽化", _wizardFeatherBox));
+        // 相纸/模板（项存稳定 key：不排版 / 相纸预设 / 拼版模板 / 自定义）
+        _wizardPaperBox.ItemTemplate = new FuncDataTemplate<string>((key, _) => new TextBlock { Text = L10n.T(key) });
+        _wizardPaperBox.Items.Clear();
+        _wizardPaperBox.Items.Add(Workflow.IdPhotoWizard.NoLayoutPaper);
+        foreach ((string key, _) in Workflow.LayoutComposer.PaperPresets)
+            _wizardPaperBox.Items.Add(key);
+        foreach (Workflow.LayoutComposer.LayoutTemplate tpl in Workflow.LayoutComposer.LayoutTemplates)
+            _wizardPaperBox.Items.Add(tpl.Name);
+        _wizardPaperBox.Items.Add(Workflow.LayoutComposer.CustomPaper);
+        _wizardPaperBox.SelectedIndex = 0;
+        panel.Children.Add(FieldRow("相纸/拼版", _wizardPaperBox));
+        panel.Children.Add(FieldRow("自定义宽", _wizardWidthBox));
+        panel.Children.Add(FieldRow("自定义高", _wizardHeightBox));
+        _wizardGuidesBox.Content = L10n.T("画裁剪引导线");
+        panel.Children.Add(FieldRow("", _wizardGuidesBox));
+        var wizardRun = new Button { Content = L10n.T("一键生成"), MinWidth = 90, HorizontalAlignment = HorizontalAlignment.Right };
+        wizardRun.Click += (_, _) => RunWizard();
+        panel.Children.Add(wizardRun);
+        panel.Children.Add(_wizardStatus);
 
         // ---- 排版区 ----
         panel.Children.Add(SectionLabel("证件照排版"));
@@ -156,6 +209,71 @@ public sealed class TraditionalPanelView : UserControl
             catch { fail++; }
         }
         _batchStatus.Text = L10n.T("批量完成：成功 {0}，失败 {1}。输出目录：{2}", ok, fail, outputDir);
+    }
+
+    /// <summary>一键证件照：智能裁切 → 换底色 → 可选排版，单步生成（参数即时写回设置）。</summary>
+    private void RunWizard()
+    {
+        _wizardStatus.Text = "";
+        var host = FptmModule.HostContext;
+        var docs = host?.Services.Get<IDocumentService>();
+        var doc = docs?.Document;
+        if (host is null || docs is null || doc is null || doc.Layers.Count == 0)
+        {
+            _wizardStatus.Text = L10n.T("请先打开一张图片。");
+            return;
+        }
+
+        Layer layer = doc.Layers[0];
+        if (layer.Pixels.Width == 0 || layer.Pixels.Height == 0)
+            return;
+
+        int presetIndex = Math.Max(0, _wizardPresetBox.SelectedIndex);
+        uint color = ParseArgb(_wizardColorBox.Text, Settings.ReplaceBgColor.Value);
+        int tolerance = (int)Math.Clamp(_wizardToleranceBox.Value ?? 60, 0, 200);
+        int feather = (int)Math.Clamp(_wizardFeatherBox.Value ?? 3, 0, 20);
+        string? paper = _wizardPaperBox.SelectedItem?.ToString() ?? Workflow.IdPhotoWizard.NoLayoutPaper;
+        int customW = (int)Math.Max(0, _wizardWidthBox.Value ?? 1500);
+        int customH = (int)Math.Max(0, _wizardHeightBox.Value ?? 1050);
+        bool guides = _wizardGuidesBox.IsChecked == true;
+
+        // 即时保存本次参数（下次打开面板/菜单命令沿用）
+        Settings.SmartCropPreset.Value = Workflow.SmartCrop.SizePresets[presetIndex].Name;
+        Settings.ReplaceBgColor.Value = color;
+        Settings.ReplaceBgTolerance.Value = tolerance;
+        Settings.ReplaceBgFeather.Value = feather;
+        Settings.LayoutGuides.Value = guides;
+
+        var options = new Workflow.IdPhotoWizardOptions(presetIndex, color, tolerance, feather, paper, customW, customH, guides);
+        host.Report.Report(0, L10n.T("正在执行：一键证件照…"));
+        PixelSurface result;
+        try
+        {
+            result = Workflow.IdPhotoWizard.Run(layer.Pixels, options, host.Report, CancellationToken.None);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (paper == Workflow.IdPhotoWizard.NoLayoutPaper)
+            docs.ApplyLayerChange(layer.Id, layer, layer.WithPixels(result));
+        else
+            docs.OpenDocument(result);   // 相纸尺寸新文档（原图保留在历史栈可撤销）
+
+        host.Report.Report(100, L10n.T("一键证件照完成"));
+        _wizardStatus.Text = paper == Workflow.IdPhotoWizard.NoLayoutPaper
+            ? L10n.T("已生成证件照（{0}）。", Workflow.SmartCrop.SizePresets[presetIndex].Name)
+            : L10n.T("已生成 {0} 相纸排版。", paper);
+    }
+
+    /// <summary>解析 AARRGGBB 十六进制为 PackBgra 颜色值；失败返回 fallback。</summary>
+    private static uint ParseArgb(string? text, uint fallback)
+    {
+        if (!string.IsNullOrWhiteSpace(text)
+            && uint.TryParse(text.Trim(), NumberStyles.HexNumber, null, out uint value))
+            return value;
+        return fallback;
     }
 
     /// <summary>排版生成：当前文档首层按相纸网格排版 → 新文档（历史保留原图可撤销）。</summary>

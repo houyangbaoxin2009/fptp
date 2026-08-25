@@ -46,9 +46,24 @@ internal static class Settings
         Label = L10n.T("裁切尺寸预设"), Scope = SettingScope.User,
     };
 
+    // 红眼去除
+    public static readonly NumberSettingItem RedEyeTolerance = new(60, 0, 100, 5)
+    {
+        GroupId = FptmModule.ModuleId, Key = "redEyeTolerance",
+        Label = L10n.T("红眼阈值"), Scope = SettingScope.User,
+    };
+
+    public static readonly NumberSettingItem RedEyeStrength = new(80, 0, 100, 5)
+    {
+        GroupId = FptmModule.ModuleId, Key = "redEyeStrength",
+        Label = L10n.T("去红强度"), Scope = SettingScope.User,
+    };
+
     // 排版
     public static readonly ChoiceSettingItem LayoutPaper = new(
-        ["5寸", "6寸", "A5", "A4", Workflow.LayoutComposer.CustomPaper], "5寸")
+        ["5寸", "6寸", "A5", "A4",
+         "6寸·1寸×8", "6寸·2寸×4",
+         Workflow.LayoutComposer.CustomPaper], "5寸")
     {
         GroupId = FptmModule.ModuleId, Key = "layoutPaper",
         Label = L10n.T("排版相纸"), Scope = SettingScope.User,
@@ -77,6 +92,7 @@ internal static class Settings
         Id = FptmModule.ModuleId,
         DisplayName = L10n.T("证件照工作流"),
         Items = [ReplaceBgColor, ReplaceBgTolerance, ReplaceBgFeather, ReplaceBgImage,
-                 SmartCropPreset, LayoutPaper, LayoutWidth, LayoutHeight, LayoutGuides],
+                 SmartCropPreset, RedEyeTolerance, RedEyeStrength,
+                 LayoutPaper, LayoutWidth, LayoutHeight, LayoutGuides],
     };
 }

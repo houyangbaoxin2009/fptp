@@ -24,6 +24,9 @@ internal static class WorkflowCommands
         ui.RegisterCommand(new ReplaceBackgroundCommand(host));
         ui.AddMenu("图像/换底色", FptmModule.ModuleId + ".replaceBackground", 11);
 
+        ui.RegisterCommand(new RedEyeCommand(host));
+        ui.AddMenu("图像/红眼去除", FptmModule.ModuleId + ".redEye", 15);
+
         ui.RegisterCommand(new SmartCropCommand(host));
         ui.AddMenu("图像/智能裁切", FptmModule.ModuleId + ".smartCrop", 13);
 
@@ -79,6 +82,31 @@ internal static class WorkflowCommands
             PixelSurface result = filter.Apply(layer.Pixels, parameters, host.Report, CancellationToken.None);
             docs.ApplyLayerChange(layer.Id, layer, layer.WithPixels(result));
             host.Report.Report(100, L10n.T("换底色完成"));
+        }
+    }
+
+    /// <summary>红眼去除命令：读设置参数，作用当前文档首层（可撤销）。</summary>
+    private sealed class RedEyeCommand(Osiris.Abstractions.IHostContext host) : ICommand
+    {
+        public string Id => FptmModule.ModuleId + ".redEye";
+        public string DisplayName => L10n.T("红眼去除");
+
+        public void Execute(object? parameter)
+        {
+            if (!TryDoc(host, out var docs, out var layer))
+                return;
+
+            var parameters = new FilterParameters
+            {
+                [Workflow.RedEyeRemove.ParamTolerance] = (int)Math.Round(Settings.RedEyeTolerance.Value),
+                [Workflow.RedEyeRemove.ParamStrength] = (int)Math.Round(Settings.RedEyeStrength.Value),
+            };
+
+            var filter = new Workflow.RedEyeRemove();
+            host.Report.Report(0, L10n.T("正在执行：红眼去除…"));
+            PixelSurface result = filter.Apply(layer.Pixels, parameters, host.Report, CancellationToken.None);
+            docs.ApplyLayerChange(layer.Id, layer, layer.WithPixels(result));
+            host.Report.Report(100, L10n.T("红眼去除完成"));
         }
     }
 

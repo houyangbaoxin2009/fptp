@@ -5,9 +5,10 @@ namespace Fptm.Workflow;
 
 /// <summary>
 /// 证件照排版工作流（原 Fptp.Plugins.Builtin.LayoutComposer 迁移，改用 Osiris.Algorithms.Scaling）：
-/// 把单张照片按网格居中排列到相纸（5寸/6寸/A4/A5/自定义），只做像素拷贝。
+/// 把单张照片按网格居中排列到相纸（5寸/6寸/A4/A5/自定义/拼版模板），只做像素拷贝。
 /// 相纸预设 5寸 1500×1050 / 6寸 1800×1200 / A5 2480×1748 / A4 3508×2480；可选画虚线裁剪引导线。
-/// 照片大于相纸时先等比双线性缩小到相纸内（否则居中起点为负导致越界）。
+/// 拼版模板（LayoutTemplates）：按证件照标准尺寸缩放照片后固定列×行排布（6寸·1寸×8、6寸·2寸×4）。
+/// 照片大于相纸（或模板尺寸）时先等比双线性缩小到相纸内（否则居中起点为负导致越界）。
 /// </summary>
 public static class LayoutComposer
 {
@@ -26,6 +27,26 @@ public static class LayoutComposer
             ["A5"] = (2480, 1748),
             ["A4"] = (3508, 2480),
         };
+
+    /// <summary>证件照拼版模板：相纸尺寸 + 照片标准尺寸 + 固定网格（列×行）。</summary>
+    public sealed record LayoutTemplate(string Name, int PaperW, int PaperH, int PhotoW, int PhotoH, int Columns, int Rows);
+
+    /// <summary>拼版模板预设（6寸相纸常用证件照版式）。</summary>
+    public static readonly IReadOnlyList<LayoutTemplate> LayoutTemplates =
+    [
+        new("6寸·1寸×8", 1800, 1200, 295, 413, 4, 2),
+        new("6寸·2寸×4", 1800, 1200, 413, 579, 2, 2),
+    ];
+
+    /// <summary>按名称查找拼版模板；未命中返回 null。</summary>
+    public static LayoutTemplate? FindTemplate(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        foreach (LayoutTemplate tpl in LayoutTemplates)
+            if (tpl.Name == name)
+                return tpl;
+        return null;
+    }
 
     /// <summary>
     /// 排版单张照片到相纸：返回相纸像素面与网格行列数。
@@ -48,12 +69,19 @@ public static class LayoutComposer
         rows = 1;
 
         int paperW, paperH;
+        LayoutTemplate? template = null;
         if (paperName == CustomPaper)
         {
             if (customW <= 0 || customH <= 0)
                 return null;
             paperW = customW;
             paperH = customH;
+        }
+        else if ((template = FindTemplate(paperName)) is not null)
+        {
+            // 拼版模板：相纸尺寸取自模板（6寸 1800×1200）
+            paperW = template.PaperW;
+            paperH = template.PaperH;
         }
         else
         {
@@ -63,16 +91,28 @@ public static class LayoutComposer
             paperH = paper.Height;
         }
 
-        if (photo.Width > paperW || photo.Height > paperH)
+        // 拼版模板：照片先缩放到标准证件照尺寸，网格固定列×行；否则按相纸自动网格。
+        if (template is not null)
+        {
+            if (photo.Width != template.PhotoW || photo.Height != template.PhotoH)
+                photo = Scaling.ScaleBilinear(photo, template.PhotoW, template.PhotoH);
+            columns = template.Columns;
+            rows = template.Rows;
+        }
+        else if (photo.Width > paperW || photo.Height > paperH)
         {
             double scale = Math.Min((double)paperW / photo.Width, (double)paperH / photo.Height);
             photo = Scaling.ScaleBilinear(photo, Math.Max(1, (int)(photo.Width * scale)), Math.Max(1, (int)(photo.Height * scale)));
+            columns = Math.Max(1, (paperW + Gap) / (photo.Width + Gap));
+            rows = Math.Max(1, (paperH + Gap) / (photo.Height + Gap));
+        }
+        else
+        {
+            columns = Math.Max(1, (paperW + Gap) / (photo.Width + Gap));
+            rows = Math.Max(1, (paperH + Gap) / (photo.Height + Gap));
         }
 
         int photoW = photo.Width, photoH = photo.Height;
-        columns = Math.Max(1, (paperW + Gap) / (photoW + Gap));
-        rows = Math.Max(1, (paperH + Gap) / (photoH + Gap));
-
         int contentWidth = columns * photoW + (columns - 1) * Gap;
         int contentHeight = rows * photoH + (rows - 1) * Gap;
         int startX = (paperW - contentWidth) / 2;
