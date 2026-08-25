@@ -8,6 +8,17 @@
 ## [Unreleased]
 
 ### 新增
+- **宿主原生加载 tie 脚本模块（P5，DoNetTD 配套）**：`type=script/language=tie` 模块真正可加载——
+  - Osiris.Core 新增 `Tie/TieRunner.cs`（进程调用 tiec.exe 编译运行 .tie，协议同 FpSDK：env base64 输入 + stdout FPTP_OK/ERR）+ `Tie/TieModuleAdapter.cs`（脚本模块包装为 IModule+IFilterPlugin，贡献脚本滤镜）
+  - `ModuleLoader` 脚本分支：type=script 经 TieModuleAdapter 进程隔离加载（不再 NotSupported 跳过）；校验 .tie 入口存在 + tiec 随包可用
+  - 脚本滤镜协议：像素面 ↔ `["width": W, "height": H, "delta": N, "pixels": "b,g,r,a,..."]` 协议文本（base64 env 进出），脚本处理后重建像素面；进程隔离天然安全（无 ALC/反射）
+  - **Osiris.App 随附 tiec.exe**（输出 tools/tie/，TieRunner 定位）；测试经 tiec 端到端验证亮度脚本往返
+  - 像素桥受环境变量长度限制（v1 ≤32×32 内联演示）；tie 无 file 桥（tie_interp.lib 未随包），像素经协议文本而非文件
+- **fptp_sdk.tie 数据/像素工具（P4）**：tie:data 顶层标量字段工具集——
+  `data_get` / `data_get_int` / `data_get_bool` / `data_has` / `data_make` / `data_escape`
+  + 字符串工具 `str_find` / `str_slice` / `str_trim` / `is_space` / `str_split`
+  + 像素数组工具 `pixel_add`（逗号分隔 RGBA 文本逐元素变换，供脚本滤镜示例）；
+  协议文本交互规避 tie 表参数限制，零 tie-interp 依赖
 - **tie:data 全面替换 JSON（DoNetTD）**：配置与清单正式迁移到 tie:data 格式——
   - 三存储文件改 `modules.data.tie` / `settings.data.tie` / `secure.data.tie`（顶层表 `[ "组.键": 值 ]`，
     带 `type tie<data>` 角色头，与 tiec 配置文件同格式互通）；App/CLI 默认 `TieDataConfigStore`

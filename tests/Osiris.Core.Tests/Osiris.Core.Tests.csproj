@@ -21,4 +21,15 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 
+  <!-- tie 运行桥测试资源：tiec.exe 复制到输出 tools/tie/（模拟宿主随包分发路径 TieRunner.FindTiec）；
+       fptp_sdk.tie 供脚本 import（TieModuleTests 写临时 main.tie 时复制到同目录） -->
+  <ItemGroup>
+    <None Include="..\..\FpSDK\tools\tie\tiec.exe"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tools\tie\tiec.exe" />
+    <None Include="..\..\FpSDK\templates\tie-module\fptp_sdk.tie"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tie\fptp_sdk.tie" />
+  </ItemGroup>
+
 </Project>

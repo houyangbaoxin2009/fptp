@@ -163,4 +163,57 @@ public class TieTests
         Assert.Equal("失败了", err.Message);
         Assert.False(TieRunner.Parse("junk").Ok);
     }
+
+    [Fact]
+    public void TieSdk_DataTools_ParsesAndBuildsTieData()
+    {
+        // 意图：fptp_sdk.tie 数据工具（data_get_int/data_get/data_get_bool/data_has/data_make/data_escape）
+        // 在真实 tiec 端到端下对 tie:data 顶层表文本取值/构造正确（含转义还原与逃逸）。
+        string? tiec = TieRunner.FindTiec();
+        if (tiec is null)
+            return;   // 运行桥不可用（未随包分发）时跳过
+
+        string tmp = NewTempDir();
+        try
+        {
+            ProjectGenerator.Generate(FindTemplateRoot(ProjectGenerator.TieTemplate), tmp,
+                new ProjectGenerator.Options(Name: "DataProbe", Id: "tie.data", DisplayName: "数据工具探头"));
+
+            // 覆盖 main.tie：用数据工具解析/构造 tie:data（ASCII 协议文本，tiec 不接受带 BOM 的文件头）
+            string mainTie = Path.Combine(tmp, "main.tie");
+            File.WriteAllText(mainTie,
+                """
+                type tie<logic>
+
+                import "fptp_sdk.tie" as fptp
+
+                func main() {
+                    var txt = "[\"width\": 640, \"name\": \"a\\\"b\", \"ok\": true]"
+                    var w = fptp.data_get_int(txt, "width", 0)
+                    var nm = fptp.data_get(txt, "name", "")
+                    var ok = fptp.data_get_bool(txt, "ok", false)
+                    var miss = fptp.data_get(txt, "nope", "fb")
+                    var has = fptp.data_has(txt, "width")
+                    var made = fptp.data_make("result", "he said \"hi\" \\ ok")
+                    fptp.reply_ok(to_string(w) + "|" + nm + "|" + to_string(ok) + "|" + miss + "|" + to_string(has) + "|" + made)
+                }
+                """,
+                new System.Text.UTF8Encoding(false));
+
+            TieResult result = TieRunner.Run(mainTie, "输入无关紧要");
+
+            Assert.True(result.Ok, result.Message);
+            string[] parts = result.Output.Split('|');
+            Assert.Equal("640", parts[0]);                          // data_get_int
+            Assert.Equal("a\"b", parts[1]);                          // 转义还原
+            Assert.Equal("-1", parts[2]);                            // tie bool true → to_string -1
+            Assert.Equal("fb", parts[3]);                            // 未命中 → fallback
+            Assert.Equal("-1", parts[4]);                            // data_has true
+            Assert.Equal("[\"result\": \"he said \\\"hi\\\" \\\\ ok\"]", parts[5]);   // data_make 转义
+        }
+        finally
+        {
+            CleanUp(tmp);
+        }
+    }
 }

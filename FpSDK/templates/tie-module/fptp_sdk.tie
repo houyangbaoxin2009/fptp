@@ -39,6 +39,281 @@ namespace fptp {
         reply_ok(proc(input()))
     }
 
+    // ---------- 字符串工具（自备，零依赖；供数据工具/插件使用） ----------
+
+    /// 查找 sub 在 s 中首次出现的码点位置；未找到返回 -1。
+    pub func str_find(s: string, sub: string) -> i64 {
+        var n: i64 = str_len(s)
+        var m: i64 = str_len(sub)
+        if m == 0 {
+            return 0
+        }
+        if m > n {
+            return -1
+        }
+        var i: i64 = 0
+        while i <= n - m {
+            var j: i64 = 0
+            var matched: bool = true
+            while j < m && matched {
+                if str_char(s, i + j) != str_char(sub, j) {
+                    matched = false
+                }
+                j = j + 1
+            }
+            if matched {
+                return i
+            }
+            i = i + 1
+        }
+        return -1
+    }
+
+    /// 截取 s 的 [start, end) 子串（码点级）；越界自动收敛；start>=end 返回空串。
+    pub func str_slice(s: string, start: i64, end: i64) -> string {
+        var n: i64 = str_len(s)
+        var lo: i64 = start
+        if lo < 0 {
+            lo = 0
+        }
+        if lo > n {
+            lo = n
+        }
+        var hi: i64 = end
+        if hi < 0 {
+            hi = 0
+        }
+        if hi > n {
+            hi = n
+        }
+        var out: string = ""
+        var i: i64 = lo
+        while i < hi {
+            out = out + str_char(s, i)
+            i = i + 1
+        }
+        return out
+    }
+
+    /// 去除字符串首尾空白（空格 32 / 制表 9 / 换行 10 / 回车 13）。
+    pub func str_trim(s: string) -> string {
+        var n: i64 = str_len(s)
+        var start: i64 = 0
+        while start < n && is_space(str_char(s, start)) {
+            start = start + 1
+        }
+        var end: i64 = n
+        while end > start && is_space(str_char(s, end - 1)) {
+            end = end - 1
+        }
+        return str_slice(s, start, end)
+    }
+
+    /// 判断单字符是否为空白（空格/制表/换行/回车）。
+    pub func is_space(c: string) -> bool {
+        if c == " " {
+            return true
+        }
+        if c == "\t" {
+            return true
+        }
+        if c == "\n" {
+            return true
+        }
+        return c == "\r"
+    }
+
+    // ---------- tie:data 数据工具（顶层标量字段；协议文本交互） ----------
+    // 协议文本形如 [ "key": value, ... ]（tie:data 顶层表，标量值）。
+    // 本工具集在字符串层面解析/构造顶层标量字段，规避 tie 表参数限制
+    // （函数参数只支持标量，跨脚本传结构数据一律走协议文本）。
+    // 解析器接受：字符串（双引号 + 转义 \" \\）/ 整数 / 浮点 / true / false / zero。
+
+    /// 在 tie:data 顶层表文本中按键取值（标量）；键不存在或值非标量返回 fallback。
+    /// 字符串值返回去引号内容（含转义还原）；数字/布尔返回原文字面量。
+    pub func data_get(txt: string, key: string, fallback: string) -> string {
+        var n: i64 = str_len(txt)
+        var needle = "\"" + key + "\""
+        var p = str_find(txt, needle)
+        if p < 0 {
+            return fallback
+        }
+        var q = p + str_len(needle)
+        // 键后跳过空白，须跟 ':'（防误匹配 "keyX"）
+        while q < n && is_space(str_char(txt, q)) {
+            q = q + 1
+        }
+        if q >= n || str_char(txt, q) != ":" {
+            return fallback
+        }
+        q = q + 1
+        while q < n && is_space(str_char(txt, q)) {
+            q = q + 1
+        }
+        if q >= n {
+            return fallback
+        }
+        if str_char(txt, q) == "\"" {
+            // 字符串值：解析到未转义闭引号
+            q = q + 1
+            var out: string = ""
+            while q < n {
+                var c = str_char(txt, q)
+                if c == "\\" && q + 1 < n {
+                    var e = str_char(txt, q + 1)
+                    if e == "\"" {
+                        out = out + "\""
+                    } else if e == "\\" {
+                        out = out + "\\"
+                    } else {
+                        out = out + e
+                    }
+                    q = q + 2
+                } else if c == "\"" {
+                    return out
+                } else {
+                    out = out + c
+                    q = q + 1
+                }
+            }
+            return out // 未闭合引号：取已读内容
+        }
+        // 数字/布尔：读到分隔符（逗号 / ] / 空白）
+        var raw: string = ""
+        while q < n {
+            var c = str_char(txt, q)
+            if c == "," || c == "]" || is_space(c) {
+                return str_trim(raw)
+            }
+            raw = raw + c
+            q = q + 1
+        }
+        return str_trim(raw)
+    }
+
+    /// 取整数标量（data_get 后 parse_int；未命中/非数字返回 fallback）。
+    pub func data_get_int(txt: string, key: string, fallback: i64) -> i64 {
+        var raw = data_get(txt, key, "")
+        if str_len(raw) == 0 {
+            return fallback
+        }
+        return parse_int(raw)
+    }
+
+    /// 取布尔标量（"true"/"false"；其余按 fallback）。
+    pub func data_get_bool(txt: string, key: string, fallback: bool) -> bool {
+        var raw = data_get(txt, key, "")
+        if raw == "true" {
+            return true
+        }
+        if raw == "false" {
+            return false
+        }
+        return fallback
+    }
+
+    /// 键是否存在（顶层表文本中命中 "key" 且后跟 ':'）。
+    pub func data_has(txt: string, key: string) -> bool {
+        var n: i64 = str_len(txt)
+        var needle = "\"" + key + "\""
+        var p = str_find(txt, needle)
+        if p < 0 {
+            return false
+        }
+        var q = p + str_len(needle)
+        while q < n && is_space(str_char(txt, q)) {
+            q = q + 1
+        }
+        return q < n && str_char(txt, q) == ":"
+    }
+
+    /// 构造单字段 tie:data 顶层表：["key": "value"]（value 自动转义）。
+    pub func data_make(key: string, value: string) -> string {
+        return "[\"" + key + "\": \"" + data_escape(value) + "\"]"
+    }
+
+    /// 转义 tie:data 字符串内的引号与反斜杠（写值用）。
+    pub func data_escape(s: string) -> string {
+        var n: i64 = str_len(s)
+        var out: string = ""
+        var i: i64 = 0
+        while i < n {
+            var c = str_char(s, i)
+            if c == "\"" {
+                out = out + "\\\""
+            } else if c == "\\" {
+                out = out + "\\\\"
+            } else {
+                out = out + c
+            }
+            i = i + 1
+        }
+        return out
+    }
+
+    // ---------- 像素数组工具（滤镜桥：像素面 ↔ 逗号分隔 RGBA 数字文本） ----------
+    // 滤镜协议：宿主把像素面编码为 "r,g,b,a,r,g,b,a,..." 文本经输入协议传入，
+    // 脚本处理后返回新像素文本（尺寸不变）；本工具集提供拆分/拼接/逐元素变换。
+
+    /// 按分隔符拆分字符串 → table<string>（连续分隔符产生空段，首尾同）。
+    pub func str_split(s: string, sep: string) -> table<string> {
+        var out = table_new_string()
+        var n: i64 = str_len(s)
+        var m: i64 = str_len(sep)
+        var start: i64 = 0
+        var i: i64 = 0
+        while i <= n {
+            var atEnd: bool = (i == n)
+            var isSep: bool = false
+            if !atEnd && m > 0 {
+                var j: i64 = 0
+                var matched: bool = true
+                while j < m && matched {
+                    if str_char(s, i + j) != str_char(sep, j) {
+                        matched = false
+                    }
+                    j = j + 1
+                }
+                isSep = matched
+            }
+            if atEnd || isSep {
+                table_push(out, str_slice(s, start, i))
+                i = i + m
+                start = i
+            } else {
+                i = i + 1
+            }
+        }
+        return out
+    }
+
+    /// 像素数组文本逐元素加 delta（仅 RGB 通道，Alpha 不变），钳制 [0,255]，返回新文本。
+    /// 示例像素变换（供插件照葫芦画瓢：split → 逐元素 parse_int/变换 → 逗号拼接）。
+    pub func pixel_add(pixels: string, delta: i64) -> string {
+        var items = str_split(pixels, ",")
+        var n: i64 = len(items)
+        var out: string = ""
+        var i: i64 = 0
+        while i < n {
+            var v = parse_int(items[i])
+            if i % 4 != 3 {
+                v = v + delta
+                if v > 255 {
+                    v = 255
+                }
+                if v < 0 {
+                    v = 0
+                }
+            }
+            if i > 0 {
+                out = out + ","
+            }
+            out = out + to_string(v)
+            i = i + 1
+        }
+        return out
+    }
+
     // ---------- base64（自包含实现，协议依赖，勿改格式） ----------
 
     pub func base64_encode(s: string) -> string {

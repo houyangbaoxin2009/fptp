@@ -67,9 +67,14 @@ func main() {
 | `bridge(proc)` | 运行桥：读输入 → 调 proc → `FPTP_OK` 应答 |
 | `reply_ok(msg)` / `reply_err(msg)` | 直发 `FPTP_OK` / `FPTP_ERR` 应答 |
 | `base64_encode(s)` / `base64_decode(s)` | base64 编解码底层 |
+| `data_get(txt,k,fb)` / `data_get_int` / `data_get_bool` | tie:data 顶层标量字段取值（协议文本交互） |
+| `data_has(txt,k)` / `data_make(k,v)` / `data_escape(s)` | tie:data 键判定 / 构造 / 转义 |
+| `str_find` / `str_slice` / `str_trim` / `str_split` | 字符串工具（零依赖） |
+| `pixel_add(pixels,delta)` | 像素数组文本逐元素变换（滤镜桥示例） |
 
 > 字节模型：`input()` 得到"0-255 码点"构造串（UTF-8 每字节一字符），任意字节内容（含中文）
-> 经 base64 无损往返；源码字面量请用 ASCII。
+> 经 base64 无损往返；源码字面量请用 ASCII。数据/像素工具在字符串层解析 tie:data 顶层标量，
+> 规避 tie 函数参数（仅标量）的表限制——跨脚本传结构数据一律走协议文本。
 
 运行桥（`FpSDK.TieRunner`，进程级，零 tie-interp 依赖）：
 

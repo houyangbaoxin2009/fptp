@@ -17,6 +17,7 @@
 - **可卸载插件系统**：ALC 加载扩展模块，ABI 红线契约测试保证卸载承诺
 - **安全机制**：管理员权限警告 + 外部模块加载确认 + 模块哈希白名单校验（`trusted-modules.data.tie` 防 DLL 篡改）
 - **tie 生态配置格式**：配置/清单统一 tie:data（`TieDataConfigStore`，与 tiec 配置同格式）；数据传输/临时文件用 tie:zd 压缩（`ZdConfigStore`，DoNetZD）；`tie:data` 已全面取代 JSON（旧 `.json` 文件启动时自动迁移）
+- **tie 脚本模块原生加载**：`type=script/language=tie` 模块经 `TieModuleAdapter` 进程隔离加载（Osiris.Core `TieRunner` 调用随包 tiec.exe），脚本贡献滤镜（像素协议文本进出）；fptp_sdk.tie 提供数据/像素工具
 
 ## 解决方案结构
 

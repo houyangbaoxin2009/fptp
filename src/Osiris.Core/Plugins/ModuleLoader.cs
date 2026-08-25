@@ -9,10 +9,10 @@ using Osiris.Core.Storage;
 namespace Osiris.Core.Plugins;
 
 /// <summary>
-/// 扩展模块加载器（架构 8.1 节）：扫描目录下的 module.json 清单（无清单时 *.dll 反射兜底），
-/// 为每个 Native 模块建独立可回收 ALC（ModuleLoadContext），反射扫描 [PluginExport] 且实现
-/// IModule 的类型，实例化并 Initialize。已禁用/已卸载模块跳过加载（重启生效）。
-/// 卸载纪律：不缓存 Type/Assembly；2.1 无 UnloadModule（禁用 = 下次启动不加载）。
+/// 扩展模块加载器（架构 8.1 节）：扫描目录下的 module.data.tie 清单（兼容 module.json；无清单时 *.dll 反射兜底）。
+/// - Native 模块：建独立可回收 ALC（ModuleLoadContext），反射扫描 [PluginExport]+IModule，实例化并 Initialize；
+/// - tie 脚本模块（type=script/language=tie）：经 TieModuleAdapter 进程隔离加载（TieRunner 调用 tiec.exe）。
+/// 已禁用/已卸载模块跳过加载（重启生效）。卸载纪律：不缓存 Type/Assembly；2.1 无 UnloadModule（禁用 = 下次启动不加载）。
 /// </summary>
 public static class ModuleLoader
 {
@@ -99,12 +99,11 @@ public static class ModuleLoader
             return false;
         }
 
-        // tie 脚本模块：2.1 由未来 TieHost 标准模块解释执行，此处跳过
+        // tie 脚本模块：TieModuleAdapter 进程隔离加载（type=script + language=tie）。
+        // 脚本只依赖 tie 内联底座 + fptp_sdk.tie（零 tie-interp），经 TieRunner 编译运行，
+        // 滤镜/命令经协议文本进出（无 ALC/反射，进程隔离天然安全）。
         if (manifest.Type == ModuleType.Script)
-        {
-            onError?.Invoke(manifest.Id, new NotSupportedException($"tie 脚本模块 {manifest.Id} 需 TieHost 支持，2.1 跳过加载。"));
-            return false;
-        }
+            return LoadTieScriptModule(moduleDir, manifest, registry, context, onError);
 
         string dllPath = Path.Combine(moduleDir, manifest.EntryPoint ?? "");
         if (!File.Exists(dllPath))
@@ -117,6 +116,44 @@ public static class ModuleLoader
         if (loadedOk)
             RegisterModuleLanguagePack(moduleDir); // 模块加载成功：注册其自带语言包（模块目录/langs）
         return loadedOk;
+    }
+
+    /// <summary>
+    /// tie 脚本模块加载：校验入口 .tie 脚本存在 + tiec 随包可用，构建 TieModuleAdapter 并登记。
+    /// 脚本模块不经 ALC/反射，滤镜经 IFilterPlugin 由宿主收集（协议文本进程隔离）。
+    /// </summary>
+    private static bool LoadTieScriptModule(string moduleDir, ModuleManifest manifest,
+        ModuleRegistry registry, IHostContext context, Action<string, Exception>? onError)
+    {
+        if (manifest.Language != ScriptLanguage.Tie)
+        {
+            onError?.Invoke(manifest.Id, new NotSupportedException(
+                $"脚本模块 {manifest.Id} 语言 {manifest.Language} 暂不支持（仅 tie）。"));
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(manifest.EntryPoint))
+        {
+            onError?.Invoke(manifest.Id, new InvalidDataException($"tie 脚本模块缺少 entryPoint（.tie 入口脚本）: {manifest.Id}"));
+            return false;
+        }
+        string scriptPath = Path.Combine(moduleDir, manifest.EntryPoint);
+        if (!File.Exists(scriptPath))
+        {
+            onError?.Invoke(manifest.Id, new FileNotFoundException($"tie 脚本入口不存在: {scriptPath}"));
+            return false;
+        }
+        if (Tie.TieRunner.FindTiec() is null)
+        {
+            onError?.Invoke(manifest.Id, new InvalidOperationException(
+                "宿主未随附 tiec.exe（tools/tie/tiec.exe）或未设置 FPTP_TIE_HOME，无法运行 tie 脚本模块。"));
+            return false;
+        }
+
+        var adapter = new Tie.TieModuleAdapter(scriptPath, manifest.Id, manifest.Name, manifest.Version);
+        adapter.Initialize(context);
+        registry.RegisterInstance(adapter);   // 宿主收集 IFilterPlugin 能力
+        RegisterModuleLanguagePack(moduleDir);
+        return true;
     }
 
     /// <summary>

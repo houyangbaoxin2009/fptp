@@ -49,6 +49,14 @@
     <InternalsVisibleTo Include="Osiris.App.Tests" />
   </ItemGroup>
 
+  <!-- tie 运行时随产品分发：tiec.exe 复制到输出 tools/tie/（TieRunner 定位 <运行目录>/tools/tie/tiec.exe），
+       tie 脚本模块（type=script/language=tie）经其编译运行 -->
+  <ItemGroup>
+    <None Include="..\..\FpSDK\tools\tie\tiec.exe"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tools\tie\tiec.exe" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
