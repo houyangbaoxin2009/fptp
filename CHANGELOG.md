@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### 新增
+- **tie 脚本滤镜参数自描述（架构「FilterParameters tie 可直接构造」落地）**：脚本经 `fptp_sdk.tie` 新增的
+  `param_int` / `param_float` 声明参数（key/label/kind/min/max/default）——
+  - 宿主加载脚本滤镜时发一次探测帧 `["action": "params"]`，脚本 process 识别后返回
+    `params\nkey=..|label=..|kind=..|min=..|max=..|default=..` 声明行，
+    `TieScriptFilter` 据此**动态生成** Parameters/Defaults（滤镜参数 UI 自动渲染）；
+  - Apply 时把脚本声明参数（用户调整合并后）并入输入协议文本，脚本用 `data_get_int` 读取；
+  - 未声明参数的脚本探测返回非 `params` → 视为无参数，参数用脚本内默认值兜底（向后兼容）；
+  - 模板 `main.tie` 与测试脚本示范 `fptp.param_int("delta", ...)` 声明
+
 ### 变更
 - **tie 运行桥升级 v2（tink 帧桥，fptp.tie-bridge.v2）**：宿主 ↔ tie 脚本通道从「env base64 输入 + stdout FPTP_OK/ERR 前缀」改为 **stdin/stdout 行帧流**（tink 帧协议）——
   - 帧格式：`[len:u32 BE][payload:len 字节][crc:u32 BE]`，crc = CRC32-IEEE(payload)（校验向量 0xCBF43926）；每行一条 `base64(帧)`，`\n` 定界

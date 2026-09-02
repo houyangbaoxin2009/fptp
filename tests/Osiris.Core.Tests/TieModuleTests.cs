@@ -29,13 +29,16 @@ public class TieModuleTests : IDisposable
         try { Directory.Delete(_tempDir, recursive: true); } catch { /* 忽略清理失败 */ }
     }
 
-    /// <summary>tie 脚本滤镜模块的 main.tie（v2 行帧桥：亮度增强 RGB 加 delta，Alpha 不变）。</summary>
+    /// <summary>tie 脚本滤镜模块的 main.tie（v2 行帧桥：亮度增强 RGB 加 delta，Alpha 不变；参数自描述探测）。</summary>
     private const string BrightnessMainTie = """
         type tie<logic>
 
         import "fptp_sdk.tie" as fptp
 
         func process(src: string) -> string {
+            if fptp.data_get(src, "action", "") == "params" {
+                return "params\n" + fptp.param_int("delta", "亮度增量", -255, 255, 20)
+            }
             var delta = fptp.data_get_int(src, "delta", 20)
             var pixels = fptp.data_get(src, "pixels", "")
             return fptp.data_make("pixels", fptp.pixel_add(pixels, delta))
@@ -147,6 +150,47 @@ public class TieModuleTests : IDisposable
         Assert.Equal(2, output.Height);
         Assert.Equal(new byte[] { 120, 120, 120, 255 }, output.Row(0)[0..4].ToArray());
         Assert.Equal(new byte[] { 120, 120, 120, 255 }, output.Row(1)[0..4].ToArray());
+    }
+
+    [Fact]
+    public void TieModuleAdapter_脚本声明参数_宿主动态生成()
+    {
+        // 意图：脚本经 param_int 自描述参数（探测帧 ["action": "params"]）→ 宿主动态生成
+        // Parameters/Defaults；Apply 把用户调参后的真实值并入输入协议文本（delta=10 → 110）。
+        if (Tie.TieRunner.FindTiec() is null)
+            return;
+
+        string moduleDir = WriteTieModule("params", BrightnessMainTie);
+        File.WriteAllText(Path.Combine(moduleDir, "module.data.tie"), ScriptManifestTieData,
+            new System.Text.UTF8Encoding(false));
+
+        var registry = new ModuleRegistry(
+            Path.Combine(_tempDir, "modules.data.tie"),
+            Path.Combine(_tempDir, "settings.data.tie"),
+            Path.Combine(_tempDir, "secure.data.tie"),
+            new TieDataConfigStore());
+        int loaded = ModuleLoader.LoadFromDirectory(_tempDir, registry, new StubHost(), null);
+        Assert.Equal(1, loaded);
+
+        var adapter = Assert.Single(registry.GetInstances().OfType<TieModuleAdapter>());
+        IFilterProcessor filter = Assert.Single(adapter.Filters);
+
+        // 探测 → 动态参数声明（Int、范围 -255~255、默认 20）
+        FilterParameterDescriptor delta = Assert.Single(filter.Parameters);
+        Assert.Equal("delta", delta.Key);
+        Assert.Equal(FilterParameterKind.Int, delta.Kind);
+        Assert.Equal(-255, delta.Min);
+        Assert.Equal(255, delta.Max);
+        Assert.Equal(20, delta.DefaultValue);
+        Assert.Equal(20, filter.Defaults.Get<int>("delta", -1));   // 默认参数同步生成
+
+        // Apply 传入用户调参后的参数（delta=10）→ 运行时并入输入协议文本 → 100+10=110
+        PixelSurface input = FillSurface(2, 2, b: 100, g: 100, r: 100, a: 255);
+        FilterParameters userParams = new() { [delta.Key] = 10 };
+        PixelSurface output = filter.Apply(input, new FilterParameters().Merge(userParams), progress: null, CancellationToken.None);
+
+        Assert.Equal(new byte[] { 110, 110, 110, 255 }, output.Row(0)[0..4].ToArray());
+        Assert.Equal(new byte[] { 110, 110, 110, 255 }, output.Row(1)[0..4].ToArray());
     }
 
     [Fact]

@@ -14,7 +14,14 @@ import "fptp_sdk.tie" as fptp
 // ==================== 插件逻辑 ====================
 
 func process(src: string) -> string {
-    // TODO: 在此实现插件逻辑（src 为宿主传入的 tie:data / 协议文本）
+    // 参数自描述探测（宿主加载时发一次）：识别后返回 "params\n" + 参数声明行，
+    // 宿主据此自动生成滤镜参数 UI。未声明参数的脚本可省略本分支。
+    if fptp.data_get(src, "action", "") == "params" {
+        return "params\n" + fptp.param_int("delta", "亮度增量", -255, 255, 20)
+    }
+    // TODO: 在此实现插件逻辑（src 为宿主传入的 tie:data / 协议文本，含声明参数的真实值；
+    // 正式滤镜用 fptp.data_get_int(src,"delta",20) 读参数、处理像素后
+    // fptp.data_make("pixels", ...) 返回）。echo 示例直接返回原文。
     return src
 }
 

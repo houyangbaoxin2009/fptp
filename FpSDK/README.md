@@ -7,12 +7,12 @@ fptp（Osiris）**插件开发 SDK**：聚合包 + 脚手架 CLI + NuGet 打包�
 
 写一个 Osiris 插件（模块），你需要：合约（`Osiris.Abstractions`）、算法（`Osiris.Algorithms`）、模块骨架（`IModule` + `[PluginExport]` + `module.json` + `langs/`）。FpSDK 把这些收拢为一件事：
 
-| 能力 | 说明 |
-|---|---|
-| **聚合包（库）** | `FpSDK` 程序集聚合 `Osiris.Abstractions` + `Osiris.Algorithms`，插件只引 FpSDK 一个项目/包即可写插件；另附开发辅助：`ModuleBase` 基类、`FpContext` 宿主便捷访问、`PluginManifest` 清单模型、`ProjectGenerator` 模板引擎 |
-| **脚手架 CLI** | `fpsdk new <name>` 一键生成标准插件骨架（csproj + module.json + IModule + langs），严格遵循 `docs/module-development-guide.md` 约定；`--lang tie` 生成 tie 脚本插件 |
-| **tie 集成** | 绑定 **tie Harbor-2026.1-preview.5**：tie 脚本插件模板（`main.tie` + 运行桥库 `fptp_sdk.tie` + `std/tink.tie` 帧层，零 tie-interp 依赖）+ `TieRunner` 运行桥（进程调用随包 `tools/tie/tiec.exe`，v2 帧桥 stdin/stdout 往返） |
-| **NuGet 打包** | `dotnet pack` 产出 `FpSDK.nupkg`（契约 dll 私有打入 + tiec.exe 随包分发，无外部 NuGet 依赖）与 `FpSdkCli` dotnet tool（安装后命令 `fpsdk`） |
+| 能力           | 说明                                                                                                                                                                                       |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **聚合包（库）**   | `FpSDK` 程序集聚合 `Osiris.Abstractions` + `Osiris.Algorithms`，插件只引 FpSDK 一个项目/包即可写插件；另附开发辅助：`ModuleBase` 基类、`FpContext` 宿主便捷访问、`PluginManifest` 清单模型、`ProjectGenerator` 模板引擎                 |
+| **脚手架 CLI**  | `fpsdk new <name>` 一键生成标准插件骨架（csproj + module.json + IModule + langs），严格遵循 `docs/module-development-guide.md` 约定；`--lang tie` 生成 tie 脚本插件                                                |
+| **tie 集成**   | 绑定 **tie Harbor-2026.1-preview\.5**：tie 脚本插件模板（`main.tie` + 运行桥库 `fptp_sdk.tie` + `std/tink.tie` 帧层，零 tie-interp 依赖）+ `TieRunner` 运行桥（进程调用随包 `tools/tie/tiec.exe`，v2 帧桥 stdin/stdout 往返） |
+| **NuGet 打包** | `dotnet pack` 产出 `FpSDK.nupkg`（契约 dll 私有打入 + tiec.exe 随包分发，无外部 NuGet 依赖）与 `FpSdkCli` dotnet tool（安装后命令 `fpsdk`）                                                                          |
 
 ## 快速开始
 
@@ -32,9 +32,9 @@ fpsdk new MyTie --lang tie --path plugins/MyTie --id my.tie
 dotnet run --project FpSDK/cli/FpSdkCli -- new MyWidget --path plugins/MyWidget
 ```
 
-## tie 脚本插件（Harbor-2026.1-preview.5）
+## tie 脚本插件（Harbor-2026.1-preview\.5）
 
-绑定 **tie-main `Harbor-2026.1-preview.5`**（`FpSDK/tools/tie/tiec.exe` 随包分发），
+绑定 **tie-main** **`Harbor-2026.1-preview.5`**（`FpSDK/tools/tie/tiec.exe` 随包分发），
 tie 模块 = `main.tie`（`type tie<logic>` + `func process(src: string) -> string`）+ 运行桥库 `fptp_sdk.tie` + 帧层 `std/tink.tie`，
 `module.json` 用 `type=script / language=tie`。
 
@@ -61,21 +61,24 @@ func main() {
 
 `fptp_sdk.tie`（`type tie<class>`）库 API（`namespace fptp`）：
 
-| 函数 | 说明 |
-|---|---|
-| `bridge(proc)` | 运行桥：循环读 stdin 帧（CRC 校验）→ 调 proc → 应答帧写 stdout，EOF 退出 |
-| `reply_ok(msg)` / `reply_err(msg)` | 直发 OK / ERR 应答帧 |
-| `reply_frame(payload)` | 应答帧底层：payload → tink 帧 → base64 → stdout 一行 |
-| `base64_encode(s)` / `base64_decode(s)` | base64 编解码底层 |
-| `data_get(txt,k,fb)` / `data_get_int` / `data_get_bool` | tie:data 顶层标量字段取值（协议文本交互） |
-| `data_has(txt,k)` / `data_make(k,v)` / `data_escape(s)` | tie:data 键判定 / 构造 / 转义 |
-| `str_find` / `str_slice` / `str_trim` / `str_split` | 字符串工具（零依赖） |
-| `pixel_add(pixels,delta)` | 像素数组文本逐元素变换（滤镜桥示例） |
+| 函数                                                      | 说明                                                   |
+| ------------------------------------------------------- | ---------------------------------------------------- |
+| `bridge(proc)`                                          | 运行桥：循环读 stdin 帧（CRC 校验）→ 调 proc → 应答帧写 stdout，EOF 退出 |
+| `reply_ok(msg)` / `reply_err(msg)`                      | 直发 OK / ERR 应答帧                                      |
+| `reply_frame(payload)`                                  | 应答帧底层：payload → tink 帧 → base64 → stdout 一行          |
+| `base64_encode(s)` / `base64_decode(s)`                 | base64 编解码底层                                         |
+| `data_get(txt,k,fb)` / `data_get_int` / `data_get_bool` | tie:data 顶层标量字段取值（协议文本交互）                            |
+| `data_has(txt,k)` / `data_make(k,v)` / `data_escape(s)` | tie:data 键判定 / 构造 / 转义                               |
+| `str_find` / `str_slice` / `str_trim` / `str_split`     | 字符串工具（零依赖）                                           |
+| `pixel_add(pixels,delta)`                               | 像素数组文本逐元素变换（滤镜桥示例）                                   |
+| `param_int(k,label,min,max,def)` / `param_float(...)`   | 参数自描述：脚本声明参数，宿主加载时探测 `["action": "params"]` 自动生成滤镜参数 UI |
 
 > 字节模型：协议文本经 UTF-8 无损往返（任意内容含中文）；payload 以
 > tink 帧（`[len:u32 BE][payload][crc:u32 BE]`，CRC32-IEEE）编码后 base64 上 stdin/stdout，
 > 无环境变量长度限制。数据/像素工具在字符串层解析 tie:data 顶层标量，
 > 规避 tie 函数参数（仅标量）的表限制——跨脚本传结构数据一律走协议文本。
+> 参数自描述：process 识别 `"action": "params"` 时返回 `"params\n" + 参数声明行`，
+> 宿主据此动态构造滤镜参数（未响应则视为无参数，脚本默认值兜底）。
 
 运行桥（`FpSDK.TieRunner`，进程级，零 tie-interp 依赖）：
 
@@ -87,10 +90,13 @@ Console.WriteLine(r.Ok ? r.Output : r.Message);
 ```
 
 - 定位 tiec：环境变量 `FPTP_TIE_HOME`（发行根 `<home>/bin/tiec.exe`），或随包路径 `<运行目录>/tools/tie/tiec.exe`；
+
 - 协议 v2（`fptp.tie-bridge.v2`）：stdin/stdout 换行定界行帧流，每行 `base64(帧)`；
   输入帧 payload = 协议文本(UTF-8)；输出帧 payload = `[tag:1][正文(UTF-8)]`，tag 0x00=OK / 0x01=ERR；
-  宿主写完输入后关闭 stdin（脚本 read_line EOF 退出）；
+  宿主写完输入后关闭 stdin（脚本 read\_line EOF 退出）；
+
 - 编译 LLVM 显式接管：tiec 同级 `llvm/` 或 `FPTP_TIE_HOME/bin/llvm`（`TIE_LLVM_HOME` 显式设置，防回退旧版 LLVM 产出静默损坏 exe）；
+
 - 宿主侧 TieHost（module.json `type=script` 的真正加载器）已落地：Osiris.Core `TieRunner` + `TieModuleAdapter`
   （进程隔离加载脚本模块并贡献脚本滤镜），tie 插件可被宿主直接加载，也可用 `TieRunner` 独立编译运行调试。
 
@@ -176,3 +182,4 @@ dotnet tool install --global FpSdkCli --add-source ./dist
 ```bash
 dotnet test FpSDK.slnx   # 7 项：ModuleBase/FpContext 冒烟 + 生成回环（repo/sdk 模式）
 ```
+

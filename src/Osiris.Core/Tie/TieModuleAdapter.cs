@@ -64,7 +64,10 @@ public sealed class TieModuleAdapter : IModule, IFilterPlugin
 /// tie 脚本滤镜：把像素面经协议文本送 tie 脚本处理（进程隔离，v2 行帧桥），重建结果像素面。
 /// <para>协议（fptp_sdk.tie 滤镜桥 v2，脚本 main 用 fptp.bridge(process)）：</para>
 /// <list type="bullet">
-///   <item>输入（stdin 一帧）：[ "width": W, "height": H, "delta": N, "pixels": "b,g,r,a,..." ]</item>
+///   <item>参数探测（模块加载/首次使用时一次）：输入 <c>["action": "params"]</c>，脚本返回参数声明文本
+///       （首行 <c>params</c>，其后每行 <c>key=..|label=..|kind=..|min=..|max=..|default=..</c>），
+///       宿主据此动态构造 Parameters/Defaults（自动生成滤镜参数 UI）；非 <c>params</c> 开头 → 无参数。</item>
+///   <item>输入（stdin 一帧）：[ "width": W, "height": H, "pixels": "b,g,r,a,...", "参数键": 值... ]</item>
 ///   <item>输出（stdout 一帧）：[ "pixels": "b,g,r,a,..." ]（尺寸不变）或 [ "action": "identity" ]（原样）</item>
 /// </list>
 /// pixels 为原始 BGRA 预乘字节的逗号分隔数字（脚本按字节索引处理，无需理解预乘）。
@@ -72,14 +75,18 @@ public sealed class TieModuleAdapter : IModule, IFilterPlugin
 /// </summary>
 internal sealed class TieScriptFilter : IFilterProcessor
 {
-    /// <summary>参数键：亮度增量（示例像素变换参数，-255~255，默认 20）。</summary>
-    public const string ParamDelta = "delta";
-
     /// <summary>最大像素数（协议文本为逗号分隔数字，防超大图失控；v2 流无 32K 限制）。</summary>
     public const int MaxPixels = 4_000_000;
 
+    /// <summary>参数探测帧：脚本 process 识别后返回参数声明文本（fptp_sdk.tie param_int/param_float）。</summary>
+    private const string ProbeInput = "[\"action\": \"params\"]";
+
     private readonly string _id;
     private readonly string _scriptPath;
+
+    // 参数探测结果（懒加载，只跑一次；失败/无声明 → 空）。参数由脚本自描述，宿主据此动态生成参数 UI。
+    private FilterParameterDescriptor[]? _declaredParams;
+    private FilterParameters? _declaredDefaults;
 
     public TieScriptFilter(string moduleId, string scriptPath)
     {
@@ -94,24 +101,16 @@ internal sealed class TieScriptFilter : IFilterProcessor
     public string DisplayName => L10n.T("tie 脚本滤镜");
 
     /// <inheritdoc />
-    public FilterParameters Defaults => new()
+    public FilterParameters Defaults
     {
-        [ParamDelta] = 20,
-    };
+        get { EnsureProbe(); return _declaredDefaults!; }
+    }
 
     /// <inheritdoc />
-    public IReadOnlyList<FilterParameterDescriptor> Parameters =>
-    [
-        new()
-        {
-            Key = ParamDelta,
-            Label = L10n.T("亮度增量"),
-            Kind = FilterParameterKind.Int,
-            Min = -255,
-            Max = 255,
-            DefaultValue = 20,
-        },
-    ];
+    public IReadOnlyList<FilterParameterDescriptor> Parameters
+    {
+        get { EnsureProbe(); return _declaredParams!; }
+    }
 
     /// <inheritdoc />
     public PixelSurface Apply(PixelSurface input, FilterParameters parameters, IProgress? progress, CancellationToken ct)
@@ -127,8 +126,8 @@ internal sealed class TieScriptFilter : IFilterProcessor
             return input.CreateEditor().Commit();
         }
 
-        int delta = Math.Clamp(parameters.Get(ParamDelta, 20), -255, 255);
-        string inputText = BuildInput(input, delta);
+        // 脚本声明的参数（宿主/用户调整合并后传入）序列化进输入协议文本，脚本用 data_get_* 读取
+        string inputText = BuildInput(input, parameters);
 
         ct.ThrowIfCancellationRequested();
         TieResult result = TieRunner.Run(_scriptPath, inputText);
@@ -147,14 +146,112 @@ internal sealed class TieScriptFilter : IFilterProcessor
         return PixelSurface.Create(width, height, data);
     }
 
-    /// <summary>像素面 + delta → 输入协议文本。</summary>
-    private static string BuildInput(PixelSurface surface, int delta)
+    /// <summary>懒探测脚本参数声明（只跑一次）；失败/无声明 → 空参数（脚本用自身默认值兜底）。</summary>
+    private void EnsureProbe()
     {
+        if (_declaredParams is not null)
+            return;
+        try
+        {
+            (FilterParameterDescriptor[] descs, FilterParameters defaults) = ProbeParams();
+            _declaredParams = descs;
+            _declaredDefaults = defaults;
+        }
+        catch
+        {
+            // 探测失败（脚本无 "action" 分支/编译异常等）：视为无参数，不阻断滤镜与加载
+            _declaredParams = [];
+            _declaredDefaults = new FilterParameters();
+        }
+    }
+
+    /// <summary>向脚本发探测帧并解析参数声明；脚本未响应 params 协议 → 空。</summary>
+    private (FilterParameterDescriptor[] Descriptors, FilterParameters Defaults) ProbeParams()
+    {
+        TieResult result = TieRunner.Run(_scriptPath, ProbeInput);
+        if (!result.Ok)
+            return ([], new FilterParameters());
+        return ParseParamsDeclaration(result.Output);
+    }
+
+    /// <summary>
+    /// 解析参数声明文本：首行须为 "params"，其后每行一条
+    /// <c>key=..|label=..|kind=..|min=..|max=..|default=..</c>（kind: int / float）。
+    /// </summary>
+    private static (FilterParameterDescriptor[] Descriptors, FilterParameters Defaults) ParseParamsDeclaration(string output)
+    {
+        string[] lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (lines.Length == 0 || lines[0] != "params")
+            return ([], new FilterParameters());
+
+        var descriptors = new List<FilterParameterDescriptor>();
+        var defaults = new FilterParameters();
+        for (int i = 1; i < lines.Length; i++)
+        {
+            Dictionary<string, string> fields = ParseParamFields(lines[i]);
+            if (!fields.TryGetValue("key", out string? key) || key.Length == 0)
+                continue;
+            bool isFloat = fields.GetValueOrDefault("kind", "int") == "float";
+            double min = ParseFieldDouble(fields, "min", double.MinValue);
+            double max = ParseFieldDouble(fields, "max", double.MaxValue);
+            double def = ParseFieldDouble(fields, "default", 0);
+            // 注意：isFloat ? def : (int)def 会统一成 double（boxing 后 Get<int> 失配），须显式分支定型
+            object defaultBoxed = isFloat ? (object)def : (int)def;
+            descriptors.Add(new FilterParameterDescriptor
+            {
+                Key = key,
+                Label = L10n.T(fields.GetValueOrDefault("label", key)),   // label 中文原文经语言包翻译
+                Kind = isFloat ? FilterParameterKind.Double : FilterParameterKind.Int,
+                Min = min,
+                Max = max,
+                DefaultValue = defaultBoxed,
+            });
+            defaults[key] = defaultBoxed;
+        }
+        return (descriptors.ToArray(), defaults);
+    }
+
+    /// <summary>解析单条参数行：空白分隔各 <c>键=值</c> 字段。</summary>
+    private static Dictionary<string, string> ParseParamFields(string line)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (string pair in line.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            int eq = pair.IndexOf('=');
+            if (eq <= 0)
+                continue;
+            fields[pair[..eq].Trim()] = pair[(eq + 1)..].Trim();
+        }
+        return fields;
+    }
+
+    /// <summary>参数字段数值解析：缺省/非法 → fallback。</summary>
+    private static double ParseFieldDouble(Dictionary<string, string> fields, string name, double fallback)
+        => fields.TryGetValue(name, out string? raw) && double.TryParse(raw, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out double value) ? value : fallback;
+
+    /// <summary>像素面 + 运行时参数 → 输入协议文本（width/height/pixels 固定，脚本声明参数并入）。</summary>
+    private string BuildInput(PixelSurface surface, FilterParameters parameters)
+    {
+        EnsureProbe();
         var sb = new StringBuilder(64 + surface.Pixels.Length * 4);
         sb.Append("[\"width\": ").Append(surface.Width)
-          .Append(", \"height\": ").Append(surface.Height)
-          .Append(", \"delta\": ").Append(delta)
-          .Append(", \"pixels\": \"");
+          .Append(", \"height\": ").Append(surface.Height);
+        // 脚本声明参数的真实值（宿主合并后的 FilterParameters；脚本自身默认值兜底缺失键）
+        foreach (FilterParameterDescriptor p in _declaredParams!)
+        {
+            sb.Append(", \"").Append(p.Key).Append("\": ");
+            if (p.Kind == FilterParameterKind.Double)
+            {
+                sb.Append(parameters.Get(p.Key, p.DefaultValue is double d ? d : 0d)
+                    .ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                sb.Append(parameters.Get(p.Key, p.DefaultValue is int i ? i : 0));
+            }
+        }
+        sb.Append(", \"pixels\": \"");
         ReadOnlySpan<byte> pixels = surface.Pixels;
         for (int i = 0; i < pixels.Length; i++)
         {

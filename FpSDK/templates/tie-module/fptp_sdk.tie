@@ -415,6 +415,35 @@ pub func pixel_add(pixels: string, delta: i64) -> string {
     return out
 }
 
+// ---------- 参数声明工具（滤镜桥参数自描述，v2 扩展） ----------
+// 宿主加载脚本滤镜时发一次探测帧 ["action": "params"]；脚本的 process 识别后
+// 返回参数声明文本（每行一条，宿主解析为 FilterParameterDescriptor + 默认值，
+// 自动生成滤镜参数 UI）。未声明参数的脚本：探测行非 "params" 开头 → 宿主视为无参数。
+// 参数行格式：key=..|label=..|kind=..|min=..|max=..|default=..（换行结尾）。
+// label 传中文原文（宿主经语言包翻译）；整数/浮点分别用 param_int / param_float。
+// 滤镜真正运行时，宿主把这些参数并入输入协议文本（"key": 值），脚本用
+// data_get_int / data_get_bool 读取。
+
+// 声明一个整数参数行（kind=int）。示例：
+//   fptp.param_int("delta", "亮度增量", -255, 255, 20)
+// process 里可直接拼接多行：fptp.param_int(...) + fptp.param_int(...)。
+pub func param_int(key: string, label: string, min: i64, max: i64, def: i64) -> string {
+    var s: string = "key=" + key + "|label=" + label + "|kind=int"
+    s = s + "|min=" + to_string(min)
+    s = s + "|max=" + to_string(max)
+    s = s + "|default=" + to_string(def)
+    return s + "\n"
+}
+
+// 声明一个浮点参数行（kind=float；min/max/def 传 i64，宿主按 double 解释）。
+pub func param_float(key: string, label: string, min: i64, max: i64, def: i64) -> string {
+    var s: string = "key=" + key + "|label=" + label + "|kind=float"
+    s = s + "|min=" + to_string(min)
+    s = s + "|max=" + to_string(max)
+    s = s + "|default=" + to_string(def)
+    return s + "\n"
+}
+
 // ---------- base64（自包含实现，协议依赖，勿改格式） ----------
 
 pub func base64_encode(bytes: table<i64>) -> string {

@@ -69,15 +69,16 @@ public class TieTests
             Assert.Contains("\"id\": \"tie.probe\"", manifestJson);
             Assert.Contains("\"name\": \"tie 探头\"", manifestJson);
 
-            // main.tie：import 运行桥库 + process 豁口（v2 帧桥已移至 fptp_sdk.tie）
+            // main.tie：import 运行桥库 + process 豁口（v2 帧桥已移至 fptp_sdk.tie）+ 参数自描述示例
             string main = File.ReadAllText(Path.Combine(tmp, "main.tie"));
             Assert.Contains("import \"fptp_sdk.tie\"", main);
             Assert.Contains("func process(src: string) -> string", main);
             Assert.Contains("fptp.bridge(process)", main);
+            Assert.Contains("fptp.param_int(\"delta\", \"亮度增量\", -255, 255, 20)", main);   // 参数自描述
             // token 已替换
             Assert.DoesNotContain("{{Name}}", main.Replace("tie 探头", ""));
 
-            // fptp_sdk.tie：v2 帧桥（import std/tink.tie + 帧解码 + 应答）
+            // fptp_sdk.tie：v2 帧桥（import std/tink.tie + 帧解码 + 应答）+ 参数声明工具
             string sdk = File.ReadAllText(Path.Combine(tmp, "fptp_sdk.tie"));
             Assert.Contains("import \"std/tink.tie\" as tink", sdk);
             Assert.Contains("namespace fptp", sdk);
@@ -85,6 +86,8 @@ public class TieTests
             Assert.Contains("tink.frame_next(bytes, 0)", sdk);
             Assert.Contains("func base64_decode(s: string) -> table<i64>", sdk);
             Assert.Contains("func base64_encode(bytes: table<i64>) -> string", sdk);
+            Assert.Contains("func param_int(key: string, label: string, min: i64, max: i64, def: i64)", sdk);
+            Assert.Contains("func param_float(key: string, label: string, min: i64, max: i64, def: i64)", sdk);
         }
         finally
         {
