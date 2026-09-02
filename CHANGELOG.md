@@ -18,6 +18,8 @@
   - 模板 `main.tie` 与测试脚本示范 `fptp.param_int("delta", ...)` 声明
 
 ### 变更
+- **FpSDK / FpSdkCli 发版 1.1.0**（tie 运行桥 v2 帧桥 + 参数自描述 + 编译缓存 + tiec Harbor preview.5 随包）：
+  `dotnet pack` 产出 `FpSDK.nupkg` 与 `FpSdkCli`（fpsdk）dotnet tool
 - **TieRunner 编译产物缓存（性能）**：按脚本树内容哈希（入口 .tie + 全部随拷依赖 + tiec 路径）以
   `%TEMP%/fptp-tie-cache` 复用已编译 exe——参数探测/重复 Apply 不再每次 tiec 重编译+链接；
   任一插件文件改动或 tiec 升级自动换键重编译；缓存写失败静默降级（不影响功能）

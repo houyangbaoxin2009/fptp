@@ -13,7 +13,7 @@
     <RootNamespace>FpSDK</RootNamespace>
     <AssemblyName>FpSDK</AssemblyName>
     <PackageId>FpSDK</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Description>fptp(Osiris) 插件开发 SDK：聚合契约与算法的单一引用入口，附模块基类与脚手架模板。</Description>
     <PackageTags>fptp;osiris;plugin;sdk;image-editor</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -40,7 +40,7 @@
     </ItemGroup>
   </Target>
 
-  <!-- tie 运行时产物随包分发（tools/tie/tiec.exe，Harbor-2026.1-preview.4）：
+  <!-- tie 运行时产物随包分发（tools/tie/tiec.exe，Harbor-2026.1-preview.5）：
        随构建复制到输出（TieRunner 从 AppContext.BaseDirectory/tools/tie 定位），并打进 NuGet。 -->
   <ItemGroup>
     <None Include="..\..\tools\tie\tiec.exe"

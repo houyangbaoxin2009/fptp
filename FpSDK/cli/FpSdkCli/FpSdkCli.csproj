@@ -11,7 +11,7 @@
     <!-- AssemblyName 避开与 FpSDK 库的"FpSDK.dll"大小写不敏感同名冲突（Windows） -->
     <AssemblyName>fpsdkcli</AssemblyName>
     <PackageId>FpSdkCli</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Description>fptp(Osiris) 插件项目脚手架：fpsdk new 一键生成模块骨架。</Description>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>fpsdk</ToolCommandName>
