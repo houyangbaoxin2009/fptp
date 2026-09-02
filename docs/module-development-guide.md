@@ -45,9 +45,9 @@ plugins/MyModule/
 |---|---|
 | `id` | 全局唯一（点分命名，如 `fpter`），配置键前缀 |
 | `kind` | `extension`（可装卸）/ `standard`（内置受保护）/ `update`（内置特殊权限） |
-| `type` | `native`（.NET 程序集）/ `script`（tie 脚本，2.1 未支持） |
+| `type` | `native`（.NET 程序集）/ `script`（tie 脚本，见第 11 节） |
 | `language` | **模块实现语言**（dotnet/tie），与 UI 语言无关 |
-| `entryPoint` | 入口 DLL 文件名 |
+| `entryPoint` | 入口：Native 为 DLL 文件名；Script（tie）为 `.tie` 文件（如 `main.tie`） |
 | `minHostVersion` | 最低宿主版本（`1.0.0`） |
 
 ## 3. csproj 约定
@@ -257,3 +257,83 @@ dotnet run --project src/Osiris.Cli -- --help
 - 每次编译一次 → `W+1`（不推送）；每完成一个任务 → `W` 清零、`Z+1`，提交推送并发布
 - `X/Y` 由用户指定，开发者不得修改
 - 发布一律打预发布标签（prerelease），直到另行告知转正式
+
+## 11. tie 脚本插件（type=script / language=tie）
+
+从 osiris 2026.1 起脚本模块**真正可加载**：宿主（Osiris.Core）经
+`TieRunner`（进程调用随包 tiec.exe，v2 帧桥）+ `TieModuleAdapter` 把脚本插件包装为
+`IModule + IFilterPlugin`，贡献一个"脚本滤镜"；**进程隔离**天然安全（无 ALC/反射）。
+
+### 11.1 快速开始（脚手架）
+
+```bash
+fpsdk new MyFilter --lang tie --id my.filter --path plugins/MyFilter
+```
+
+生成（`FpSDK/templates/tie-module`）：
+
+```
+plugins/MyFilter/
+├── main.tie            # type tie<logic>：实现 process + main 调 fptp.bridge(process)
+├── fptp_sdk.tie        # 运行桥库（namespace fptp）：bridge/reply_ok/参数声明/数据/像素工具
+├── std/tink.tie        # 帧协议层（tink 帧编解码 + CRC32，import 依赖）
+├── rdu/crc.tie         # 增量 CRC32（std/tink.tie 的依赖）
+├── module.json         # type=script / language=tie / entryPoint=main.tie
+└── langs/              # 语言包（同上第 6 节）
+```
+
+**注意**：`std/tink.tie` + `rdu/crc.tie` 必须随插件目录分发——tiec 按工作目录（CWD）解析 import。
+
+### 11.2 协议（fptp.tie-bridge.v2，tink 帧桥）
+
+- 通道：stdin/stdout 文本流，`\n` 定界，每行一条 `base64(帧)`；
+- 帧：`[len:u32 BE][payload:len 字节][crc:u32 BE]`，crc = CRC32-IEEE(payload)（校验向量 0xCBF43926）；
+- 输入帧 payload = 协议文本（UTF-8）；输出帧 payload = `[tag:1][正文(UTF-8)]`，tag 0x00=OK / 0x01=ERR；
+- 宿主写完输入后关闭 stdin（脚本 `read_line()` EOF 退出）；
+- 无环境变量 32K 长度限制（脚本滤镜像素上限 4M，防失控）。
+
+### 11.3 编写业务逻辑（示例：亮度滤镜）
+
+```tie
+import "fptp_sdk.tie" as fptp
+
+func process(src: string) -> string {
+    // 参数自描述探测：识别后返回 "params\n" + 参数声明行，宿主据此自动生成滤镜参数 UI
+    if fptp.data_get(src, "action", "") == "params" {
+        return "params\n" + fptp.param_int("delta", "亮度增量", -255, 255, 20)
+    }
+    // 滤镜逻辑：读声明参数真实值 → 处理像素 → 返回 ["pixels": "..."]（尺寸不变）
+    var delta = fptp.data_get_int(src, "delta", 20)
+    var pixels = fptp.data_get(src, "pixels", "")
+    return fptp.data_make("pixels", fptp.pixel_add(pixels, delta))
+}
+
+func main() { fptp.bridge(process) }   // 运行桥（勿删）
+```
+
+- 输入协议文本含 `width` / `height` / `pixels`（BGRA 预乘字节逗号分隔）+ 脚本声明的参数真实值；
+- 返回值必须为 `["pixels": "..."]`（新像素文本，字节数 = width×height×4）或 `["action": "identity"]`（原样）；
+- 超限/失败/非法输出 → 脚本滤镜原样返回，不崩。
+
+### 11.4 参数自描述（滤镜参数 UI）
+
+process 识别 `["action": "params"]` 即返回声明文本：首行 `params`，其后每行
+`key=..|label=..|kind=..|min=..|max=..|default=..`（`kind`: int / float）。宿主加载时探测一次，
+**动态生成** `Parameters`/`Defaults`（滤镜窗口自动渲染参数控件）；未响应 `params` 的脚本视为无参数，
+参数用脚本内默认值兜底（向后兼容）。
+
+### 11.5 验证与部署
+
+```bash
+# 脚本模块无 csproj（0 .NET 编译），宿主加载时经 tiec 即时编译：
+# 放入 plugins/bin/<Name>/（目录含 main.tie + fptp_sdk.tie + std/ + rdu/）自动扫描加载
+```
+
+脚本模块与 Native 模块同走模块加载流程（module.json / module.data.tie 清单 + 信任校验）；
+开发期调试可仅用 `FpSDK.TieRunner.Run(entry, input)` 直接编译运行验证。
+
+### 11.6 约束
+
+- **零 tie-interp 依赖**：只用 tie 内联底座 + `std/tink.tie` 帧层（import 编译期内联）；
+- 像素经协议文本传输（无 file 桥）；`data_*`/`pixel_add` 在字符串层解析 tie:data 顶层标量；
+- 编译依赖匹配 LLVM：开发机需 `FPTP_TIE_HOME` 指向含 LLVM 的 tie 发行根，或 tiec.exe 同级放 `llvm/`；
