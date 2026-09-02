@@ -18,6 +18,9 @@
   - 模板 `main.tie` 与测试脚本示范 `fptp.param_int("delta", ...)` 声明
 
 ### 变更
+- **TieRunner 编译产物缓存（性能）**：按脚本树内容哈希（入口 .tie + 全部随拷依赖 + tiec 路径）以
+  `%TEMP%/fptp-tie-cache` 复用已编译 exe——参数探测/重复 Apply 不再每次 tiec 重编译+链接；
+  任一插件文件改动或 tiec 升级自动换键重编译；缓存写失败静默降级（不影响功能）
 - **tie 运行桥升级 v2（tink 帧桥，fptp.tie-bridge.v2）**：宿主 ↔ tie 脚本通道从「env base64 输入 + stdout FPTP_OK/ERR 前缀」改为 **stdin/stdout 行帧流**（tink 帧协议）——
   - 帧格式：`[len:u32 BE][payload:len 字节][crc:u32 BE]`，crc = CRC32-IEEE(payload)（校验向量 0xCBF43926）；每行一条 `base64(帧)`，`\n` 定界
   - 输入帧 payload = 协议文本（UTF-8）；输出帧 payload = `[tag:1][正文]`，tag 0x00=OK / 0x01=ERR；宿主写完输入关闭 stdin，脚本 read_line EOF 退出

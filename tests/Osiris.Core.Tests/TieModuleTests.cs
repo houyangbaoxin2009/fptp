@@ -194,6 +194,37 @@ public class TieModuleTests : IDisposable
     }
 
     [Fact]
+    public void TieRunner_编译缓存_复用与失效()
+    {
+        // 意图：同一脚本树重复 Run 命中产物缓存（不重编译，结果正确）；
+        // 脚本内容变更 → 缓存键变化 → 自动重编译（输出跟随新逻辑）。
+        if (Tie.TieRunner.FindTiec() is null)
+            return;
+
+        string dir = WriteTieModule("cache", BrightnessMainTie);
+        string input = "[\"width\": 1, \"height\": 1, \"delta\": 5, \"pixels\": \"100,100,100,255\"]";
+
+        // 首次：编译入缓存
+        TieResult r1 = Tie.TieRunner.Run(Path.Combine(dir, "main.tie"), input);
+        Assert.True(r1.Ok, r1.Message);
+        Assert.Contains("105,105,105,255", r1.Output);
+
+        // 二次：脚本树未变 → 缓存命中，改输入参数仍正确（delta 10 → 110）
+        TieResult r2 = Tie.TieRunner.Run(Path.Combine(dir, "main.tie"),
+            "[\"width\": 1, \"height\": 1, \"delta\": 10, \"pixels\": \"100,100,100,255\"]");
+        Assert.True(r2.Ok, r2.Message);
+        Assert.Contains("110,110,110,255", r2.Output);
+
+        // 篡改脚本（亮度加固定 0）→ 内容哈希变化 → 重编译，输出跟随新逻辑
+        File.WriteAllText(Path.Combine(dir, "main.tie"),
+            BrightnessMainTie.Replace("fptp.pixel_add(pixels, delta)", "fptp.pixel_add(pixels, 0)"),
+            new System.Text.UTF8Encoding(false));
+        TieResult r3 = Tie.TieRunner.Run(Path.Combine(dir, "main.tie"), input);
+        Assert.True(r3.Ok, r3.Message);
+        Assert.Contains("100,100,100,255", r3.Output);
+    }
+
+    [Fact]
     public void TieModuleAdapter_超大图_原样返回()
     {
         // 意图：像素数超过 MaxPixels（v2 4_000_000）时脚本桥不执行，原样返回（不崩、尺寸不变）。

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Osiris.Core.Tie;
@@ -94,14 +95,25 @@ public static class TieRunner
             }
             File.Copy(scriptPath, scriptCopy, overwrite: true);
 
-            // 1) 编译：tiec.exe <script> -o <exe>（显式输出路径，产物落临时目录）。
-            //    tiec 依赖同版本 LLVM：显式 TIE_LLVM_HOME（tiec 同级 llvm/ 或 FPTP_TIE_HOME/bin/llvm），
-            //    避免回退 PATH/D:\LLVM 旧版 LLVM 链接出静默无输出的 exe。
-            string? llvmHome = FindLlvmHome(tiec);
-            var compileEnv = llvmHome is null ? null : new Dictionary<string, string> { ["TIE_LLVM_HOME"] = llvmHome };
-            string compileOut = RunProcess(tiec, "\"" + scriptCopy + "\" -o \"" + exePath + "\"", work, inputLine: null, timeoutMs, compileEnv);
-            if (!File.Exists(exePath))
-                return new TieResult(false, "", $"编译失败：\n{compileOut}");
+            // 1) 编译（带产物缓存）：缓存键 = 脚本树内容哈希 + tiec 路径；命中则跳过 tiec 直接复用
+            //    exe（参数探测/每次 Apply 都调 Run，重复编译是滤镜热路径最大开销）。
+            string cacheKey = ComputeCacheKey(scriptDir, scriptPath, tiec);
+            string cachedExe = Path.Combine(ExeCacheDir, cacheKey + ".exe");
+            if (File.Exists(cachedExe))
+            {
+                File.Copy(cachedExe, exePath, overwrite: true);
+            }
+            else
+            {
+                // tiec 依赖同版本 LLVM：显式 TIE_LLVM_HOME（tiec 同级 llvm/ 或 FPTP_TIE_HOME/bin/llvm），
+                // 避免回退 PATH/D:\LLVM 旧版 LLVM 链接出静默无输出的 exe。
+                string? llvmHome = FindLlvmHome(tiec);
+                var compileEnv = llvmHome is null ? null : new Dictionary<string, string> { ["TIE_LLVM_HOME"] = llvmHome };
+                string compileOut = RunProcess(tiec, "\"" + scriptCopy + "\" -o \"" + exePath + "\"", work, inputLine: null, timeoutMs, compileEnv);
+                if (!File.Exists(exePath))
+                    return new TieResult(false, "", $"编译失败：\n{compileOut}");
+                TryCacheExe(exePath, cachedExe);
+            }
 
             // 2) 运行（v2 帧桥）：stdin 写一条输入帧行 base64(帧[协议文本]) → 关闭 stdin（脚本 read_line EOF 退出）；
             //    stdout 逐行读取应答帧并解析（CRC 校验 + tag）。
@@ -143,6 +155,45 @@ public static class TieRunner
                 : new TieResult(false, "", text);
         }
         return new TieResult(false, "", $"无法识别的脚本输出：{stdout.Trim()}");
+    }
+
+    /// <summary>编译产物缓存目录（%TEMP%/fptp-tie-cache；键 = 脚本树内容哈希 + tiec 路径）。</summary>
+    private static readonly string ExeCacheDir = Path.Combine(Path.GetTempPath(), "fptp-tie-cache");
+
+    /// <summary>
+    /// 计算脚本树内容哈希：入口 .tie + 全部随拷依赖（相对路径 + 字节，同拷贝序）+ tiec 全路径。
+    /// 任一插件文件（含模板/工程清单）或 tiec 升级即换键重编译。
+    /// </summary>
+    private static string ComputeCacheKey(string scriptDir, string scriptPath, string tiec)
+    {
+        using var sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        sha.AppendData(Encoding.UTF8.GetBytes(tiec));
+        sha.AppendData(Encoding.UTF8.GetBytes("\n"));
+        foreach (string file in Directory
+            .EnumerateFiles(scriptDir, "*", SearchOption.AllDirectories)
+            .OrderBy(f => f, StringComparer.Ordinal))
+        {
+            if (Path.GetExtension(file).ToLowerInvariant() is ".exe" or ".lib" or ".obj" or ".o" or ".pdb")
+                continue;
+            sha.AppendData(Encoding.UTF8.GetBytes(Path.GetRelativePath(scriptDir, file)));
+            sha.AppendData(Encoding.UTF8.GetBytes(":"));
+            sha.AppendData(Encoding.UTF8.GetBytes(Convert.ToBase64String(File.ReadAllBytes(file))));
+            sha.AppendData(Encoding.UTF8.GetBytes("\n"));
+        }
+        return Convert.ToHexString(sha.GetHashAndReset());
+    }
+
+    /// <summary>把编译产物写进缓存（原子 tmp→move；失败静默，不影响功能）。</summary>
+    private static void TryCacheExe(string source, string target)
+    {
+        try
+        {
+            Directory.CreateDirectory(ExeCacheDir);
+            string tmp = target + ".tmp";
+            File.Copy(source, tmp, overwrite: true);
+            File.Move(tmp, target, overwrite: true);
+        }
+        catch { /* 缓存写失败（权限/占用）不影响运行 */ }
     }
 
     /// <summary>定位与 tiec 匹配的 LLVM 根（含 bin/clang 等）；找不到返回 null（tiec 按自身回退链）。</summary>
