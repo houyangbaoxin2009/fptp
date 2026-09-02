@@ -65,7 +65,7 @@ public class TieTests
             string manifestJson = File.ReadAllText(Path.Combine(tmp, "module.json"));
             Assert.Contains("\"type\": \"script\"", manifestJson);
             Assert.Contains("\"language\": \"tie\"", manifestJson);
-            Assert.Contains("\"entryPoint\": \"TieProbe.tie\"", manifestJson);
+            Assert.Contains("\"entryPoint\": \"main.tie\"", manifestJson);
             Assert.Contains("\"id\": \"tie.probe\"", manifestJson);
             Assert.Contains("\"name\": \"tie 探头\"", manifestJson);
 

@@ -225,6 +225,59 @@ public class TieModuleTests : IDisposable
     }
 
     [Fact]
+    public void TieModule_真实模板_宿主加载_全链路()
+    {
+        // 意图：用 FpSDK 随包的**真实模板** main.tie（echo + 参数自描述分支）经宿主全链路：
+        // 模块加载 → 参数探测（动态 Parameters/Defaults 含 delta）→ Apply 像素面往返。
+        // 与手写测试脚本不同，本用例直接验证随包模板与宿主协议一起演进不相偏离。
+        if (Tie.TieRunner.FindTiec() is null)
+            return;
+
+        string tieRoot = Path.Combine(AppContext.BaseDirectory, "tie");
+        string moduleDir = WriteTieModuleFromTemplate("tpl", tieRoot);
+
+        var registry = new ModuleRegistry(
+            Path.Combine(_tempDir, "modules.data.tie"),
+            Path.Combine(_tempDir, "settings.data.tie"),
+            Path.Combine(_tempDir, "secure.data.tie"),
+            new TieDataConfigStore());
+        int loaded = ModuleLoader.LoadFromDirectory(_tempDir, registry, new StubHost(),
+            (name, ex) => throw new InvalidOperationException($"模块加载失败 [{name}]: {ex.Message}"));
+        Assert.Equal(1, loaded);
+
+        var adapter = Assert.Single(registry.GetInstances().OfType<TieModuleAdapter>());
+        IFilterProcessor filter = Assert.Single(adapter.Filters);
+
+        // 模板 main.tie 的 params 分支声明 delta（参数 UI 由宿主动态生成）
+        FilterParameterDescriptor delta = Assert.Single(filter.Parameters);
+        Assert.Equal("delta", delta.Key);
+        Assert.Equal(20, filter.Defaults.Get<int>("delta", -1));
+
+        // echo 模板：Apply 传默认参数，像素内容不变（往返无损）
+        PixelSurface input = FillSurface(2, 2, b: 1, g: 2, r: 3, a: 255);
+        PixelSurface output = filter.Apply(input, filter.Defaults, progress: null, CancellationToken.None);
+        Assert.Equal(new byte[] { 1, 2, 3, 255 }, output.Row(0)[0..4].ToArray());
+    }
+
+    /// <summary>用真实模板 main.tie 构建临时模块目录（manifest 用 tie:data）。</summary>
+    private string WriteTieModuleFromTemplate(string name, string tieRoot)
+    {
+        string dir = Path.Combine(_tempDir, name);
+        Directory.CreateDirectory(dir);
+        string template = Path.Combine(tieRoot, "template-main.tie");
+        Assert.True(File.Exists(template), "未找到测试分发的模板 main.tie（Link=tie/template-main.tie）");
+        File.Copy(template, Path.Combine(dir, "main.tie"), overwrite: true);
+        File.WriteAllText(Path.Combine(dir, "module.data.tie"), ScriptManifestTieData,
+            new System.Text.UTF8Encoding(false));
+        File.Copy(Path.Combine(tieRoot, "fptp_sdk.tie"), Path.Combine(dir, "fptp_sdk.tie"), overwrite: true);
+        Directory.CreateDirectory(Path.Combine(dir, "std"));
+        Directory.CreateDirectory(Path.Combine(dir, "rdu"));
+        File.Copy(Path.Combine(tieRoot, "std", "tink.tie"), Path.Combine(dir, "std", "tink.tie"), overwrite: true);
+        File.Copy(Path.Combine(tieRoot, "rdu", "crc.tie"), Path.Combine(dir, "rdu", "crc.tie"), overwrite: true);
+        return dir;
+    }
+
+    [Fact]
     public void TieModuleAdapter_超大图_原样返回()
     {
         // 意图：像素数超过 MaxPixels（v2 4_000_000）时脚本桥不执行，原样返回（不崩、尺寸不变）。

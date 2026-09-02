@@ -7,6 +7,12 @@
 
 ## [Unreleased]
 
+### 修复
+- **tie 脚本插件模板 module.json entryPoint 修正**：`{{Name}}.tie` → `main.tie`
+  （生成器实际产出 main.tie，原清单指向不存在的文件导致脚本模块加载失败）
+- **Osiris.Cli 随附 tiec.exe**（复制到输出 tools/tie/）：CLI 作为模块宿主加载 tie 脚本模块不再依赖
+  `FPTP_TIE_HOME`（与 Osiris.App 对齐）；`fpsdk` 脚手架成功提示更新（移除「TieHost 未来接管」过时表述）
+
 ### 新增
 - **tie 脚本滤镜参数自描述（架构「FilterParameters tie 可直接构造」落地）**：脚本经 `fptp_sdk.tie` 新增的
   `param_int` / `param_float` 声明参数（key/label/kind/min/max/default）——

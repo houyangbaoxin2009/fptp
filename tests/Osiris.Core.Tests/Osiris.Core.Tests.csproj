@@ -30,6 +30,9 @@
     <None Include="..\..\FpSDK\templates\tie-module\fptp_sdk.tie"
           CopyToOutputDirectory="PreserveNewest"
           Link="tie\fptp_sdk.tie" />
+    <None Include="..\..\FpSDK\templates\tie-module\main.tie"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tie\template-main.tie" />
     <None Include="..\..\FpSDK\templates\tie-module\std\tink.tie"
           CopyToOutputDirectory="PreserveNewest"
           Link="tie\std\tink.tie" />

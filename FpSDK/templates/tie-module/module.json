@@ -5,7 +5,7 @@
   "kind": "extension",
   "type": "script",
   "language": "tie",
-  "entryPoint": "{{Name}}.tie",
+  "entryPoint": "main.tie",
   "minHostVersion": "{{MinHostVersion}}",
   "dependencies": []
 }

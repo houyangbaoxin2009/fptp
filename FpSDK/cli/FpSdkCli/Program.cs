@@ -103,7 +103,8 @@ public static class Program
         {
             Console.WriteLine("下一步：");
             Console.WriteLine($"  cd {destDir}");
-            Console.WriteLine("  宿主（TieHost）未来接管加载；当前可用 FpSDK.TieRunner 直接编译运行 main.tie 调试。");
+            Console.WriteLine("  模块目录放入宿主 plugins/（或 %APPDATA%/Fptp/modules/）即被自动扫描加载；");
+            Console.WriteLine("  解码预览可用 FpSDK.TieRunner 直接编译运行 main.tie 调试。");
         }
         else
         {
