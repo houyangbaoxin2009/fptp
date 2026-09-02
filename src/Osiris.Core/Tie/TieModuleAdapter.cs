@@ -13,9 +13,9 @@ namespace Osiris.Core.Tie;
 /// <summary>
 /// tie 脚本模块适配器：把 type=script/language=tie 的模块（entryPoint 指向 .tie 入口脚本）包装为
 /// 宿主可见的 IModule + IFilterPlugin——脚本贡献一个"脚本滤镜"（TieScriptFilter）。
-/// 滤镜执行 = 进程隔离运行 tie 脚本（TieRunner）：宿主把像素面编码为协议文本（RGBA 数字逗号分隔，
-/// 受环境变量长度限制，见 TieScriptFilter.MaxPixels），脚本处理后返回新像素文本，宿主重建像素面。
-/// 脚本只依赖 tie 内联底座 + fptp_sdk.tie 库（数据/像素工具），进程隔离天然安全（无 ALC/反射）。
+/// 滤镜执行 = 进程隔离运行 tie 脚本（TieRunner，v2 行帧桥）：宿主把像素面编码为协议文本
+/// （RGBA 数字逗号分隔），经 tink 帧 stdin 送入脚本，脚本处理后帧回新像素文本，宿主重建像素面。
+/// 脚本依赖 tie 内联底座 + std/tink.tie 帧层 + fptp_sdk.tie 库，进程隔离天然安全（无 ALC/反射）。
 /// </summary>
 public sealed class TieModuleAdapter : IModule, IFilterPlugin
 {
@@ -61,22 +61,22 @@ public sealed class TieModuleAdapter : IModule, IFilterPlugin
 }
 
 /// <summary>
-/// tie 脚本滤镜：把像素面经协议文本送 tie 脚本处理（进程隔离），重建结果像素面。
-/// <para>协议（fptp_sdk.tie 滤镜桥 v1，脚本 main 用 fptp.input()/fptp.reply_ok()）：</para>
+/// tie 脚本滤镜：把像素面经协议文本送 tie 脚本处理（进程隔离，v2 行帧桥），重建结果像素面。
+/// <para>协议（fptp_sdk.tie 滤镜桥 v2，脚本 main 用 fptp.bridge(process)）：</para>
 /// <list type="bullet">
-///   <item>输入文本（env FPTP_TIE_INPUT = base64）：[ "width": W, "height": H, "delta": N, "pixels": "b,g,r,a,..." ]</item>
-///   <item>输出文本（stdout FPTP_OK）：[ "pixels": "b,g,r,a,..." ]（尺寸不变）或 [ "action": "identity" ]（原样）</item>
+///   <item>输入（stdin 一帧）：[ "width": W, "height": H, "delta": N, "pixels": "b,g,r,a,..." ]</item>
+///   <item>输出（stdout 一帧）：[ "pixels": "b,g,r,a,..." ]（尺寸不变）或 [ "action": "identity" ]（原样）</item>
 /// </list>
 /// pixels 为原始 BGRA 预乘字节的逗号分隔数字（脚本按字节索引处理，无需理解预乘）。
-/// 受环境变量长度限制（Windows ~32K），最大像素数 <see cref="MaxPixels"/>；超限时原样返回（不报错）。
+/// v2 走 stdin/stdout 流（无环境变量长度限制），仅保留大图防失控上限 <see cref="MaxPixels"/>。
 /// </summary>
 internal sealed class TieScriptFilter : IFilterProcessor
 {
     /// <summary>参数键：亮度增量（示例像素变换参数，-255~255，默认 20）。</summary>
     public const string ParamDelta = "delta";
 
-    /// <summary>最大内联像素数（像素数组文本 base64 后须在环境变量预算内；32×32 演示级）。</summary>
-    public const int MaxPixels = 32 * 32;
+    /// <summary>最大像素数（协议文本为逗号分隔数字，防超大图失控；v2 流无 32K 限制）。</summary>
+    public const int MaxPixels = 4_000_000;
 
     private readonly string _id;
     private readonly string _scriptPath;

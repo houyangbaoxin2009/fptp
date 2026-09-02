@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <!-- tie 运行桥测试资源：tiec.exe 复制到输出 tools/tie/（模拟宿主随包分发路径 TieRunner.FindTiec）；
-       fptp_sdk.tie 供脚本 import（TieModuleTests 写临时 main.tie 时复制到同目录） -->
+       fptp_sdk.tie + std/tink.tie + rdu/crc.tie 供脚本 import（TieModuleTests 写临时 main.tie 时复制到同目录，v2 行帧桥） -->
   <ItemGroup>
     <None Include="..\..\FpSDK\tools\tie\tiec.exe"
           CopyToOutputDirectory="PreserveNewest"
@@ -30,6 +30,12 @@
     <None Include="..\..\FpSDK\templates\tie-module\fptp_sdk.tie"
           CopyToOutputDirectory="PreserveNewest"
           Link="tie\fptp_sdk.tie" />
+    <None Include="..\..\FpSDK\templates\tie-module\std\tink.tie"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tie\std\tink.tie" />
+    <None Include="..\..\FpSDK\templates\tie-module\rdu\crc.tie"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="tie\rdu\crc.tie" />
   </ItemGroup>
 
 </Project>

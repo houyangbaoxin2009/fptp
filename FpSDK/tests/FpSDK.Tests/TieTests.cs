@@ -40,8 +40,8 @@ public class TieTests
     [Fact]
     public void TieVersion_BindsHarbor()
     {
-        Assert.Equal("Harbor-2026.1-preview.4", TieVersion.Harbor);
-        Assert.Equal("fptp.tie-bridge.v1", TieVersion.BridgeProtocol);
+        Assert.Equal("Harbor-2026.1-preview.5", TieVersion.Harbor);
+        Assert.Equal("fptp.tie-bridge.v2", TieVersion.BridgeProtocol);
     }
 
     [Fact]
@@ -57,6 +57,8 @@ public class TieTests
             Assert.Contains("main.tie", files);
             Assert.Contains("fptp_sdk.tie", files);   // 运行桥已抽为库，随模板分发
             Assert.Contains("module.json", files);
+            Assert.Contains(Path.Combine("std", "tink.tie"), files);   // tink 帧层随模板分发
+            Assert.Contains(Path.Combine("rdu", "crc.tie"), files);    // tink 依赖 crc（内联）
             Assert.DoesNotContain(files, f => f.EndsWith(".csproj"));
 
             // module.json：tie 脚本清单约定
@@ -67,7 +69,7 @@ public class TieTests
             Assert.Contains("\"id\": \"tie.probe\"", manifestJson);
             Assert.Contains("\"name\": \"tie 探头\"", manifestJson);
 
-            // main.tie：import 运行桥库 + process 豁口（base64 桥已移至 fptp_sdk.tie）
+            // main.tie：import 运行桥库 + process 豁口（v2 帧桥已移至 fptp_sdk.tie）
             string main = File.ReadAllText(Path.Combine(tmp, "main.tie"));
             Assert.Contains("import \"fptp_sdk.tie\"", main);
             Assert.Contains("func process(src: string) -> string", main);
@@ -75,13 +77,14 @@ public class TieTests
             // token 已替换
             Assert.DoesNotContain("{{Name}}", main.Replace("tie 探头", ""));
 
-            // fptp_sdk.tie：协议常量与 base64 编解码在库内
+            // fptp_sdk.tie：v2 帧桥（import std/tink.tie + 帧解码 + 应答）
             string sdk = File.ReadAllText(Path.Combine(tmp, "fptp_sdk.tie"));
+            Assert.Contains("import \"std/tink.tie\" as tink", sdk);
             Assert.Contains("namespace fptp", sdk);
-            Assert.Contains("FPTP_OK:", sdk);
-            Assert.Contains("FPTP_ERR:", sdk);
-            Assert.Contains("func base64_decode(s: string) -> string", sdk);
-            Assert.Contains("func base64_encode(s: string) -> string", sdk);
+            Assert.Contains("func bridge(proc: fn(string) -> string)", sdk);
+            Assert.Contains("tink.frame_next(bytes, 0)", sdk);
+            Assert.Contains("func base64_decode(s: string) -> table<i64>", sdk);
+            Assert.Contains("func base64_encode(bytes: table<i64>) -> string", sdk);
         }
         finally
         {
@@ -153,15 +156,20 @@ public class TieTests
     }
 
     [Fact]
-    public void TieRunner_Parse_Protocol()
+    public void TieRunner_Parse_FrameProtocol()
     {
-        Assert.True(TieRunner.Parse("FPTP_OK:" + Convert.ToBase64String(
-            System.Text.Encoding.UTF8.GetBytes("结果"))).Ok);
-        var err = TieRunner.Parse("FPTP_ERR:" + Convert.ToBase64String(
-            System.Text.Encoding.UTF8.GetBytes("失败了")));
+        // v2 帧桥解析：OK 帧 → 成功；ERR 帧 → 失败；非法行跳过/失败。
+        byte[] okFrame = Tink.Encode(Tink.TagPayload(Tink.OkTag, "结果"));
+        Assert.True(TieRunner.Parse(Convert.ToBase64String(okFrame)).Ok);
+
+        byte[] errFrame = Tink.Encode(Tink.TagPayload(Tink.ErrTag, "失败了"));
+        var err = TieRunner.Parse(Convert.ToBase64String(errFrame));
         Assert.False(err.Ok);
         Assert.Equal("失败了", err.Message);
-        Assert.False(TieRunner.Parse("junk").Ok);
+
+        Assert.False(TieRunner.Parse("junk").Ok);                       // 非法行 → 失败
+        Assert.False(TieRunner.Parse("").Ok);                           // 空输出 → 失败
+        Assert.True(TieRunner.Parse("诊断行\n" + Convert.ToBase64String(okFrame)).Ok);   // 非帧行在前：取第一个合法帧
     }
 
     [Fact]

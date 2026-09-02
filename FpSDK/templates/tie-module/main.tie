@@ -1,13 +1,13 @@
 type tie<logic>
 
 // {{DisplayName}} —— tie 脚本插件（{{Id}}）
-// tie 版本：Harbor-2026.1-preview.4（SDK：fptp_sdk.tie，零 tie-interp 依赖）
-// 运行桥（FpSDK.TieKit.TieRunner）：
-//   - 输入：环境变量 FPTP_TIE_INPUT = base64(宿主文本)
-//   - 输出：stdout 一行 "FPTP_OK:<base64>" 或 "FPTP_ERR:<base64>"
-// 解析 import 按工作目录（CWD），fptp_sdk.tie 需与本文件同目录（生成时已就位）。
+// tie 版本：Harbor-2026.1-preview.5（SDK：fptp_sdk.tie，v2 帧桥，零 tie-interp 依赖）
+// 运行桥（FpSDK.TieKit.TieRunner，fptp.tie-bridge.v2）：
+//   - 输入：stdin 一行 base64(tink 帧)，帧 payload = 宿主协议文本
+//   - 输出：stdout 一行 base64(tink 帧)，payload = [tag][正文]，tag 0x00=OK / 0x01=ERR
+// 依赖解析按工作目录（CWD）：std/tink.tie + rdu/crc.tie 随模板生成于本目录。
 // 插件逻辑只需实现 process(src)；main 调 fptp.bridge(process) 完成
-//   输入读取 → process → FPTP_OK 应答。
+//   帧读取 → process → OK/ERR 应答帧。
 
 import "fptp_sdk.tie" as fptp
 

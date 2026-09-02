@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### 变更
+- **tie 运行桥升级 v2（tink 帧桥，fptp.tie-bridge.v2）**：宿主 ↔ tie 脚本通道从「env base64 输入 + stdout FPTP_OK/ERR 前缀」改为 **stdin/stdout 行帧流**（tink 帧协议）——
+  - 帧格式：`[len:u32 BE][payload:len 字节][crc:u32 BE]`，crc = CRC32-IEEE(payload)（校验向量 0xCBF43926）；每行一条 `base64(帧)`，`\n` 定界
+  - 输入帧 payload = 协议文本（UTF-8）；输出帧 payload = `[tag:1][正文]`，tag 0x00=OK / 0x01=ERR；宿主写完输入关闭 stdin，脚本 read_line EOF 退出
+  - Osiris.Core 与 FpSDK 双端新增 `Tink`（帧编解码/CRC32 查表，与 std/tink.tie 同构）；`TieRunner` 重写为 v2 帧收发
+  - 脚本侧 `fptp_sdk.tie` 重写为 v2 桥（`bridge(proc)` 循环读帧 + `reply_ok/reply_err` 应答，删除 v1 `input()`/`FPTP_TIE_INPUT`），新增模板 `std/tink.tie` 帧层 + `rdu/crc.tie` 增量 CRC；依赖按 CWD 解析，插件目录全量递归复制
+  - **无 32K 环境变量长度限制**：滤镜像素上限从 32×32（v1 演示级）提升到 4M（防失控上限）
+  - **LLVM 显式接管**：tiec 同级 `llvm/` 或 `FPTP_TIE_HOME/bin/llvm` 经 `TIE_LLVM_HOME` 显式指定，避免回退旧版 LLVM 链接出静默无输出的 exe
+  - tiec 升级 **Harbor-2026.1-preview.4 → preview.5**（std/tink/zd 进入标准库）；`TieVersion.Harbor` 同步
+
 ### 新增
 - **宿主原生加载 tie 脚本模块（P5，DoNetTD 配套）**：`type=script/language=tie` 模块真正可加载——
   - Osiris.Core 新增 `Tie/TieRunner.cs`（进程调用 tiec.exe 编译运行 .tie，协议同 FpSDK：env base64 输入 + stdout FPTP_OK/ERR）+ `Tie/TieModuleAdapter.cs`（脚本模块包装为 IModule+IFilterPlugin，贡献脚本滤镜）

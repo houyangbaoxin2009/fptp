@@ -29,18 +29,20 @@ public class TieModuleTests : IDisposable
         try { Directory.Delete(_tempDir, recursive: true); } catch { /* 忽略清理失败 */ }
     }
 
-    /// <summary>tie 脚本滤镜模块的 main.tie（亮度增强：RGB 加 delta，Alpha 不变）。</summary>
+    /// <summary>tie 脚本滤镜模块的 main.tie（v2 行帧桥：亮度增强 RGB 加 delta，Alpha 不变）。</summary>
     private const string BrightnessMainTie = """
         type tie<logic>
 
         import "fptp_sdk.tie" as fptp
 
+        func process(src: string) -> string {
+            var delta = fptp.data_get_int(src, "delta", 20)
+            var pixels = fptp.data_get(src, "pixels", "")
+            return fptp.data_make("pixels", fptp.pixel_add(pixels, delta))
+        }
+
         func main() {
-            var txt = fptp.input()
-            var delta = fptp.data_get_int(txt, "delta", 20)
-            var pixels = fptp.data_get(txt, "pixels", "")
-            var out = fptp.pixel_add(pixels, delta)
-            fptp.reply_ok(fptp.data_make("pixels", out))
+            fptp.bridge(process)
         }
         """;
 
@@ -60,17 +62,22 @@ public class TieModuleTests : IDisposable
         ]
         """;
 
-    /// <summary>写临时 tie 模块目录：main.tie + fptp_sdk.tie（从测试输出复制）。</summary>
+    /// <summary>写临时 tie 模块目录：main.tie + fptp_sdk.tie + std/tink.tie + rdu/crc.tie（从测试输出复制）。</summary>
     private string WriteTieModule(string name, string mainTie)
     {
         string dir = Path.Combine(_tempDir, name);
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "main.tie"), mainTie, new System.Text.UTF8Encoding(false));
 
-        // fptp_sdk.tie 随测试输出分发（Link=tie/fptp_sdk.tie），复制到模块目录供 import（tiec 按 CWD 解析）
-        string sdkSrc = Path.Combine(AppContext.BaseDirectory, "tie", "fptp_sdk.tie");
-        Assert.True(File.Exists(sdkSrc), "未找到测试分发的 fptp_sdk.tie");
-        File.Copy(sdkSrc, Path.Combine(dir, "fptp_sdk.tie"), overwrite: true);
+        // v2 行帧桥资源随测试输出分发（Link=tie/...）：fptp_sdk.tie + std/rdu（tink 帧层），
+        // 复制到模块目录供 import（tiec 按 CWD=插件目录解析）
+        string tieRoot = Path.Combine(AppContext.BaseDirectory, "tie");
+        Assert.True(File.Exists(Path.Combine(tieRoot, "fptp_sdk.tie")), "未找到测试分发的 fptp_sdk.tie");
+        File.Copy(Path.Combine(tieRoot, "fptp_sdk.tie"), Path.Combine(dir, "fptp_sdk.tie"), overwrite: true);
+        Directory.CreateDirectory(Path.Combine(dir, "std"));
+        Directory.CreateDirectory(Path.Combine(dir, "rdu"));
+        File.Copy(Path.Combine(tieRoot, "std", "tink.tie"), Path.Combine(dir, "std", "tink.tie"), overwrite: true);
+        File.Copy(Path.Combine(tieRoot, "rdu", "crc.tie"), Path.Combine(dir, "rdu", "crc.tie"), overwrite: true);
         return dir;
     }
 
@@ -145,7 +152,7 @@ public class TieModuleTests : IDisposable
     [Fact]
     public void TieModuleAdapter_超大图_原样返回()
     {
-        // 意图：像素数超过 MaxPixels（32×32）时脚本桥不执行，原样返回（不崩、尺寸不变）。
+        // 意图：像素数超过 MaxPixels（v2 4_000_000）时脚本桥不执行，原样返回（不崩、尺寸不变）。
         if (Tie.TieRunner.FindTiec() is null)
             return;
 
@@ -163,11 +170,11 @@ public class TieModuleTests : IDisposable
         var adapter = Assert.Single(registry.GetInstances().OfType<TieModuleAdapter>());
         IFilterProcessor filter = Assert.Single(adapter.Filters);
 
-        PixelSurface input = FillSurface(64, 64, b: 100, g: 100, r: 100, a: 255);   // 64×64 > 32×32
+        PixelSurface input = FillSurface(2049, 2049, b: 100, g: 100, r: 100, a: 255);   // 2049² > 4M
         PixelSurface output = filter.Apply(input, filter.Defaults, progress: null, CancellationToken.None);
 
-        Assert.Equal(64, output.Width);
-        Assert.Equal(64, output.Height);
+        Assert.Equal(2049, output.Width);
+        Assert.Equal(2049, output.Height);
         Assert.Equal(new byte[] { 100, 100, 100, 255 }, output.Row(0)[0..4].ToArray());   // 原样
     }
 
