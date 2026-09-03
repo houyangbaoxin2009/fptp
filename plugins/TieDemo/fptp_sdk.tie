@@ -1,0 +1,517 @@
+type tie<class>
+
+// ==================== FPTP tie 插件 SDK（fptp_sdk.tie）v2 ====================
+// 用途：制作 fptp(Osiris)tie 脚本插件的标准运行桥库。
+// 协议版本：fptp.tie-bridge.v2（tink 帧桥）
+// 遵循：
+//   1. 插件 main.tie 只需 import 本文件（同目录）+ 实现 func process(payload_txt: string) -> string，
+//      主流程（读 stdin → 解帧 → 调 process → 应答帧写 stdout）由 fptp.bridge 代劳。
+//   2. 本文件用官方 std/tink.tie（v2 preview.5+），不碰 tie-interp 扩展，保持零 interp 依赖。
+//   3. 编译期依赖：同目录下有 ./std/tink.tie + ./rdu/crc.tie（和 preview.5 发行版一致）。
+// 协议（tink 帧桥，fptp.tie-bridge.v2）：
+//   - 通道：stdin/stdout 文本流，换行定界，每行一条 base64(帧)；
+//   - 帧格式：[len:u32 BE][payload:len 字节][crc:u32 BE]，crc = CRC32-IEEE(payload)；
+//   - 输入帧 payload = UTF-8 协议文本（宿主传的参数文档）；
+//   - 输出帧 payload = [tag:1 byte][正文 UTF-8]：
+//       - tag 0x00 = 成功，正文 = 结果文本；
+//       - tag 0x01 = 失败，正文 = 错误消息。
+// 字节模型：完整 payload 为 UTF-8 协议文本，无损往返兼容中文。
+
+import "std/tink.tie" as tink
+namespace fptp {
+
+// ---------- 桥入口 ----------
+
+// 运行桥：循环读 stdin 帧 → CRC 校验 → 解码 UTF-8 → 调 proc → 应答帧写 stdout。
+// 结束于 read_line EOF → 正常退出。
+// 插件 main() 只需一行调用：fptp.bridge(process)。
+pub func bridge(proc: fn(string) -> string) {
+    var line: string = read_line()
+    while len(line) > 0 {
+        line = str_trim(line)
+        if len(line) > 0 {
+            var bytes = base64_decode(line)
+            if len(bytes) > 0 {
+                var (payload, np) = tink.frame_next(bytes, 0)
+                if np >= 0 {
+                    var txt_in = bytes_to_utf8(payload)
+                    reply_ok(proc(txt_in))
+                }
+            }
+        }
+        line = read_line()
+    }
+}
+
+// 直接应答 OK（结果文本）：编码成 tink 帧 → base64 → 写 stdout 一行。
+pub func reply_ok(txt: string) {
+    var payload = utf8_bytes(txt)
+    var with_tag = table_new_i64()
+    table_push(with_tag, 0x00)  // OK tag
+    var i: i64 = 0
+    while i < len(payload) {
+        table_push(with_tag, payload[i])
+        i = i + 1
+    }
+    reply_frame(with_tag)
+}
+
+// 直接应答 ERR（错误消息）：编码成 tink 帧 → base64 → 写 stdout 一行。
+pub func reply_err(msg: string) {
+    var payload = utf8_bytes(msg)
+    var with_tag = table_new_i64()
+    table_push(with_tag, 0x01)  // ERR tag
+    var i: i64 = 0
+    while i < len(payload) {
+        table_push(with_tag, payload[i])
+        i = i + 1
+    }
+    reply_frame(with_tag)
+}
+
+// ---------- 帧收发底层 ----------
+
+// 应答帧 → 编码 → 打印一行。
+pub func reply_frame(payload: table<i64>) {
+    var frame = tink.frame_encode(payload)
+    println(base64_encode(frame))
+}
+
+// ---------- 编码工具（payload 文本 ↔ 字节表） ----------
+
+// UTF-8 字符串 → 字节表（每个元素 = 0-255 字节值）。
+pub func utf8_bytes(s: string) -> table<i64> {
+    var out = table_new_i64()
+    var i: i64 = 0
+    while i < str_len(s) {
+        var c = str_char(s, i)
+        var cp = char_code(c)
+        if cp < 0x80 {
+            // ASCII → 单字节
+            table_push(out, cp)
+        } else if cp <= 0x7FF {
+            // 2 字节
+            table_push(out, 0xC0 | (cp >> 6))
+            table_push(out, 0x80 | (cp & 0x3F))
+        } else if cp <= 0xFFFF {
+            // 3 字节
+            table_push(out, 0xE0 | (cp >> 12))
+            table_push(out, 0x80 | ((cp >> 6) & 0x3F))
+            table_push(out, 0x80 | (cp & 0x3F))
+        } else {
+            // 4 字节
+            table_push(out, 0xF0 | (cp >> 18))
+            table_push(out, 0x80 | ((cp >> 12) & 0x3F))
+            table_push(out, 0x80 | ((cp >> 6) & 0x3F))
+            table_push(out, 0x80 | (cp & 0x3F))
+        }
+        i = i + 1
+    }
+    return out
+}
+
+// 字节表（每个元素 0-255）→ UTF-8 字符串（按 Unicode 码点组合）。
+pub func bytes_to_utf8(bytes: table<i64>) -> string {
+    var out: string = ""
+    var i: i64 = 0
+    var nb = len(bytes)
+    while i < nb {
+        var b0 = bytes[i]
+        if (b0 & 0xF0) == 0xF0 {
+            // 4-byte
+            var cp = ((b0 & 0x07) << 18) | ((bytes[i+1] & 0x3F) << 12) | ((bytes[i+2] & 0x3F) << 6) | (bytes[i+3] & 0x3F)
+            out = out + str_from_code(cp)
+            i = i + 4
+        } else if (b0 & 0xE0) == 0xE0 {
+            // 3-byte
+            var cp = ((b0 & 0x0F) << 12) | ((bytes[i+1] & 0x3F) << 6) | (bytes[i+2] & 0x3F)
+            out = out + str_from_code(cp)
+            i = i + 3
+        } else if (b0 & 0xC0) == 0xC0 {
+            // 2-byte
+            var cp = ((b0 & 0x1F) << 6) | (bytes[i+1] & 0x3F)
+            out = out + str_from_code(cp)
+            i = i + 2
+        } else {
+            // 1-byte ASCII
+            out = out + str_from_code(b0)
+            i = i + 1
+        }
+    }
+    return out
+}
+
+// ---------- 字符串工具（保留 v1 给插件使用） ----------
+
+// 查找 sub 在 s 中首次出现的码点位置；未找到返回 -1。
+pub func str_find(s: string, sub: string) -> i64 {
+    var n: i64 = str_len(s)
+    var m: i64 = str_len(sub)
+    if m == 0 {
+        return 0
+    }
+    if m > n {
+        return -1
+    }
+    var i: i64 = 0
+    while i <= n - m {
+        var j: i64 = 0
+        var matched: bool = true
+        while j < m && matched {
+            if str_char(s, i + j) != str_char(sub, j) {
+                matched = false
+            }
+            j = j + 1
+        }
+        if matched {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+// 截取 s 的 [start, end) 子串（码点级）；越界自动收敛；start>=end 返回空串。
+pub func str_slice(s: string, start: i64, end: i64) -> string {
+    var n: i64 = str_len(s)
+    var lo: i64 = start
+    if lo < 0 {
+        lo = 0
+    }
+    if lo > n {
+        lo = n
+    }
+    var hi: i64 = end
+    if hi < 0 {
+        hi = 0
+    }
+    if hi > n {
+        hi = n
+    }
+    var out: string = ""
+    var i: i64 = lo
+    while i < hi {
+        out = out + str_char(s, i)
+        i = i + 1
+    }
+    return out
+}
+
+// 去除字符串首尾空白（空格 32 / 制表 9 / 换行 10 / 回车 13）。
+pub func str_trim(s: string) -> string {
+    var n: i64 = str_len(s)
+    var start: i64 = 0
+    while start < n && is_space(str_char(s, start)) {
+        start = start + 1
+    }
+    var end: i64 = n
+    while end > start && is_space(str_char(s, end - 1)) {
+        end = end - 1
+    }
+    return str_slice(s, start, end)
+}
+
+// 判断单字符是否为空白（空格/制表/换行/回车）。
+pub func is_space(c: string) -> bool {
+    if c == " " {
+        return true
+    }
+    if c == "\t" {
+        return true
+    }
+    if c == "\n" {
+        return true
+    }
+    return c == "\r"
+}
+
+// 按分隔符拆分字符串 → table<string>（连续分隔符产生空段，首尾同）。
+pub func str_split(s: string, sep: string) -> table<string> {
+    var out = table_new_string()
+    var n: i64 = str_len(s)
+    var m: i64 = str_len(sep)
+    var start: i64 = 0
+    var i: i64 = 0
+    while i <= n {
+        var atEnd: bool = (i == n)
+        var isSep: bool = false
+        if !atEnd && m > 0 {
+            var j: i64 = 0
+            var matched: bool = true
+            while j < m && matched {
+                if str_char(s, i + j) != str_char(sep, j) {
+                    matched = false
+                }
+                j = j + 1
+            }
+            isSep = matched
+        }
+        if atEnd || isSep {
+            table_push(out, str_slice(s, start, i))
+            i = i + m
+            start = i
+        } else {
+            i = i + 1
+        }
+    }
+    return out
+}
+
+// ---------- tie:data 数据工具（保留 v1 给插件使用） ----------
+// 协议文本形如 [ "key": value, ... ]（tie:data 顶层表，标量值）。
+// 本工具集在字符串层面解析/构造顶层标量字段，规避 tie 函数参数只支持标量，
+// 跨脚本传结构数据一律走协议文本。
+
+// 在 tie:data 顶层表文本中按键取值（标量）；键不存在或值非标量返回 fallback。
+// 字符串值返回去引号内容（含转义还原）；数字/布尔返回原文字面量。
+pub func data_get(txt: string, key: string, fallback: string) -> string {
+    var n: i64 = str_len(txt)
+    var needle = "\"" + key + "\""
+    var p = str_find(txt, needle)
+    if p < 0 {
+        return fallback
+    }
+    var q = p + str_len(needle)
+    // 键后跳过空白，须跟 ':'（防误匹配 "keyX"）
+    while q < n && is_space(str_char(txt, q)) {
+        q = q + 1
+    }
+    if q >= n || str_char(txt, q) != ":" {
+        return fallback
+    }
+    q = q + 1
+    while q < n && is_space(str_char(txt, q)) {
+        q = q + 1
+    }
+    if q >= n {
+        return fallback
+    }
+    if str_char(txt, q) == "\"" {
+        // 字符串值：解析到未转义闭引号
+        q = q + 1
+        var out: string = ""
+        while q < n {
+            var c = str_char(txt, q)
+            if c == "\\" && q + 1 < n {
+                var e = str_char(txt, q + 1)
+                if e == "\"" {
+                    out = out + "\""
+                } else if e == "\\" {
+                    out = out + "\\"
+                } else {
+                    out = out + e
+                }
+                q = q + 2
+            } else if c == "\"" {
+                return out // 未闭合引号：取已读内容
+            } else {
+                out = out + c
+                q = q + 1
+            }
+        }
+        return out // 未闭合引号：取已读内容
+    }
+    // 数字/布尔：读到分隔符（逗号 / ] / 空白）
+    var raw: string = ""
+    while q < n {
+        var c = str_char(txt, q)
+        if c == "," || c == "]" || is_space(c) {
+            return str_trim(raw)
+        }
+        raw = raw + c
+        q = q + 1
+    }
+    return str_trim(raw)
+}
+
+// 取整数标量（data_get 后 parse_int；未命中/非数字返回 fallback）。
+pub func data_get_int(txt: string, key: string, fallback: i64) -> i64 {
+    var raw = data_get(txt, key, "")
+    if str_len(raw) == 0 {
+        return fallback
+    }
+    return parse_int(raw)
+}
+
+// 取布尔标量（"true"/"false"；其余按 fallback）。
+pub func data_get_bool(txt: string, key: string, fallback: bool) -> bool {
+    var raw = data_get(txt, key, "")
+    if raw == "true" {
+        return true
+    }
+    if raw == "false" {
+        return false
+    }
+    return fallback
+}
+
+// 键是否存在（顶层表文本中命中 "key" 且后跟 ':'）。
+pub func data_has(txt: string, key: string) -> bool {
+    var n: i64 = str_len(txt)
+    var needle = "\"" + key + "\""
+    var p = str_find(txt, needle)
+    if p < 0 {
+        return false
+    }
+    var q = p + str_len(needle)
+    while q < n && is_space(str_char(txt, q)) {
+        q = q + 1
+    }
+    return q < n && str_char(txt, q) == ":"
+}
+
+// 构造单字段 tie:data 顶层表：["key": "value"]（value 自动转义）。
+pub func data_make(key: string, value: string) -> string {
+    return "[\"" + key + "\": \"" + data_escape(value) + "\"]"
+}
+
+// 转义 tie:data 字符串内的引号与反斜杠（写值用）。
+pub func data_escape(s: string) -> string {
+    var n: i64 = str_len(s)
+    var out: string = ""
+    var i: i64 = 0
+    while i < n {
+        var c = str_char(s, i)
+        if c == "\"" {
+            out = out + "\\\""
+        } else if c == "\\" {
+            out = out + "\\\\"
+        } else {
+            out = out + c
+        }
+        i = i + 1
+    }
+    return out
+}
+
+// ---------- 像素数组工具（滤镜桥：像素面 ↔ 逗号分隔 RGBA 数字文本） ----------
+// 滤镜协议：宿主把像素面编码为 "b,g,r,a,b,g,r,a,..." 文本经输入协议传入，
+// 脚本处理后返回新像素文本（尺寸不变）；本工具集提供拆分/拼接/逐元素变换。
+
+// 像素数组文本逐元素加 delta（仅 RGB 通道，Alpha 不变），钳制 [0,255]，返回新文本。
+// 示例像素变换（供插件照葫芦画瓢：split → 逐元素 parse_int/变换 → 逗号拼接）。
+pub func pixel_add(pixels: string, delta: i64) -> string {
+    var items = str_split(pixels, ",")
+    var n: i64 = len(items)
+    var out: string = ""
+    var i: i64 = 0
+    while i < n {
+        var v = parse_int(items[i])
+        if i % 4 != 3 {
+            v = v + delta
+            if v > 255 {
+                v = 255
+            }
+            if v < 0 {
+                v = 0
+            }
+        }
+        if i > 0 {
+            out = out + ","
+        }
+        out = out + to_string(v)
+        i = i + 1
+    }
+    return out
+}
+
+// ---------- 参数声明工具（滤镜桥参数自描述，v2 扩展） ----------
+// 宿主加载脚本滤镜时发一次探测帧 ["action": "params"]；脚本的 process 识别后
+// 返回参数声明文本（每行一条，宿主解析为 FilterParameterDescriptor + 默认值，
+// 自动生成滤镜参数 UI）。未声明参数的脚本：探测行非 "params" 开头 → 宿主视为无参数。
+// 参数行格式：key=..|label=..|kind=..|min=..|max=..|default=..（换行结尾）。
+// label 传中文原文（宿主经语言包翻译）；整数/浮点分别用 param_int / param_float。
+// 滤镜真正运行时，宿主把这些参数并入输入协议文本（"key": 值），脚本用
+// data_get_int / data_get_bool 读取。
+
+// 声明一个整数参数行（kind=int）。示例：
+//   fptp.param_int("delta", "亮度增量", -255, 255, 20)
+// process 里可直接拼接多行：fptp.param_int(...) + fptp.param_int(...)。
+pub func param_int(key: string, label: string, min: i64, max: i64, def: i64) -> string {
+    var s: string = "key=" + key + "|label=" + label + "|kind=int"
+    s = s + "|min=" + to_string(min)
+    s = s + "|max=" + to_string(max)
+    s = s + "|default=" + to_string(def)
+    return s + "\n"
+}
+
+// 声明一个浮点参数行（kind=float；min/max/def 传 i64，宿主按 double 解释）。
+pub func param_float(key: string, label: string, min: i64, max: i64, def: i64) -> string {
+    var s: string = "key=" + key + "|label=" + label + "|kind=float"
+    s = s + "|min=" + to_string(min)
+    s = s + "|max=" + to_string(max)
+    s = s + "|default=" + to_string(def)
+    return s + "\n"
+}
+
+// ---------- base64（自包含实现，协议依赖，勿改格式） ----------
+
+pub func base64_encode(bytes: table<i64>) -> string {
+    var tbl = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    var out: string = ""
+    var n: i64 = len(bytes)
+    var i: i64 = 0
+    while i < n {
+        var b0: i64 = bytes[i]
+        var b1: i64 = 0
+        var b2: i64 = 0
+        var has1: bool = i + 1 < n
+        var has2: bool = i + 2 < n
+        if has1 {
+            b1 = bytes[i + 1]
+        }
+        if has2 {
+            b2 = bytes[i + 2]
+        }
+        out = out + str_char(tbl, (b0 >> 2) & 63)
+        out = out + str_char(tbl, ((b0 & 3) << 4) | (b1 >> 4))
+        if has1 {
+            out = out + str_char(tbl, ((b1 & 15) << 2) | (b2 >> 6))
+        } else {
+            out = out + "="
+        }
+        if has2 {
+            out = out + str_char(tbl, b2 & 63)
+        } else {
+            out = out + "="
+        }
+        i = i + 3
+    }
+    return out
+}
+
+pub func base64_decode(s: string) -> table<i64> {
+    var out = table_new_i64()
+    var n: i64 = str_len(s)
+    var acc: i64 = 0
+    var bits: i64 = 0
+    var i: i64 = 0
+    while i < n {
+        var c = str_char(s, i)
+        var v: i64 = -1
+        if c >= "A" && c <= "Z" {
+            v = char_code(c) - 65
+        } else if c >= "a" && c <= "z" {
+            v = char_code(c) - 97 + 26
+        } else if c >= "0" && c <= "9" {
+            v = char_code(c) - 48 + 52
+        } else if c == "+" {
+            v = 62
+        } else if c == "/" {
+            v = 63
+        }
+        if v >= 0 {
+            acc = (acc << 6) | v
+            bits = bits + 6
+            if bits >= 8 {
+                bits = bits - 8
+                var byte: i64 = (acc >> bits) & 255
+                table_push(out, byte)
+            }
+        }
+        i = i + 1
+    }
+    return out
+}
+
+}

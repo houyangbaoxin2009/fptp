@@ -229,7 +229,7 @@ double threshold = registry.GetConfig("mymodule", "threshold", 50.0) ?? 50.0;
 | 3 | 哈希白名单校验 | **已实现**：构建后自动生成内置信任名单 `trusted-modules.json`（模块主 DLL 的 SHA-256，见 `scripts/generate-trusted-modules.ps1`）；加载时校验模块哈希 ∈（内置名单 ∪ 用户名单 `%APPDATA%/Fptp/trusted-modules.json`），不匹配 → 拒绝加载。无内置名单（开发模式）降级放行 |
 
 **可信目录**：程序集旁 `plugins/`（随产品分发）直接加载，但**哈希仍校验**（防 DLL 被替换/篡改）。
-**模块哈希校验数据源**：`module.json` 的 `entryPoint` 指定的主 DLL；`signature` 字段为预留扩展。
+**模块哈希校验数据源**：`module.json` 的 `entryPoint` 指定的主文件——Native 为主 DLL，Script 为入口 `.tie` 脚本（`scripts/generate-trusted-modules.ps1` 对两类一视同仁计算 SHA-256）；`signature` 字段为预留扩展。
 **用户自定义语言包**：`%APPDATA%\Fptp\langs\`（最高优先，可覆盖一切翻译）。
 
 ## 9. 测试与验证

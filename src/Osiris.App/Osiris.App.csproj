@@ -82,6 +82,12 @@
       <PluginFiles Include="$(MSBuildThisFileDirectory)..\..\plugins\bin\**\*.*" />
     </ItemGroup>
     <Copy SourceFiles="@(PluginFiles)" DestinationFiles="@(PluginFiles->'$(OutDir)plugins\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <!-- 官方 tie 脚本插件（无 csproj，源码即产物）：TieDemo 整目录复制进输出 plugins/TieDemo/，
+         供 ModuleLoader 扫描 + GenerateTrustedModules 登记（entryPoint=main.tie 哈希入信任名单） -->
+    <ItemGroup>
+      <TieDemoFiles Include="$(MSBuildThisFileDirectory)..\..\plugins\TieDemo\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(TieDemoFiles)" DestinationFiles="@(TieDemoFiles->'$(OutDir)plugins\TieDemo\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 
   <!--

@@ -7,6 +7,15 @@
 
 ## [Unreleased]
 
+### 新增
+- **官方 tie 示例插件 TieDemo（`plugins/TieDemo`）**：棕褐（sepia）滤镜，强度参数自描述
+  （`param_int("intensity", 0~100)`，宿主自动渲染滤镜参数 UI）；随仓库分发——
+  - `Osiris.App` 构建把 TieDemo 整目录复制进输出 `plugins/TieDemo/`（**源码即产物**，无 csproj），
+    `generate-trusted-modules.ps1` 对脚本入口（main.tie）一视同仁哈希登记进内置信任名单；
+  - **GUI 全链路实机验证通过**：Osiris.App 经信任链（白名单哈希）→ ModuleLoader →
+    TieModuleAdapter 加载 tie.demo 无失败（stderr 零错误、注册表 enabled）；
+    脚本 sepia 数学经帧桥直接编译运行验证（10,20,30 @强度60 → 16,23,29）
+
 ### 修复
 - **tie 脚本插件模板 module.json entryPoint 修正**：`{{Name}}.tie` → `main.tie`
   （生成器实际产出 main.tie，原清单指向不存在的文件导致脚本模块加载失败）

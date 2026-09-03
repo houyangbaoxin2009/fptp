@@ -1,0 +1,11 @@
+{
+  "id": "tie.demo",
+  "name": "tie 演示滤镜",
+  "version": "1.0.0.0",
+  "kind": "extension",
+  "type": "script",
+  "language": "tie",
+  "entryPoint": "main.tie",
+  "minHostVersion": "1.0.0",
+  "dependencies": []
+}

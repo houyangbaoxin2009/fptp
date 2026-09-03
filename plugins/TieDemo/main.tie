@@ -1,0 +1,65 @@
+type tie<logic>
+
+// ==================== TieDemo：tie 演示滤镜（棕褐强度可调） ====================
+// fptp 官方 tie 脚本插件示例，随仓库分发（plugins/TieDemo）。
+// 协议：fptp.tie-bridge.v2（tink 帧桥，stdin/stdout 行帧流），见 docs/module-development-guide.md 第 11 节。
+// 特性：参数自描述（intensity 0~100）→ 宿主自动生成滤镜参数 UI；进程隔离（无 ALC/反射）。
+// 依赖：同目录 fptp_sdk.tie（运行桥库）+ std/tink.tie + rdu/crc.tie（帧层，随插件分发）。
+
+import "fptp_sdk.tie" as fptp
+
+// 值钳制到 [0,255]（sepia 系数的和 >1，必须夹紧防溢出）。
+func clamp255(v: i64) -> i64 {
+    if v > 255 {
+        return 255
+    }
+    if v < 0 {
+        return 0
+    }
+    return v
+}
+
+// 像素文本（逗号分隔 BGRA 字节）按棕褐强度变换，返回新像素文本。
+// 经典 sepia 系数：r'=0.393r+0.769g+0.189b，g'=0.349r+0.686g+0.168b，b'=0.272r+0.534g+0.131b；
+// 结果与原像素按 intensity(0~100) 线性插值（intensity=0 原样，100 全棕褐）。
+func sepia(pixels: string, intensity: i64) -> string {
+    var items = fptp.str_split(pixels, ",")
+    var n: i64 = len(items)
+    var out: string = ""
+    var i: i64 = 0
+    while i < n {
+        var b = parse_int(items[i])
+        var g = parse_int(items[i + 1])
+        var r = parse_int(items[i + 2])
+        var a = parse_int(items[i + 3])
+        var sr = (393 * r + 769 * g + 189 * b) / 1000
+        var sg = (349 * r + 686 * g + 168 * b) / 1000
+        var sb = (272 * r + 534 * g + 131 * b) / 1000
+        var nr = clamp255((r * (100 - intensity) + sr * intensity) / 100)
+        var ng = clamp255((g * (100 - intensity) + sg * intensity) / 100)
+        var nb = clamp255((b * (100 - intensity) + sb * intensity) / 100)
+        if i > 0 {
+            out = out + ","
+        }
+        out = out + to_string(nb) + "," + to_string(ng) + "," + to_string(nr) + "," + to_string(a)
+        i = i + 4
+    }
+    return out
+}
+
+// ==================== 滤镜桥（协议约定，勿改结构） ====================
+
+func process(src: string) -> string {
+    // 参数自描述探测：宿主加载时发一次，识别后返回参数声明行（自动生成滤镜参数 UI）
+    if fptp.data_get(src, "action", "") == "params" {
+        return "params\n" + fptp.param_int("intensity", "棕褐强度", 0, 100, 60)
+    }
+    // 滤镜逻辑：读声明参数真实值 → 处理像素 → 返回 ["pixels": "..."]（尺寸不变）
+    var intensity = fptp.data_get_int(src, "intensity", 60)
+    var pixels = fptp.data_get(src, "pixels", "")
+    return fptp.data_make("pixels", sepia(pixels, intensity))
+}
+
+func main() {
+    fptp.bridge(process)   // 运行桥（勿删）
+}
