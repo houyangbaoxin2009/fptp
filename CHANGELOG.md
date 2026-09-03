@@ -8,6 +8,10 @@
 ## [Unreleased]
 
 ### 新增
+- **tie 脚本滤镜进批处理链（BatchStep 联动验证）**：`Osiris.App.Tests` 新增端到端用例——
+  官方 TieDemo 插件经 ModuleLoader 加载 → `BatchProcessor` 以真实 PNG（Skia 编解码）执行
+  `batch` 步骤 `tie.demo.script:intensity=100` → 输出像素与 sepia 数学期望精确一致
+  （蓝 255,0,0 → 33,42,48）；证明脚本滤镜可作 BatchStep 步骤（参数经 CLI 字符串按声明转化）
 - **官方 tie 示例插件 TieDemo（`plugins/TieDemo`）**：棕褐（sepia）滤镜，强度参数自描述
   （`param_int("intensity", 0~100)`，宿主自动渲染滤镜参数 UI）；随仓库分发——
   - `Osiris.App` 构建把 TieDemo 整目录复制进输出 `plugins/TieDemo/`（**源码即产物**，无 csproj），
